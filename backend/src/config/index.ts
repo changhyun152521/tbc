@@ -15,3 +15,6 @@ export const jwtConfig = {
   secret: process.env.JWT_SECRET ?? 'tbc-class-admin-secret-change-in-production',
   expiresIn: process.env.JWT_EXPIRES_IN ?? '24h',
 };
+
+/** CORS 허용 오리진 (쉼표 구분, 배포 시 프론트엔드 URL) */
+export const corsOrigin = process.env.CORS_ORIGIN ?? '';

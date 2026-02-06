@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import routes from './routes';
 import authRoutes from './routes/auth.routes';
 import meRoutes from './routes/me.routes';
@@ -7,8 +8,14 @@ import teacherRoutes from './routes/teacher.routes';
 import studentRoutes from './routes/student.routes';
 import parentRoutes from './routes/parent.routes';
 import { errorHandler } from './middlewares/errorHandler';
+import { corsOrigin } from './config';
 
 const app = express();
+
+const corsOptions = corsOrigin
+  ? { origin: corsOrigin.split(',').map((o) => o.trim()).filter(Boolean) }
+  : { origin: true };
+app.use(cors(corsOptions));
 
 app.use(express.json());
 

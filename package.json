@@ -1,5 +1,14 @@
 {
+  "name": "tbc-class",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "heroku-postbuild": "cd backend && npm install && npm run build",
+    "start": "cd backend && npm start"
+  },
   "dependencies": {
+    "cors": "^2.8.6",
     "dotenv": "^17.2.4",
     "framer-motion": "^12.33.0",
     "lucide-react": "^0.563.0",
