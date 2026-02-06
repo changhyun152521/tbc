@@ -75,7 +75,12 @@ export default function AddStudentsModal({
 
   const available = students.filter((s) => !excludeStudentIds.has(s._id));
   const allSelected = available.length > 0 && available.every((s) => selectedIds.has(s._id));
-  const someSelected = available.some((s) => selectedIds.has(s._id));
+  const someSelected = available.length > 0 && available.some((s) => selectedIds.has(s._id)) && !allSelected;
+
+  useEffect(() => {
+    const el = allSelectedRef.current;
+    if (el) el.indeterminate = someSelected;
+  }, [someSelected]);
 
   const toggleOne = (id: string) => {
     setSelectedIds((prev) => {

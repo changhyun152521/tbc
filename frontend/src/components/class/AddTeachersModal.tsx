@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '../../api/client';
 
 interface TeacherOption {
@@ -54,7 +54,14 @@ export default function AddTeachersModal({
 
   const toAdd = teachers.filter((t) => selectedIds.has(t._id) && !currentTeacherIds.has(t._id));
   const allSelected = teachers.length > 0 && teachers.every((t) => currentTeacherIds.has(t._id) || selectedIds.has(t._id));
-  const someSelected = teachers.some((t) => selectedIds.has(t._id));
+  const selectable = teachers.filter((t) => !currentTeacherIds.has(t._id));
+  const someSelected = selectable.length > 0 && selectable.some((t) => selectedIds.has(t._id)) && !allSelected;
+
+  const allSelectedRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const el = allSelectedRef.current;
+    if (el) el.indeterminate = someSelected;
+  }, [someSelected]);
 
   const toggleOne = (id: string) => {
     if (currentTeacherIds.has(id)) return;
@@ -116,6 +123,7 @@ export default function AddTeachersModal({
                   <tr className="text-slate-600 text-[13px] font-semibold">
                     <th className="p-3 w-10">
                       <input
+                        ref={allSelectedRef}
                         type="checkbox"
                         checked={allSelected}
                         onChange={(e) => toggleAll(e.target.checked)}
