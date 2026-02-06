@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import type { ClassDetail } from '../types/class';
-import type { TestListItem, TestFormValues } from '../types/test';
-import TestFormModal from '../components/test/TestFormModal';
+import type { TestListItem } from '../types/test';
+import TestFormModal, { type TestFormValues } from '../components/test/TestFormModal';
 import TestScoreModal from '../components/test/TestScoreModal';
 
 const TEST_TYPE_LABEL: Record<string, string> = {

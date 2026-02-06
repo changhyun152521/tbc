@@ -1,4 +1,4 @@
-import type { StudentRecord, AttendanceHomeworkValue } from '../../types/lesson';
+import type { AttendanceHomeworkValue } from '../../types/lesson';
 
 interface RowItem {
   studentId: string | { _id: string; name: string };

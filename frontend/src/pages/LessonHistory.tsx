@@ -1,6 +1,34 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Library, ChevronRight } from 'lucide-react';
 import RecordDatePicker from '../components/RecordDatePicker';
+
+function LibraryIcon({ className, strokeWidth, stroke, style }: { className?: string; strokeWidth?: number; stroke?: string; style?: React.CSSProperties }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke={stroke ?? 'currentColor'} strokeWidth={strokeWidth ?? 2} strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <path d="m4 4 2.5 2.5" />
+      <path d="M3 7h2" />
+      <path d="M3 11h2" />
+      <path d="M3 15h2" />
+      <path d="M3 19h2" />
+      <path d="M7 4v16" />
+      <path d="M11 4v16" />
+      <path d="M15 4v16" />
+      <path d="M19 4v16" />
+      <path d="M19 4h2" />
+      <path d="M19 8h2" />
+      <path d="M19 12h2" />
+      <path d="M19 16h2" />
+      <path d="M19 20h2" />
+    </svg>
+  );
+}
+
+function ChevronRightIcon({ size = 24, className }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  );
+}
 import { apiClient } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { useStudentClass } from '../contexts/StudentClassContext';
@@ -144,7 +172,7 @@ export default function LessonHistory() {
             className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-10 h-1.5 bg-slate-300/40 rounded-full blur-md"
             aria-hidden
           />
-          <Library
+          <LibraryIcon
             className="h-14 w-14 sm:h-16 sm:w-16 relative"
             strokeWidth={1.8}
             stroke="rgb(30 64 175)"
@@ -200,7 +228,7 @@ export default function LessonHistory() {
                 <p className="text-[15px] font-bold text-slate-700">
                   {l.period}교시{l.teacherName ? ` · ${l.teacherName} 선생님` : ''}
                 </p>
-                <ChevronRight size={16} className="text-slate-300 shrink-0" />
+                <ChevronRightIcon size={16} className="text-slate-300 shrink-0" />
               </div>
 
               <div className="space-y-4">

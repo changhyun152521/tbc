@@ -1,7 +1,15 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BookOpen } from 'lucide-react';
 import { useStudentClass } from '../contexts/StudentClassContext';
+
+function BookOpenIcon({ className, stroke, strokeWidth, style }: { className?: string; stroke?: string; strokeWidth?: number; style?: React.CSSProperties }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke={stroke ?? 'currentColor'} strokeWidth={strokeWidth ?? 2} strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </svg>
+  );
+}
 
 export default function ClassSelect() {
   const { classes, setSelectedClassId, setShowClassSelect } = useStudentClass();
@@ -25,7 +33,7 @@ export default function ClassSelect() {
             className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-16 h-2 sm:w-20 sm:h-2.5 bg-slate-300/40 rounded-full blur-md"
             aria-hidden
           />
-          <BookOpen
+          <BookOpenIcon
             className="h-16 w-16 sm:h-20 sm:w-20 text-slate-500"
             stroke="rgb(30 64 175)"
             strokeWidth={1.8}

@@ -2,8 +2,6 @@ import { useState, useRef } from 'react';
 import ExcelPreviewTable, { type PreviewRow } from './ExcelPreviewTable';
 import type { StudentFormValues } from '../../types/student';
 
-const COLS = ['이름', '학교', '학년', '학생 전화번호', '학부모 전화번호'];
-
 function parseCsvLine(line: string): string[] {
   const result: string[] = [];
   let cur = '';
@@ -20,7 +18,7 @@ function parseCsvLine(line: string): string[] {
   return result;
 }
 
-function validateRow(row: StudentFormValues, index: number): string[] {
+function validateRow(row: StudentFormValues, _index: number): string[] {
   const err: string[] = [];
   if (!row.name?.trim()) err.push('이름 누락');
   if (!row.school?.trim()) err.push('학교 누락');
