@@ -11,6 +11,16 @@ export async function createStudent(req: Request, res: Response<ApiResponse>): P
       return;
     }
     const body = req.body;
+    // 디버깅: 실제 수신 데이터 확인
+    console.log('[createStudent] body:', JSON.stringify({
+      name: body.name,
+      studentPhone: body.studentPhone,
+      parentPhone: body.parentPhone,
+      studentLoginId: body.studentLoginId,
+      parentLoginId: body.parentLoginId,
+      studentPhoneType: typeof body.studentPhone,
+      parentPhoneType: typeof body.parentPhone,
+    }));
     const student = await studentService.createStudent({
       name: body.name,
       school: body.school,
@@ -25,8 +35,16 @@ export async function createStudent(req: Request, res: Response<ApiResponse>): P
     });
     res.status(201).json({ success: true, data: student });
   } catch (err) {
-    const message = err instanceof Error ? err.message : '학생 생성에 실패했습니다.';
-    res.status(500).json({ success: false, message });
+    const mongoErr = err as { code?: number; keyValue?: Record<string, unknown> };
+    let message = err instanceof Error ? err.message : '학생 생성에 실패했습니다.';
+    let status = 500;
+    if (mongoErr?.code === 11000) {
+      status = 400;
+      const dup = mongoErr.keyValue?.loginId ?? '알 수 없음';
+      message = `이미 사용 중인 로그인 ID입니다: "${dup}". 다른 ID를 사용해주세요.`;
+      console.error('[createStudent] E11000 duplicate key:', mongoErr.keyValue);
+    }
+    res.status(status).json({ success: false, message });
   }
 }
 

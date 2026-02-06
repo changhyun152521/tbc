@@ -38,6 +38,7 @@ export async function login(req: Request, res: Response<ApiResponse>): Promise<v
     }
     res.status(200).json({ success: true, data: result });
   } catch (err) {
+    console.error('[login] 500 에러:', err);
     const message = err instanceof Error ? err.message : '로그인에 실패했습니다.';
     res.status(500).json({ success: false, message });
   }

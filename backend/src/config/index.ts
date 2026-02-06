@@ -1,17 +1,17 @@
 /**
  * TBC CLASS Backend Config
- * 기획 문서 정책: .env 미사용, TypeScript config 기반만 사용
+ * .env 사용: MONGODB_URI, JWT_SECRET 등 환경변수로 설정
  */
 
 export const serverConfig = {
-  port: 3001,
+  port: parseInt(process.env.PORT ?? '3001', 10),
 };
 
 export const dbConfig = {
-  uri: 'mongodb://localhost:27017/tbc-class',
+  uri: process.env.MONGODB_URI ?? 'mongodb://localhost:27017/tbc-class',
 };
 
 export const jwtConfig = {
-  secret: 'tbc-class-admin-secret-change-in-production',
-  expiresIn: '24h',
+  secret: process.env.JWT_SECRET ?? 'tbc-class-admin-secret-change-in-production',
+  expiresIn: process.env.JWT_EXPIRES_IN ?? '24h',
 };

@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import app from './app';

@@ -150,17 +150,21 @@ export async function getDashboard(studentId: string, classIdParam?: string | nu
   const lessonDate = (d: Date | string) => (d instanceof Date ? d : new Date(d)).getTime();
   const last7Days = allLessonsFlat.filter((l) => lessonDate(l.date) >= sevenDaysAgo.getTime());
 
-  const recentHomework = last7Days
-    .filter((l) => (l.homeworkDescription ?? '').trim() !== '' || (l.homeworkDueDate ?? '').trim() !== '')
+  const sixtyDaysAgo = new Date();
+  sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+  sixtyDaysAgo.setHours(0, 0, 0, 0);
+  const last60Days = allLessonsFlat.filter((l) => lessonDate(l.date) >= sixtyDaysAgo.getTime());
+
+  const recentHomework = last60Days
+    .filter((l) => (l.homeworkDueDate ?? '').toString().trim() !== '')
     .map((l) => ({
       _id: l._id,
       date: typeof l.date === 'string' ? l.date : (l.date as Date).toISOString?.() ?? String(l.date),
       teacherName: l.teacherName ?? '',
       homeworkDescription: (l.homeworkDescription ?? '').trim() || undefined,
-      homeworkDueDate: (l.homeworkDueDate ?? '').trim() || undefined,
-      homeworkDone: l.homeworkDone === true,
+      homeworkDueDate: (l.homeworkDueDate ?? '').toString().trim() || undefined,
     }))
-    .slice(0, 20);
+    .slice(0, 50);
 
   const recentComments = last7Days
     .filter((l) => (l.note ?? '').trim() !== '')

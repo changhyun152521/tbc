@@ -21,13 +21,19 @@ TBC-CLASS/
 
 ### 사전 요구사항
 - Node.js 18+
-- MongoDB
+- MongoDB (로컬 또는 Atlas)
 
 ### 백엔드
 
 ```bash
 cd backend
 npm install
+```
+
+- **MongoDB Atlas** 사용 시: `backend/.env.example`을 `.env`로 복사 후 `MONGODB_URI` 설정
+- **로컬 MongoDB** 사용 시: `.env` 없이 실행 시 기본값 `mongodb://localhost:27017/tbc-class` 사용
+
+```bash
 npm run dev
 ```
 

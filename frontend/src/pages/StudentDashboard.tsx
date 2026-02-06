@@ -33,7 +33,6 @@ interface DashboardData {
     teacherName: string;
     homeworkDescription?: string;
     homeworkDueDate?: string;
-    homeworkDone: boolean;
   }>;
   recentComments: Array<{
     _id: string;
@@ -123,8 +122,15 @@ export default function StudentDashboard() {
   const teachers = d.teacherNames ?? [];
   const today = todayDateOnly();
   const pendingHomework = (d.recentHomework ?? [])
-    .filter((h) => !h.homeworkDone && (h.homeworkDueDate ?? '') >= today)
-    .sort((a, b) => (a.homeworkDueDate ?? '').localeCompare(b.homeworkDueDate ?? ''));
+    .filter((h) => {
+      const due = (h.homeworkDueDate ?? '').trim();
+      return due && due >= today;
+    })
+    .sort((a, b) => {
+      const da = (a.homeworkDueDate ?? '').trim();
+      const db = (b.homeworkDueDate ?? '').trim();
+      return da.localeCompare(db);
+    });
   const recentComments = (d.recentComments ?? []).slice(0, 5);
 
   return (
