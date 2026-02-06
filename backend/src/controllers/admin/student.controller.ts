@@ -56,8 +56,8 @@ export async function listStudents(req: Request, res: Response<ApiResponse>): Pr
       grade: grade as string,
       classId: classId as string,
       search: search as string,
-      page: page as string,
-      limit: limit as string,
+      page: page != null ? parseInt(String(page), 10) : undefined,
+      limit: limit != null ? parseInt(String(limit), 10) : undefined,
     });
     res.status(200).json({ success: true, data: result });
   } catch (err) {

@@ -22,7 +22,11 @@ export async function login(loginId: string, password: string): Promise<LoginRes
   if (!match) return null;
 
   const payload: JwtPayload = { sub: user._id.toString(), role: user.role };
-  const token = jwt.sign(payload, jwtConfig.secret, { expiresIn: jwtConfig.expiresIn });
+  const token = jwt.sign(
+    payload,
+    jwtConfig.secret,
+    { expiresIn: jwtConfig.expiresIn } as jwt.SignOptions
+  );
   return {
     token,
     user: { id: user._id.toString(), role: user.role, name: user.name },
