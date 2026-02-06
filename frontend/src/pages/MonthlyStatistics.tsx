@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { BarChart3Icon, CalendarIcon, ChevronLeftIcon, ChevronRightIcon } from '../components/ui/Icons';
+import { BarChart3Icon, CalendarIcon, ChevronLeftIcon, ChevronRightIcon, TrendingDownIcon, TrendingUpIcon } from '../components/ui/Icons';
 import { apiClient } from '../api/client';
 import ScoreTrendChart from '../components/ScoreTrendChart';
 import { useAuth } from '../contexts/AuthContext';
@@ -24,6 +24,8 @@ interface StudentTestItem {
   source?: string;
   subject?: string;
   smallUnit?: string;
+  percentile?: number | null;
+  studentCount?: number;
 }
 
 const TEST_TYPE_LABEL: Record<string, string> = {
@@ -201,6 +203,48 @@ export default function MonthlyStatistics() {
       average: getScoreAsPercent(t.average, t.questionCount),
       maxScore: getScoreAsPercent(t.maxScore, t.questionCount),
     }));
+  }, [testsInMonth]);
+
+  /** 주간TEST만 필터, 소단원별 집계(맞은 문항 합산/전체 합산), 반 상위 %는 해당 단원 마지막 시험 기준 */
+  const unitAnalysisData = useMemo(() => {
+    const weekly = testsInMonth.filter(
+      (t) => t.testType === 'weeklyTest' && (t.smallUnit ?? '').trim() !== '' && t.myScore != null
+    );
+    const byUnit = new Map<
+      string,
+      { correct: number; total: number; percentile: number | null; studentCount: number; lastDate: string }
+    >();
+    for (const t of weekly) {
+      const key = (t.smallUnit ?? '').trim();
+      const existing = byUnit.get(key);
+      const correct = typeof t.myScore === 'number' ? t.myScore : 0;
+      const total = typeof t.questionCount === 'number' && t.questionCount > 0 ? t.questionCount : 0;
+      const tDate = t.date;
+      if (!existing) {
+        byUnit.set(key, {
+          correct,
+          total,
+          percentile: t.percentile ?? null,
+          studentCount: t.studentCount ?? 0,
+          lastDate: tDate,
+        });
+      } else {
+        existing.correct += correct;
+        existing.total += total;
+        if (new Date(tDate).getTime() > new Date(existing.lastDate).getTime()) {
+          existing.percentile = t.percentile ?? null;
+          existing.studentCount = t.studentCount ?? 0;
+          existing.lastDate = tDate;
+        }
+      }
+    }
+    const list = Array.from(byUnit.entries())
+      .filter(([, v]) => v.total > 0)
+      .map(([name, v]) => ({ name, correct: v.correct, total: v.total, percentile: v.percentile, studentCount: v.studentCount }));
+    const rate = (u: { correct: number; total: number }) => (u.total > 0 ? (u.correct / u.total) * 100 : 0);
+    const strength = list.filter((u) => rate(u) >= 70).sort((a, b) => rate(b) - rate(a));
+    const weakness = list.filter((u) => rate(u) < 70).sort((a, b) => rate(a) - rate(b));
+    return [...strength, ...weakness];
   }, [testsInMonth]);
 
   const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
@@ -431,6 +475,82 @@ export default function MonthlyStatistics() {
               <div className="relative min-h-[280px]">
                 <ScoreTrendChart data={chartData} />
               </div>
+            </div>
+          )}
+        </section>
+
+        {/* 4. 주간 TEST 단원별 분석 */}
+        <section className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100">
+          <h3 className="text-[13px] font-bold text-slate-400 uppercase tracking-tight mb-6 ml-1">
+            주간 TEST 단원별 분석
+          </h3>
+          {loading ? (
+            <div className="py-12 flex items-center justify-center text-slate-500 text-sm">
+              로딩 중...
+            </div>
+          ) : unitAnalysisData.length === 0 ? (
+            <div className="py-12 flex items-center justify-center text-slate-500 text-sm border border-dashed border-slate-200 rounded-xl">
+              이번 달에는 단원별로 집계할 주간 TEST가 없습니다.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {unitAnalysisData.map((unit, idx) => {
+                const rate = unit.total > 0 ? (unit.correct / unit.total) * 100 : 0;
+                const isStrength = rate >= 70;
+                const isSingleStudent = (unit.studentCount ?? 0) <= 1;
+
+                return (
+                  <div
+                    key={`${unit.name}-${idx}`}
+                    className="bg-white rounded-[24px] p-5 sm:p-6 border border-slate-100 shadow-sm transition-all hover:shadow-md"
+                  >
+                    <div className="flex justify-between items-start gap-2 mb-3 sm:mb-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <span
+                            className={`text-[11px] font-bold px-2 py-0.5 rounded-md uppercase shrink-0 ${
+                              isStrength ? 'bg-indigo-50 text-indigo-600' : 'bg-rose-50 text-rose-500'
+                            }`}
+                          >
+                            {isStrength ? '강점 단원' : '약점 단원'}
+                          </span>
+                          <span className="text-[12px] font-bold text-slate-400 shrink-0">
+                            {isSingleStudent ? '반원 1명' : `상위 ${unit.percentile ?? '-'}%`}
+                          </span>
+                        </div>
+                        <h4 className="text-[15px] sm:text-[17px] font-bold text-slate-800 tracking-tight break-words">
+                          {unit.name}
+                        </h4>
+                      </div>
+                      {isStrength ? (
+                        <TrendingUpIcon size={20} className="text-indigo-500 shrink-0" stroke="#6366f1" />
+                      ) : (
+                        <TrendingDownIcon size={20} className="text-rose-500 shrink-0" stroke="#f43f5e" />
+                      )}
+                    </div>
+                    <div className="flex justify-between items-end gap-2 mb-2">
+                      <p className="text-[13px] sm:text-[14px] font-bold text-slate-500">
+                        정답 문항: <span className="text-slate-900">{unit.correct}</span> / {unit.total}
+                      </p>
+                      <p
+                        className={`text-[16px] sm:text-[18px] font-black shrink-0 ${
+                          isStrength ? 'text-indigo-600' : 'text-rose-500'
+                        }`}
+                      >
+                        {Math.round(rate)}%
+                      </p>
+                    </div>
+                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-[width] ${
+                          isStrength ? 'bg-indigo-600' : 'bg-rose-500'
+                        }`}
+                        style={{ width: `${Math.min(100, Math.max(0, rate))}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>

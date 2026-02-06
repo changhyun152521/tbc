@@ -262,18 +262,30 @@ export async function getTests(studentId: string, classIdParam?: string | null):
   const sid = studentId;
 
   const list = tests.map((t) => {
-    const entry = (t.scores || []).find(
+    const scores = t.scores || [];
+    const entry = scores.find(
       (s: { studentId: mongoose.Types.ObjectId }) => s.studentId.toString() === sid
     );
-    const scoreValues = (t.scores || []).map((s: { score: number }) => s.score);
+    const scoreValues = scores.map((s: { score: number }) => s.score);
     const average =
       scoreValues.length > 0 ? scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length : null;
     const maxScore = scoreValues.length > 0 ? Math.max(...scoreValues) : null;
+    const totalStudents = scores.length;
+    const myScoreVal = entry?.score ?? null;
+    let percentile: number | null = null;
+    if (totalStudents > 1 && myScoreVal !== null && typeof myScoreVal === 'number') {
+      const countAboveOrEqual = scores.filter(
+        (s: { score: number }) => s.score >= myScoreVal
+      ).length;
+      percentile = Math.round((countAboveOrEqual / totalStudents) * 100);
+    }
     return {
       ...t,
-      myScore: entry?.score ?? null,
+      myScore: myScoreVal,
       average: average !== null ? Math.round(average * 100) / 100 : null,
       maxScore: maxScore !== null ? Math.round(maxScore * 100) / 100 : null,
+      percentile,
+      studentCount: totalStudents,
     };
   });
 
