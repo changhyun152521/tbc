@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { BarChart3, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BarChart3Icon, CalendarIcon, ChevronLeftIcon, ChevronRightIcon } from '../components/ui/Icons';
 import { apiClient } from '../api/client';
 import ScoreTrendChart from '../components/ScoreTrendChart';
 import { useAuth } from '../contexts/AuthContext';
@@ -220,7 +220,7 @@ export default function MonthlyStatistics() {
             className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-10 h-1.5 bg-slate-300/40 rounded-full blur-md"
             aria-hidden
           />
-          <BarChart3
+          <BarChart3Icon
             className="h-14 w-14 sm:h-16 sm:w-16 relative"
             strokeWidth={1.8}
             stroke="rgb(30 64 175)"
@@ -259,7 +259,7 @@ export default function MonthlyStatistics() {
                 className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
                 aria-label="이전 달"
               >
-                <ChevronLeft size={20} />
+                <ChevronLeftIcon size={20} />
               </button>
               <button
                 type="button"
@@ -267,7 +267,7 @@ export default function MonthlyStatistics() {
                 className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
                 aria-label="다음 달"
               >
-                <ChevronRight size={20} />
+                <ChevronRightIcon size={20} />
               </button>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { FileCheck } from 'lucide-react';
+import { FileCheckIcon } from '../components/ui/Icons';
 import RecordDatePicker from '../components/RecordDatePicker';
 import { apiClient } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
@@ -160,7 +160,7 @@ export default function TestScores() {
             className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-10 h-1.5 bg-slate-300/40 rounded-full blur-md"
             aria-hidden
           />
-          <FileCheck
+          <FileCheckIcon
             className="h-14 w-14 sm:h-16 sm:w-16 relative"
             strokeWidth={1.8}
             stroke="rgb(30 64 175)"

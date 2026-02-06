@@ -21,7 +21,7 @@ interface ListResponse {
 
 export default function StudentManagement() {
   const [list, setList] = useState<StudentListItem[]>([]);
-  const [total, setTotal] = useState(0);
+  const [, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');

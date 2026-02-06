@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User } from 'lucide-react';
+import { UserIcon } from '../components/ui/Icons';
 import { apiClient } from '../api/client';
 
 interface MeProfile {
@@ -241,7 +241,7 @@ export default function StudentProfile() {
         {/* 기본 정보 */}
         <section className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100">
           <h2 className="text-[17px] font-bold text-slate-800 flex items-center gap-2 mb-5">
-            <User size={18} className="text-slate-500" stroke="rgb(30 64 175)" />
+            <UserIcon size={18} className="text-slate-500" stroke="rgb(30 64 175)" />
             기본 정보
           </h2>
           <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -1,7 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Lock, LogIn, Search, X } from 'lucide-react';
+import { UserIcon, LockIcon, LogInIcon, SearchIcon, XIcon } from '../components/ui/Icons';
 import { useAuth } from '../contexts/AuthContext';
 import ScrollToTop from '../components/ScrollToTop';
 import { apiClient } from '../api/client';
@@ -142,13 +142,13 @@ export default function Login() {
             className="w-full bg-white border border-slate-100 rounded-[20px] p-6 shadow-sm"
           >
             <h2 className="text-[17px] font-bold text-slate-800 flex items-center gap-2 mb-6">
-              <LogIn size={18} className="text-slate-500" stroke="rgb(30 64 175)" />
+              <LogInIcon size={18} className="text-slate-500" stroke="rgb(30 64 175)" />
               로그인
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="relative">
-                <User
+                <UserIcon
                   className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
                   size={18}
                   stroke="rgb(30 64 175)"
@@ -166,7 +166,7 @@ export default function Login() {
               </div>
 
               <div className="relative">
-                <Lock
+                <LockIcon
                   className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
                   size={18}
                   stroke="rgb(30 64 175)"
@@ -234,7 +234,7 @@ export default function Login() {
             >
               <div className="flex justify-between items-center mb-5">
                 <h3 className="text-[17px] font-bold text-slate-800 flex items-center gap-2">
-                  <Search size={18} className="text-slate-500" stroke="rgb(30 64 175)" />
+                  <SearchIcon size={18} className="text-slate-500" stroke="rgb(30 64 175)" />
                   아이디 찾기
                 </h3>
                 <button
@@ -243,7 +243,7 @@ export default function Login() {
                   className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
                   aria-label="닫기"
                 >
-                  <X size={20} />
+                  <XIcon size={20} />
                 </button>
               </div>
 

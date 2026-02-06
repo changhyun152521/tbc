@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen } from 'lucide-react';
+import { BookOpenIcon } from '../components/ui/Icons';
 import { apiClient } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { useStudentClass } from '../contexts/StudentClassContext';
@@ -184,7 +184,7 @@ export default function StudentDashboard() {
         <div className="bg-white border border-slate-100 rounded-[20px] p-6 shadow-sm">
           <div className="flex justify-between items-center mb-6">
             <h2 className="flex items-center gap-2 font-bold text-slate-800">
-              <BookOpen className="w-5 h-5 text-slate-500" />
+              <BookOpenIcon className="w-5 h-5 text-slate-500" />
               제출 예정 과제
             </h2>
             <Link
