@@ -1,0 +1,144 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== Typography Strategy (배포 시 /fonts/ 경로로 서빙) ===== */
+/* 본문·인터페이스: Pretendard */
+@font-face {
+  font-family: 'Pretendard';
+  src: url('/fonts/PretendardVariable.ttf') format('truetype');
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 대제목·브랜드(영문/숫자): Inter Bold — 글로벌 SaaS 스타일 */
+/* (Inter는 위 본문용과 동일 패밀리, weight만 Bold 사용) */
+
+/* 숫자·통계·데이터: Inter (Tabular Figures 가독성) */
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/Inter-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/Inter-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/Inter-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 강조/알림 (학생·학부모용): ONE Mobile Bold */
+@font-face {
+  font-family: 'ONEMobile';
+  font-weight: 700;
+  src: url('/fonts/ONE%20Mobile%20Bold.ttf') format('truetype');
+  font-display: swap;
+}
+
+/* 부드러운 강조용: NanumSquareRound (선택) */
+@font-face {
+  font-family: 'NanumSquareRound';
+  src: url('/fonts/NanumSquareRoundR.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'NanumSquareRound';
+  src: url('/fonts/NanumSquareRoundB.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ===== 글로벌 기본 ===== */
+body {
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #ffffff;
+  @apply text-slate-900;
+}
+
+/* 영문·숫자 제목/브랜드: Inter Bold */
+.font-title {
+  font-family: 'Inter', ui-sans-serif, sans-serif;
+  font-weight: 700;
+}
+
+/* 데이터·숫자 표시: Inter (Tabular Figures 정렬) */
+.font-number {
+  font-family: 'Inter', ui-monospace, monospace, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 강조/알림 문구: ONE Mobile Bold */
+.font-emphasis {
+  font-family: 'ONEMobile', 'Pretendard', sans-serif;
+}
+
+/* 친근한 강조용 (학생/학부모): NanumSquareRound */
+.font-friendly {
+  font-family: 'NanumSquareRound', 'Pretendard', sans-serif;
+}
+
+/* 홈 상단 강사명: Pretendard Bold — 세련된 한글 제목 */
+.font-hero {
+  font-family: 'Pretendard', -apple-system, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* 메인 헤더 로고: 접속 시 위로 떠오르며 페이드인 */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 1.2s ease-out forwards;
+}
+
+/* 반 상세 등 테이블 가로 스크롤: 얇고 투명한 스크롤바 */
+.scrollbar-table {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(226 232 240) transparent;
+}
+.scrollbar-table::-webkit-scrollbar {
+  height: 6px;
+}
+.scrollbar-table::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-table::-webkit-scrollbar-thumb {
+  background-color: rgb(226 232 240);
+  border-radius: 9999px;
+}
+
+/* 모바일 테이블 가로 스크롤 시 스크롤바 숨김 (선택 사용) */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
