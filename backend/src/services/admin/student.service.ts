@@ -172,8 +172,10 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
       if (!doc.adminAccessUserId) {
         await ensureAdminAccessUser(String(doc._id));
         const updated = await Student.findById(doc._id).populate('adminAccessUserId', 'loginId').lean().exec();
-        if (updated && (updated as IStudent & { adminAccessUserId?: { loginId: string } }).adminAccessUserId) {
-          doc.adminAccessUserId = (updated as IStudent & { adminAccessUserId?: { loginId: string } }).adminAccessUserId;
+        type WithPopulatedAdmin = { adminAccessUserId?: { loginId: string } };
+        const updatedTyped = updated as unknown as WithPopulatedAdmin | null;
+        if (updatedTyped?.adminAccessUserId) {
+          doc.adminAccessUserId = updatedTyped.adminAccessUserId;
         }
       }
       const classCount = await Class.countDocuments({ studentIds: doc._id }).exec();

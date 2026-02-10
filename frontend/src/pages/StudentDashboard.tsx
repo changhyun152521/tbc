@@ -226,7 +226,7 @@ export default function StudentDashboard() {
         </div>
 
         {/* 댓글형 코멘트: 관리자 접속 시 학생/학부모 코멘트 박스 분리, 그 외는 기존처럼 */}
-        {data.isAdminAccess ? (
+        {d.isAdminAccess ? (
           <div className="space-y-6">
             <div className="bg-white border border-slate-100 rounded-[20px] p-4 sm:p-6 shadow-sm">
               <h2 className="font-bold text-slate-800 mb-4 sm:mb-6 flex items-center gap-2 text-sm sm:text-base">
