@@ -124,7 +124,7 @@ export default function ClassroomPage() {
   const handleSavePeriod = async (
     periodIndex: number,
     teacherId: string,
-    records: { studentId: string; attendance: AttendanceHomeworkValue; homework: AttendanceHomeworkValue; note?: string }[],
+    records: { studentId: string; attendance: AttendanceHomeworkValue; homework: AttendanceHomeworkValue; note?: string; parentNote?: string }[],
     options?: { memo?: string; homeworkDescription?: string; homeworkDueDate?: string | null }
   ) => {
     if (!lessonDay?._id) return;

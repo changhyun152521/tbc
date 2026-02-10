@@ -12,8 +12,10 @@ export interface StudentRecord {
   studentId: string | { _id: string; name: string };
   attendance: AttendanceHomeworkValue;
   homework: AttendanceHomeworkValue;
-  /** COMMENT (학생·학부모 화면에 노출) */
+  /** 학생 코멘트 (학생 메인에 노출) */
   note?: string;
+  /** 학부모 코멘트 (학부모 메인에 노출) */
+  parentNote?: string;
 }
 
 export interface PeriodItem {

@@ -54,6 +54,41 @@ function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, SALT_ROUNDS);
 }
 
+const ADMIN_ACCESS_PASSWORD = 'admin';
+
+/**
+ * 관리자 접속용 loginId 생성. 이름admin, 중복 시 이름admin1, 이름admin2 ...
+ */
+async function findAvailableAdminAccessLoginId(baseName: string): Promise<string> {
+  const base = `${baseName.trim()}admin`;
+  let candidate = base;
+  let n = 0;
+  while (await User.exists({ loginId: candidate }).exec()) {
+    n += 1;
+    candidate = `${base}${n}`;
+  }
+  return candidate;
+}
+
+/**
+ * 학생에게 관리자 접속용 User가 없으면 생성 후 저장. (기존 학생용 지연 생성)
+ */
+export async function ensureAdminAccessUser(studentId: string): Promise<void> {
+  if (!mongoose.Types.ObjectId.isValid(studentId)) return;
+  const student = await Student.findById(studentId).exec();
+  if (!student || student.adminAccessUserId) return;
+  const adminAccessLoginId = await findAvailableAdminAccessLoginId(student.name);
+  const adminAccessUser = await User.create({
+    role: 'student',
+    loginId: adminAccessLoginId,
+    passwordHash: await hashPassword(ADMIN_ACCESS_PASSWORD),
+    name: student.name,
+    phone: '',
+  });
+  student.adminAccessUserId = adminAccessUser._id;
+  await student.save();
+}
+
 /**
  * 전화번호: 가공 없이 사용자가 입력한 문자열 그대로 사용 (기획 문서 정책).
  * 자동 생성 ID/비밀번호: 미입력 시 해당 전화번호 문자열을 그대로 loginId, password로 사용.
@@ -64,7 +99,9 @@ export async function createStudent(input: CreateStudentInput): Promise<IStudent
   const parentLoginId = input.parentLoginId?.trim() || input.parentPhone;
   const parentPassword = input.parentPassword ?? input.parentPhone;
 
-  const [studentUser, parentUser] = await Promise.all([
+  const adminAccessLoginId = await findAvailableAdminAccessLoginId(input.name.trim());
+
+  const [studentUser, parentUser, adminAccessUser] = await Promise.all([
     User.create({
       role: 'student',
       loginId: studentLoginId,
@@ -79,6 +116,13 @@ export async function createStudent(input: CreateStudentInput): Promise<IStudent
       name: `${input.name.trim()} 학부모`,
       phone: input.parentPhone,
     }),
+    User.create({
+      role: 'student',
+      loginId: adminAccessLoginId,
+      passwordHash: await hashPassword(ADMIN_ACCESS_PASSWORD),
+      name: input.name.trim(),
+      phone: '',
+    }),
   ]);
 
   const student = await Student.create({
@@ -89,6 +133,7 @@ export async function createStudent(input: CreateStudentInput): Promise<IStudent
     parentPhone: input.parentPhone,
     userId: studentUser._id,
     parentUserId: parentUser._id,
+    adminAccessUserId: adminAccessUser._id,
     classId: input.classId ? new mongoose.Types.ObjectId(input.classId) : undefined,
   });
 
@@ -117,19 +162,30 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
   const skip = (page - 1) * limit;
 
   const [list, total] = await Promise.all([
-    Student.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean().exec(),
+    Student.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('adminAccessUserId', 'loginId').lean().exec(),
     Student.countDocuments(filter).exec(),
   ]);
 
-  const withClassCount = await Promise.all(
+  const withClassCountAndAdminId = await Promise.all(
     list.map(async (s) => {
-      const classCount = await Class.countDocuments({ studentIds: s._id }).exec();
-      return { ...s, classCount };
+      const doc = s as IStudent & { adminAccessUserId?: { _id: mongoose.Types.ObjectId; loginId: string } | null };
+      if (!doc.adminAccessUserId) {
+        await ensureAdminAccessUser(String(doc._id));
+        const updated = await Student.findById(doc._id).populate('adminAccessUserId', 'loginId').lean().exec();
+        if (updated && (updated as IStudent & { adminAccessUserId?: { loginId: string } }).adminAccessUserId) {
+          doc.adminAccessUserId = (updated as IStudent & { adminAccessUserId?: { loginId: string } }).adminAccessUserId;
+        }
+      }
+      const classCount = await Class.countDocuments({ studentIds: doc._id }).exec();
+      const adminAccessLoginId = doc.adminAccessUserId && typeof doc.adminAccessUserId === 'object' && 'loginId' in doc.adminAccessUserId
+        ? (doc.adminAccessUserId as { loginId: string }).loginId
+        : null;
+      return { ...doc, classCount, adminAccessLoginId };
     })
   );
 
   return {
-    list: withClassCount as unknown as (IStudent & { classCount: number })[],
+    list: withClassCountAndAdminId as unknown as (IStudent & { classCount: number; adminAccessLoginId: string | null })[],
     total,
     page,
     limit,
@@ -139,11 +195,21 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
 
 export async function getStudentById(id: string): Promise<IStudent | null> {
   if (!mongoose.Types.ObjectId.isValid(id)) return null;
-  const student = await Student.findById(id)
+  let student = await Student.findById(id)
     .populate('userId', 'loginId name phone')
     .populate('parentUserId', 'loginId name phone')
+    .populate('adminAccessUserId', 'loginId')
     .populate('classId', 'name description')
     .exec();
+  if (student && !student.adminAccessUserId) {
+    await ensureAdminAccessUser(id);
+    student = await Student.findById(id)
+      .populate('userId', 'loginId name phone')
+      .populate('parentUserId', 'loginId name phone')
+      .populate('adminAccessUserId', 'loginId')
+      .populate('classId', 'name description')
+      .exec() ?? null;
+  }
   return student ?? null;
 }
 
@@ -195,9 +261,10 @@ export async function deleteStudent(id: string): Promise<boolean> {
     { $pull: { studentIds: sid } }
   ).exec();
 
+  const toDelete: mongoose.Types.ObjectId[] = [student.userId, student.parentUserId];
+  if (student.adminAccessUserId) toDelete.push(student.adminAccessUserId);
   await Promise.all([
-    User.findByIdAndDelete(student.userId),
-    User.findByIdAndDelete(student.parentUserId),
+    ...toDelete.map((uid) => User.findByIdAndDelete(uid)),
     Student.findByIdAndDelete(id),
   ]);
   return true;

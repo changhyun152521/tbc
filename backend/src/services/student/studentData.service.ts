@@ -45,9 +45,9 @@ function getTeacherName(period: IPeriod & { teacherId?: mongoose.Types.ObjectId 
 function flattenLessonDaysForStudent(
   lessonDays: { _id: mongoose.Types.ObjectId; date: Date; periods: (IPeriod & { teacherId?: mongoose.Types.ObjectId | { name?: string } })[] }[],
   studentId: string
-): { _id: string; date: Date; period: string; progress: string; homework: string; homeworkDone: boolean; attendanceStatus: string; homeworkDescription?: string; homeworkDueDate?: string; teacherName?: string; note?: string }[] {
+): { _id: string; date: Date; period: string; progress: string; homework: string; homeworkDone: boolean; attendanceStatus: string; homeworkDescription?: string; homeworkDueDate?: string; teacherName?: string; note?: string; parentNote?: string }[] {
   const sid = studentId;
-  const result: { _id: string; date: Date; period: string; progress: string; homework: string; homeworkDone: boolean; attendanceStatus: string; homeworkDescription?: string; homeworkDueDate?: string; teacherName?: string; note?: string }[] = [];
+  const result: { _id: string; date: Date; period: string; progress: string; homework: string; homeworkDone: boolean; attendanceStatus: string; homeworkDescription?: string; homeworkDueDate?: string; teacherName?: string; note?: string; parentNote?: string }[] = [];
   for (const day of lessonDays) {
     const periods = (day.periods || []) as (IPeriod & { teacherId?: mongoose.Types.ObjectId | { name?: string } })[];
     periods.forEach((period, idx) => {
@@ -61,6 +61,7 @@ function flattenLessonDaysForStudent(
         ? new Date(p.homeworkDueDate).toISOString().slice(0, 10)
         : undefined;
       const noteStr = (record?.note ?? '').trim() || undefined;
+      const parentNoteStr = (record?.parentNote ?? '').trim() || undefined;
       result.push({
         _id: `${day._id}-${idx}`,
         date: day.date,
@@ -73,6 +74,7 @@ function flattenLessonDaysForStudent(
         homeworkDueDate: dueDate,
         teacherName: getTeacherName(period) || undefined,
         note: noteStr,
+        parentNote: parentNoteStr,
       });
     });
   }
@@ -82,8 +84,9 @@ function flattenLessonDaysForStudent(
 /**
  * 학생 대시보드: 학생 기본 정보, 소속 반, 최근 수업, 최근 테스트, 과제 요약, 출결 요약
  * 진도/과제는 관리자 수업관리(LessonDay) 데이터 기준으로 조회
+ * viewAs: 'student' → 학생 코멘트만, 'parent' → 학부모 코멘트만, 'admin_access' → 둘 다 + isAdminAccess
  */
-export async function getDashboard(studentId: string, classIdParam?: string | null) {
+export async function getDashboard(studentId: string, classIdParam?: string | null, viewAs: 'student' | 'parent' | 'admin_access' = 'student') {
   const studentDoc = await Student.findById(studentId).select('name school grade classId').lean().exec();
   const studentInfo = studentDoc
     ? { id: studentId, name: studentDoc.name, school: studentDoc.school, grade: studentDoc.grade }
@@ -166,15 +169,30 @@ export async function getDashboard(studentId: string, classIdParam?: string | nu
     }))
     .slice(0, 50);
 
-  const recentComments = last7Days
-    .filter((l) => (l.note ?? '').trim() !== '')
-    .map((l) => ({
-      _id: l._id,
-      date: typeof l.date === 'string' ? l.date : (l.date as Date).toISOString?.() ?? String(l.date),
-      teacherName: l.teacherName ?? '',
-      note: (l.note ?? '').trim(),
-    }))
-    .slice(0, 20);
+  let recentComments: { _id: string; date: string; teacherName: string; note: string; parentNote?: string }[];
+  if (viewAs === 'admin_access') {
+    recentComments = last7Days
+      .filter((l) => ((l.note ?? '').trim() !== '' || (l.parentNote ?? '').trim() !== ''))
+      .map((l) => ({
+        _id: l._id,
+        date: typeof l.date === 'string' ? l.date : (l.date as Date).toISOString?.() ?? String(l.date),
+        teacherName: l.teacherName ?? '',
+        note: (l.note ?? '').trim(),
+        parentNote: (l.parentNote ?? '').trim(),
+      }))
+      .slice(0, 20);
+  } else {
+    const commentField = viewAs === 'parent' ? 'parentNote' : 'note';
+    recentComments = last7Days
+      .filter((l) => ((l[commentField] ?? '') as string).trim() !== '')
+      .map((l) => ({
+        _id: l._id,
+        date: typeof l.date === 'string' ? l.date : (l.date as Date).toISOString?.() ?? String(l.date),
+        teacherName: l.teacherName ?? '',
+        note: ((l[commentField] ?? '') as string).trim(),
+      }))
+      .slice(0, 20);
+  }
 
   const recentTestsWithMyScore = recentTests.map((t) => {
     const entry = (t.scores || []).find(
@@ -186,7 +204,7 @@ export async function getDashboard(studentId: string, classIdParam?: string | nu
     };
   });
 
-  return {
+  const result: Record<string, unknown> = {
     student: studentInfo,
     class: classDoc
       ? { _id: classDoc._id, name: classDoc.name, description: classDoc.description ?? '' }
@@ -207,6 +225,8 @@ export async function getDashboard(studentId: string, classIdParam?: string | nu
     recentHomework,
     recentComments,
   };
+  if (viewAs === 'admin_access') result.isAdminAccess = true;
+  return result;
 }
 
 /**

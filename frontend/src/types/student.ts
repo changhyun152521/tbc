@@ -5,6 +5,8 @@ export interface StudentListItem {
   grade: string;
   studentPhone: string;
   parentPhone: string;
+  /** 관리자가 해당 학생 화면으로 접속할 때 사용하는 로그인 ID (비밀번호: admin) */
+  adminAccessLoginId?: string | null;
   classCount?: number;
 }
 

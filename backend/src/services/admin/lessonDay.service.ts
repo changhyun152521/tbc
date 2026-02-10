@@ -150,7 +150,7 @@ export async function updatePeriod(
     memo?: string;
     homeworkDescription?: string;
     homeworkDueDate?: string | Date | null;
-    records?: { studentId: string; attendance: 'O' | 'X' | ''; homework: 'O' | 'X' | ''; note?: string }[];
+    records?: { studentId: string; attendance: 'O' | 'X' | ''; homework: 'O' | 'X' | ''; note?: string; parentNote?: string }[];
   }
 ): Promise<ILessonDay | null> {
   const lesson = await LessonDay.findById(lessonDayId).exec();
@@ -176,6 +176,7 @@ export async function updatePeriod(
       attendance: r.attendance,
       homework: r.homework,
       note: r.note ?? '',
+      parentNote: r.parentNote ?? '',
     }));
   }
   await lesson.save();

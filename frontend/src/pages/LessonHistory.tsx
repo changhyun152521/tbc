@@ -44,7 +44,10 @@ interface LessonItem {
   homeworkDescription?: string;
   homeworkDueDate?: string;
   teacherName?: string;
+  /** 학생 코멘트 (학생 계정에서 표시) */
   note?: string;
+  /** 학부모 코멘트 (학부모 계정에서 표시) */
+  parentNote?: string;
 }
 
 function toDateOnly(d: string): string {
@@ -82,6 +85,7 @@ export default function LessonHistory() {
   const [selectedDate, setSelectedDate] = useState<string>(todayDateOnly());
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [list, setList] = useState<LessonItem[]>([]);
+  const [isAdminAccess, setIsAdminAccess] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -95,12 +99,14 @@ export default function LessonHistory() {
       const from = new Date(date + 'T00:00:00').toISOString();
       const to = new Date(date + 'T23:59:59').toISOString();
       apiClient
-        .get<{ success: boolean; data: { lessons: LessonItem[] } }>(`/${apiPrefix}/lessons`, {
+        .get<{ success: boolean; data: { lessons: LessonItem[]; isAdminAccess?: boolean } }>(`/${apiPrefix}/lessons`, {
           params: { from, to },
         })
         .then((res) => {
-          if (res.data.success && Array.isArray(res.data.data?.lessons)) {
-            setList(res.data.data.lessons);
+          if (res.data.success && res.data.data) {
+            const d = res.data.data;
+            setList(Array.isArray(d.lessons) ? d.lessons : []);
+            setIsAdminAccess(Boolean(d.isAdminAccess));
           } else {
             setList([]);
           }
@@ -124,18 +130,21 @@ export default function LessonHistory() {
     const params: Record<string, string> = { from: from.toISOString(), to: to.toISOString() };
     if (selectedClassId) params.classId = selectedClassId;
     apiClient
-      .get<{ success: boolean; data: { lessons: LessonItem[] } }>(`/${apiPrefix}/lessons`, {
+      .get<{ success: boolean; data: { lessons: LessonItem[]; isAdminAccess?: boolean } }>(`/${apiPrefix}/lessons`, {
         params,
       })
       .then((res) => {
-        if (res.data.success && Array.isArray(res.data.data?.lessons) && res.data.data.lessons.length > 0) {
-          const lessons = res.data.data.lessons;
+        const d = res.data.data;
+        if (res.data.success && Array.isArray(d?.lessons) && d.lessons.length > 0) {
+          const lessons = d.lessons;
+          setIsAdminAccess(Boolean(d.isAdminAccess));
           const dates = [...new Set(lessons.map((l) => toDateOnly(l.date)))].sort();
           setAvailableDates(dates);
           const latestDay = dates[dates.length - 1] ?? toDateOnly(lessons[0].date);
           setSelectedDate(latestDay);
           setList(lessons.filter((l) => toDateOnly(l.date) === latestDay));
         } else {
+          setIsAdminAccess(Boolean(d?.isAdminAccess));
           setAvailableDates([]);
           setSelectedDate(today);
           setList([]);
@@ -257,15 +266,43 @@ export default function LessonHistory() {
                   </p>
                 </div>
 
-                {(l.note ?? '').trim() ? (
-                  <>
-                    <div className="h-[1px] bg-slate-50" />
-                    <div>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight mb-1">Comment</p>
-                      <p className="text-sm text-slate-600 leading-relaxed font-medium whitespace-pre-wrap">{l.note}</p>
-                    </div>
-                  </>
-                ) : null}
+                {(() => {
+                  if (isAdminAccess) {
+                    const hasStudent = (l.note ?? '').trim() !== '';
+                    const hasParent = (l.parentNote ?? '').trim() !== '';
+                    if (!hasStudent && !hasParent) return null;
+                    return (
+                      <>
+                        <div className="h-[1px] bg-slate-50" />
+                        <div className="space-y-2">
+                          {hasStudent && (
+                            <div>
+                              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight mb-1">선생님 코멘트</p>
+                              <p className="text-sm text-slate-600 leading-relaxed font-medium whitespace-pre-wrap">{(l.note ?? '').trim()}</p>
+                            </div>
+                          )}
+                          {hasParent && (
+                            <div>
+                              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight mb-1">학부모 코멘트</p>
+                              <p className="text-sm text-slate-600 leading-relaxed font-medium whitespace-pre-wrap">{(l.parentNote ?? '').trim()}</p>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    );
+                  }
+                  const commentText = role === 'parent' ? (l.parentNote ?? '').trim() : (l.note ?? '').trim();
+                  const commentLabel = role === 'parent' ? '학부모 코멘트' : '선생님 코멘트';
+                  return commentText ? (
+                    <>
+                      <div className="h-[1px] bg-slate-50" />
+                      <div>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight mb-1">{commentLabel}</p>
+                        <p className="text-sm text-slate-600 leading-relaxed font-medium whitespace-pre-wrap">{commentText}</p>
+                      </div>
+                    </>
+                  ) : null;
+                })()}
 
                 {/* 출결/과제 상태: 홈 스타일 */}
                 <div className="grid grid-cols-2 gap-3 pt-2">

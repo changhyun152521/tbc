@@ -12,7 +12,7 @@ interface PeriodSectionProps {
   onSave: (
     periodIndex: number,
     teacherId: string,
-    records: { studentId: string; attendance: AttendanceHomeworkValue; homework: AttendanceHomeworkValue; note?: string }[],
+    records: { studentId: string; attendance: AttendanceHomeworkValue; homework: AttendanceHomeworkValue; note?: string; parentNote?: string }[],
     options?: { memo?: string; homeworkDescription?: string; homeworkDueDate?: string | null }
   ) => void;
   onDelete: (periodIndex: number) => void;
@@ -46,7 +46,7 @@ function mergeRecords(
     const existing = byId[s._id];
     return existing
       ? { ...existing, studentId: s }
-      : { studentId: s, attendance: '' as const, homework: '' as const, note: '' };
+      : { studentId: s, attendance: '' as const, homework: '' as const, note: '', parentNote: '' };
   });
 }
 
@@ -63,6 +63,7 @@ function recordsEqual(current: StudentRecord[], initial: StudentRecord[]): boole
     if ((current[i].attendance || '') !== (initial[i].attendance || '')) return false;
     if ((current[i].homework || '') !== (initial[i].homework || '')) return false;
     if ((current[i].note ?? '') !== (initial[i].note ?? '')) return false;
+    if ((current[i].parentNote ?? '') !== (initial[i].parentNote ?? '')) return false;
   }
   return true;
 }
@@ -152,6 +153,15 @@ export default function PeriodSection({
     );
   };
 
+  const handleParentNoteChange = (studentId: string, value: string) => {
+    setRecords((prev) =>
+      prev.map((r) => {
+        const sid = typeof r.studentId === 'object' && r.studentId?._id ? r.studentId._id : String(r.studentId);
+        return sid === studentId ? { ...r, parentNote: value } : r;
+      })
+    );
+  };
+
   const handleSave = () => {
     const payload = records.map((r) => {
       const sid = typeof r.studentId === 'object' && r.studentId?._id ? r.studentId._id : String(r.studentId);
@@ -160,6 +170,7 @@ export default function PeriodSection({
         attendance: r.attendance,
         homework: r.homework,
         note: r.note ?? '',
+        parentNote: r.parentNote ?? '',
       };
     });
     onSave(periodIndex, selectedTeacherId, payload, {
@@ -291,6 +302,7 @@ export default function PeriodSection({
           onAttendanceChange={handleAttendanceChange}
           onHomeworkChange={handleHomeworkChange}
           onNoteChange={hasClassStudents ? handleNoteChange : undefined}
+          onParentNoteChange={hasClassStudents ? handleParentNoteChange : undefined}
         />
       </div>
     </section>

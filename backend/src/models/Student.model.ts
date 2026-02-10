@@ -8,6 +8,8 @@ export interface IStudent extends Document {
   parentPhone: string;
   userId: mongoose.Types.ObjectId;
   parentUserId: mongoose.Types.ObjectId;
+  /** 관리자가 해당 학생 화면으로 접속할 때 사용하는 User (loginId: 이름admin 등) */
+  adminAccessUserId?: mongoose.Types.ObjectId;
   classId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -22,6 +24,7 @@ const studentSchema = new Schema<IStudent>(
     parentPhone: { type: String, required: true, trim: true },
     userId: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
     parentUserId: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
+    adminAccessUserId: { type: Schema.Types.ObjectId, required: false, ref: 'User' },
     classId: { type: Schema.Types.ObjectId, required: false, ref: 'Class' },
   },
   { timestamps: true }
@@ -29,6 +32,7 @@ const studentSchema = new Schema<IStudent>(
 
 studentSchema.index({ userId: 1 }, { unique: true });
 studentSchema.index({ parentUserId: 1 }, { unique: true });
+studentSchema.index({ adminAccessUserId: 1 }, { unique: true, sparse: true });
 studentSchema.index({ classId: 1 });
 
 export const Student: Model<IStudent> =

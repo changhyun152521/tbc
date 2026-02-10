@@ -5,6 +5,7 @@ interface RowItem {
   attendance: AttendanceHomeworkValue;
   homework: AttendanceHomeworkValue;
   note?: string;
+  parentNote?: string;
 }
 
 interface AttendanceHomeworkTableProps {
@@ -12,6 +13,7 @@ interface AttendanceHomeworkTableProps {
   onAttendanceChange: (studentId: string, value: AttendanceHomeworkValue) => void;
   onHomeworkChange: (studentId: string, value: AttendanceHomeworkValue) => void;
   onNoteChange?: (studentId: string, value: string) => void;
+  onParentNoteChange?: (studentId: string, value: string) => void;
   disabled?: boolean;
 }
 
@@ -38,6 +40,7 @@ export default function AttendanceHomeworkTable({
   onAttendanceChange,
   onHomeworkChange,
   onNoteChange,
+  onParentNoteChange,
   disabled = false,
 }: AttendanceHomeworkTableProps) {
   return (
@@ -49,7 +52,8 @@ export default function AttendanceHomeworkTable({
             <th className="sticky left-12 z-10 bg-white p-3 border-b border-slate-100">이름</th>
             <th className="p-3 text-center border-b border-slate-100">출석</th>
             <th className="p-3 text-center border-b border-slate-100">과제</th>
-            <th className="p-3 border-b border-slate-100 min-w-[200px]">COMMENT</th>
+            <th className="p-3 border-b border-slate-100 min-w-[160px] sm:min-w-[200px]">학생 코멘트</th>
+            <th className="p-3 border-b border-slate-100 min-w-[160px] sm:min-w-[200px]">학부모 코멘트</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-50 text-[14px]">
@@ -105,18 +109,32 @@ export default function AttendanceHomeworkTable({
                   })}
                 </div>
               </td>
-              <td className="p-3 min-w-[200px]">
+              <td className="p-2 sm:p-3 min-w-[140px] sm:min-w-[200px]">
                 {onNoteChange ? (
                   <input
                     type="text"
                     value={row.note ?? ''}
                     onChange={(e) => onNoteChange(studentIdStr(row), e.target.value)}
                     disabled={disabled}
-                    placeholder="선택 입력"
-                    className="w-full min-w-[200px] sm:min-w-[280px] bg-slate-50 border border-slate-100 rounded-lg text-sm px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-slate-300 focus:ring-1 focus:ring-slate-300 outline-none disabled:bg-slate-100"
+                    placeholder="학생용"
+                    className="w-full min-w-0 sm:min-w-[180px] bg-slate-50 border border-slate-100 rounded-lg text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 text-slate-900 placeholder:text-slate-400 focus:border-slate-300 focus:ring-1 focus:ring-slate-300 outline-none disabled:bg-slate-100"
                   />
                 ) : (
-                  <span className="text-slate-500">{(row.note ?? '') || '-'}</span>
+                  <span className="text-slate-500 text-xs sm:text-sm">{(row.note ?? '') || '-'}</span>
+                )}
+              </td>
+              <td className="p-2 sm:p-3 min-w-[140px] sm:min-w-[200px]">
+                {onParentNoteChange ? (
+                  <input
+                    type="text"
+                    value={row.parentNote ?? ''}
+                    onChange={(e) => onParentNoteChange(studentIdStr(row), e.target.value)}
+                    disabled={disabled}
+                    placeholder="학부모용"
+                    className="w-full min-w-0 sm:min-w-[180px] bg-slate-50 border border-slate-100 rounded-lg text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 text-slate-900 placeholder:text-slate-400 focus:border-slate-300 focus:ring-1 focus:ring-slate-300 outline-none disabled:bg-slate-100"
+                  />
+                ) : (
+                  <span className="text-slate-500 text-xs sm:text-sm">{(row.parentNote ?? '') || '-'}</span>
                 )}
               </td>
             </tr>

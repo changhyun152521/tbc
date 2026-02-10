@@ -39,7 +39,11 @@ interface DashboardData {
     date: string;
     teacherName: string;
     note: string;
+    /** 관리자 접속 시에만 내려옴 */
+    parentNote?: string;
   }>;
+  /** 관리자 접속 계정으로 로그인 시 true (학생·학부모 코멘트 둘 다 표시) */
+  isAdminAccess?: boolean;
 }
 
 function formatDueDateShort(d: string): string {
@@ -221,35 +225,82 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* 댓글형 코멘트 섹션 (최신 5개 피드 방식) */}
-        <div className="bg-white border border-slate-100 rounded-[20px] p-6 shadow-sm">
-          <h2 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
-            <span>💌</span>
-            선생님들이 보낸 응원 메시지
-          </h2>
+        {/* 댓글형 코멘트: 관리자 접속 시 학생/학부모 코멘트 박스 분리, 그 외는 기존처럼 */}
+        {data.isAdminAccess ? (
           <div className="space-y-6">
-            {recentComments.length === 0 ? (
-              <p className="text-slate-400 text-sm font-medium py-2">최근 응원 메시지가 없습니다.</p>
-            ) : (
-              recentComments.map((c, i) => (
-                <div key={c._id} className="flex flex-col gap-1.5">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[11px] font-bold text-slate-400">{c.teacherName} 선생님</span>
-                    <span className="text-[10px] text-slate-300 font-medium">
-                      {formatDueDateShort(c.date)}
-                    </span>
-                  </div>
-                  <p className="text-[14px] text-slate-700 leading-relaxed font-medium">
-                    &quot;{c.note}&quot;
-                  </p>
-                  {i !== recentComments.length - 1 && (
-                    <div className="mt-4 h-[1px] bg-slate-50 w-full" />
-                  )}
-                </div>
-              ))
-            )}
+            <div className="bg-white border border-slate-100 rounded-[20px] p-4 sm:p-6 shadow-sm">
+              <h2 className="font-bold text-slate-800 mb-4 sm:mb-6 flex items-center gap-2 text-sm sm:text-base">
+                <span>💌</span>
+                학생 COMMENT
+              </h2>
+              <div className="space-y-4 sm:space-y-6">
+                {recentComments.filter((c) => (c.note ?? '').trim()).length === 0 ? (
+                  <p className="text-slate-400 text-xs sm:text-sm font-medium py-2">최근 메시지가 없습니다.</p>
+                ) : (
+                  recentComments
+                    .filter((c) => (c.note ?? '').trim())
+                    .map((c, i, arr) => (
+                      <div key={`student-${c._id}-${i}`} className="flex flex-col gap-1.5">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] font-bold text-slate-400">{c.teacherName} 선생님</span>
+                          <span className="text-[10px] text-slate-300 font-medium">{formatDueDateShort(c.date)}</span>
+                        </div>
+                        <p className="text-[14px] text-slate-700 leading-relaxed font-medium">&quot;{(c.note ?? '').trim()}&quot;</p>
+                        {i !== arr.length - 1 && <div className="mt-4 h-[1px] bg-slate-50 w-full" />}
+                      </div>
+                    ))
+                )}
+              </div>
+            </div>
+            <div className="bg-white border border-slate-100 rounded-[20px] p-4 sm:p-6 shadow-sm">
+              <h2 className="font-bold text-slate-800 mb-4 sm:mb-6 flex items-center gap-2 text-sm sm:text-base">
+                <span>💌</span>
+                학부모 COMMENT
+              </h2>
+              <div className="space-y-4 sm:space-y-6">
+                {recentComments.filter((c) => (c.parentNote ?? '').trim()).length === 0 ? (
+                  <p className="text-slate-400 text-xs sm:text-sm font-medium py-2">최근 메시지가 없습니다.</p>
+                ) : (
+                  recentComments
+                    .filter((c) => (c.parentNote ?? '').trim())
+                    .map((c, i, arr) => (
+                      <div key={`parent-${c._id}-${i}`} className="flex flex-col gap-1.5">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] font-bold text-slate-400">{c.teacherName} 선생님</span>
+                          <span className="text-[10px] text-slate-300 font-medium">{formatDueDateShort(c.date)}</span>
+                        </div>
+                        <p className="text-[14px] text-slate-700 leading-relaxed font-medium">&quot;{(c.parentNote ?? '').trim()}&quot;</p>
+                        {i !== arr.length - 1 && <div className="mt-4 h-[1px] bg-slate-50 w-full" />}
+                      </div>
+                    ))
+                )}
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="bg-white border border-slate-100 rounded-[20px] p-4 sm:p-6 shadow-sm">
+            <h2 className="font-bold text-slate-800 mb-4 sm:mb-6 flex items-center gap-2 text-sm sm:text-base">
+              <span>💌</span>
+              {role === 'parent' ? '학부모 COMMENT' : '학생 COMMENT'}
+            </h2>
+            <div className="space-y-4 sm:space-y-6">
+              {recentComments.length === 0 ? (
+                <p className="text-slate-400 text-xs sm:text-sm font-medium py-2">최근 메시지가 없습니다.</p>
+              ) : (
+                recentComments.map((c, i) => (
+                  <div key={c._id} className="flex flex-col gap-1.5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[11px] font-bold text-slate-400">{c.teacherName} 선생님</span>
+                      <span className="text-[10px] text-slate-300 font-medium">{formatDueDateShort(c.date)}</span>
+                    </div>
+                    <p className="text-[14px] text-slate-700 leading-relaxed font-medium">&quot;{c.note}&quot;</p>
+                    {i !== recentComments.length - 1 && <div className="mt-4 h-[1px] bg-slate-50 w-full" />}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

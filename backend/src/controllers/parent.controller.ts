@@ -42,7 +42,7 @@ export async function getDashboard(req: Request, res: Response<ApiResponse>): Pr
       return;
     }
     const classId = req.query.classId as string | undefined;
-    const data = await studentDataService.getDashboard(studentId, classId || null);
+    const data = await studentDataService.getDashboard(studentId, classId || null, 'parent');
     res.status(200).json({ success: true, data });
   } catch (err) {
     const message = err instanceof Error ? err.message : '자녀 대시보드 조회에 실패했습니다.';

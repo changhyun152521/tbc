@@ -493,7 +493,7 @@ export default function MonthlyStatistics() {
               이번 달에는 단원별로 집계할 주간 TEST가 없습니다.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               {unitAnalysisData.map((unit, idx) => {
                 const rate = unit.total > 0 ? (unit.correct / unit.total) * 100 : 0;
                 const isStrength = rate >= 70;

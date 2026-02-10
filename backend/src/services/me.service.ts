@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import { User } from '../models/User.model';
 import { IUser } from '../models/User.model';
+import { Student } from '../models/Student.model';
 
 const SALT_ROUNDS = 10;
 
@@ -14,10 +15,12 @@ export interface MeProfile {
   phone: string;
   createdAt: Date;
   updatedAt: Date;
+  /** 학생 역할일 때, 관리 접속 계정으로 로그인한 경우 true */
+  isAdminAccess?: boolean;
 }
 
-function toMeProfile(user: IUser): MeProfile {
-  return {
+function toMeProfile(user: IUser, isAdminAccess?: boolean): MeProfile {
+  const profile: MeProfile = {
     id: user._id.toString(),
     role: user.role,
     name: user.name,
@@ -26,13 +29,20 @@ function toMeProfile(user: IUser): MeProfile {
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
+  if (isAdminAccess === true) profile.isAdminAccess = true;
+  return profile;
 }
 
 export async function getMe(userId: string): Promise<MeProfile | null> {
   if (!mongoose.Types.ObjectId.isValid(userId)) return null;
   const user = await User.findById(userId).select('-passwordHash').exec();
   if (!user) return null;
-  return toMeProfile(user);
+  let isAdminAccess = false;
+  if (user.role === 'student') {
+    const asAdmin = await Student.findOne({ adminAccessUserId: user._id }).select('_id').lean().exec();
+    isAdminAccess = !!asAdmin;
+  }
+  return toMeProfile(user, isAdminAccess);
 }
 
 export async function updatePassword(

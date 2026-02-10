@@ -1,9 +1,11 @@
+import { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { StudentClassProvider, useStudentClass } from '../contexts/StudentClassContext';
 import ScrollToTop from '../components/ScrollToTop';
 import ClassSelect from '../pages/ClassSelect';
+import { apiClient } from '../api/client';
 
 const NAV_ITEMS = [
   { to: '/student/dashboard', label: '홈', icon: HomeIcon },
@@ -55,8 +57,29 @@ function StudentLayoutContent() {
   const { name, role, logout } = useAuth();
   const location = useLocation();
   const { selectedClassName, isLoading, needsClassSelection, classes, setShowClassSelect } = useStudentClass();
+  const [isAdminAccess, setIsAdminAccess] = useState(false);
   const title = role === 'parent' ? '학부모' : '학생';
   const hasMultipleClasses = classes.length >= 2;
+
+  useEffect(() => {
+    if (role !== 'student') return;
+    apiClient
+      .get<{ success: boolean; data?: { isAdminAccess?: boolean } }>('/me')
+      .then((res) => {
+        if (res.data.success && res.data.data?.isAdminAccess) setIsAdminAccess(true);
+      })
+      .catch(() => {});
+  }, [role]);
+
+  /** 로그아웃 옆 표시: 학생은 이름만, 관리 접속은 이름 관리ID, 학부모는 이름 학부모 */
+  const displayName =
+    name == null || name === ''
+      ? '-'
+      : role === 'parent'
+        ? (name.trim().endsWith('학부모') ? name.trim() : `${name.trim()} 학부모`)
+        : isAdminAccess
+          ? `${name.trim()} 관리ID`
+          : name;
 
   if (isLoading) {
     return (
@@ -128,7 +151,7 @@ function StudentLayoutContent() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-600 truncate max-w-[120px] lg:max-w-[200px]">
-                {name ? (role === 'parent' ? `${name} 부모님` : `${name} 학생`) : '-'}
+                {displayName}
               </span>
               <button
                 type="button"

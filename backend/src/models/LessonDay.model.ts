@@ -6,8 +6,10 @@ export interface IStudentRecord {
   studentId: mongoose.Types.ObjectId;
   attendance: AttendanceHomeworkValue;
   homework: AttendanceHomeworkValue;
-  /** 학생별 비고 */
+  /** 학생 코멘트 (학생 메인에 노출) */
   note?: string;
+  /** 학부모 코멘트 (학부모 메인에 노출) */
+  parentNote?: string;
 }
 
 export interface IPeriod {
@@ -35,6 +37,7 @@ const studentRecordSchema = new Schema<IStudentRecord>(
     attendance: { type: String, enum: ['O', 'X', ''], default: '' },
     homework: { type: String, enum: ['O', 'X', ''], default: '' },
     note: { type: String, default: '' },
+    parentNote: { type: String, default: '' },
   },
   { _id: false }
 );
