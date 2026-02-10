@@ -166,22 +166,23 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
     Student.countDocuments(filter).exec(),
   ]);
 
+  type LeanStudentWithPopulatedAdmin = Record<string, unknown> & { _id: mongoose.Types.ObjectId; adminAccessUserId?: { loginId: string } | null };
   const withClassCountAndAdminId = await Promise.all(
     list.map(async (s) => {
-      const doc = s as IStudent & { adminAccessUserId?: { _id: mongoose.Types.ObjectId; loginId: string } | null };
-      if (!doc.adminAccessUserId) {
+      const doc = s as unknown as LeanStudentWithPopulatedAdmin;
+      let adminAccessLoginId: string | null = null;
+      if (doc.adminAccessUserId && typeof doc.adminAccessUserId === 'object' && 'loginId' in doc.adminAccessUserId) {
+        adminAccessLoginId = (doc.adminAccessUserId as { loginId: string }).loginId;
+      }
+      if (!adminAccessLoginId) {
         await ensureAdminAccessUser(String(doc._id));
         const updated = await Student.findById(doc._id).populate('adminAccessUserId', 'loginId').lean().exec();
-        type WithPopulatedAdmin = { adminAccessUserId?: { loginId: string } };
-        const updatedTyped = updated as unknown as WithPopulatedAdmin | null;
-        if (updatedTyped?.adminAccessUserId) {
-          doc.adminAccessUserId = updatedTyped.adminAccessUserId;
+        const updatedTyped = updated as unknown as { adminAccessUserId?: { loginId: string } } | null;
+        if (updatedTyped?.adminAccessUserId?.loginId) {
+          adminAccessLoginId = updatedTyped.adminAccessUserId.loginId;
         }
       }
       const classCount = await Class.countDocuments({ studentIds: doc._id }).exec();
-      const adminAccessLoginId = doc.adminAccessUserId && typeof doc.adminAccessUserId === 'object' && 'loginId' in doc.adminAccessUserId
-        ? (doc.adminAccessUserId as { loginId: string }).loginId
-        : null;
       return { ...doc, classCount, adminAccessLoginId };
     })
   );
