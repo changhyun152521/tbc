@@ -164,8 +164,8 @@ export default function ClassDetail() {
             <table className="w-full text-left border-collapse min-w-[400px]">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="py-3 px-4 text-slate-500 text-xs font-bold">이름</th>
-                  <th className="py-3 px-4 text-center text-slate-500 text-xs font-bold">관리</th>
+                  <th className="py-3 px-4 text-slate-500 text-xs font-bold whitespace-nowrap">이름</th>
+                  <th className="py-3 px-4 text-center text-slate-500 text-xs font-bold whitespace-nowrap">관리</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-[14px]">
@@ -178,12 +178,12 @@ export default function ClassDetail() {
                 ) : (
                   teachers.map((t) => (
                     <tr key={t._id} className="hover:bg-slate-50 text-slate-700">
-                      <td className="py-3 px-4 font-medium text-slate-950">{t.name}</td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3 px-4 font-medium text-slate-950 whitespace-nowrap">{t.name}</td>
+                      <td className="py-3 px-4 text-center whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => handleRemoveTeacher(t._id)}
-                          className="text-slate-400 hover:text-red-600"
+                          className="text-slate-400 hover:text-red-600 whitespace-nowrap"
                         >
                           반에서 제거
                         </button>
@@ -238,12 +238,12 @@ export default function ClassDetail() {
                       className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
                     />
                   </th>
-                  <th className="py-3 px-4 text-slate-500 text-xs font-bold">이름</th>
-                  <th className="py-3 px-4 text-slate-500 text-xs font-bold">학교</th>
-                  <th className="py-3 px-4 text-slate-500 text-xs font-bold">학년</th>
+                  <th className="py-3 px-4 text-slate-500 text-xs font-bold whitespace-nowrap">이름</th>
+                  <th className="py-3 px-4 text-slate-500 text-xs font-bold whitespace-nowrap">학교</th>
+                  <th className="py-3 px-4 text-slate-500 text-xs font-bold whitespace-nowrap">학년</th>
                   <th className="py-3 px-4 whitespace-nowrap text-slate-500 text-xs font-bold">학생 전화번호</th>
                   <th className="py-3 px-4 whitespace-nowrap text-slate-500 text-xs font-bold">학부모 전화번호</th>
-                  <th className="py-3 px-4 text-center text-slate-500 text-xs font-bold">관리</th>
+                  <th className="py-3 px-4 text-center text-slate-500 text-xs font-bold whitespace-nowrap">관리</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-[14px]">
@@ -264,16 +264,16 @@ export default function ClassDetail() {
                           className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
                         />
                       </td>
-                      <td className="py-3 px-4 font-medium text-slate-950">{row.name}</td>
-                      <td className="py-3 px-4">{row.school}</td>
-                      <td className="py-3 px-4">{row.grade}</td>
-                      <td className="py-3 px-4 font-number">{row.studentPhone}</td>
-                      <td className="py-3 px-4 font-number">{row.parentPhone}</td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3 px-4 font-medium text-slate-950 whitespace-nowrap">{row.name}</td>
+                      <td className="py-3 px-4 whitespace-nowrap">{row.school}</td>
+                      <td className="py-3 px-4 whitespace-nowrap">{row.grade}</td>
+                      <td className="py-3 px-4 font-number whitespace-nowrap">{row.studentPhone}</td>
+                      <td className="py-3 px-4 font-number whitespace-nowrap">{row.parentPhone}</td>
+                      <td className="py-3 px-4 text-center whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => handleRemoveFromClass(row._id)}
-                          className="text-slate-400 hover:text-red-600"
+                          className="text-slate-400 hover:text-red-600 whitespace-nowrap"
                         >
                           반에서 제거
                         </button>

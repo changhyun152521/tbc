@@ -51,7 +51,7 @@ export async function listTestsByClass(classId: string, userId: string, role: st
   const allowed = await canAccessClass(classId, userId, role);
   if (!allowed) return null;
   return Test.find({ classId: new mongoose.Types.ObjectId(classId) })
-    .sort({ date: -1 })
+    .sort({ date: -1, createdAt: -1 })
     .lean()
     .exec();
 }

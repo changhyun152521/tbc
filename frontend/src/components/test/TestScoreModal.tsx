@@ -125,17 +125,17 @@ export default function TestScoreModal({
             <table className="w-full text-left border-collapse">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr className="text-slate-600 text-[13px] font-semibold">
-                  <th className="p-3 w-12 text-center">No.</th>
-                  <th className="p-3">이름</th>
-                  <th className="p-3 w-32">맞은 개수</th>
+                  <th className="p-3 w-12 text-center whitespace-nowrap">No.</th>
+                  <th className="p-3 whitespace-nowrap">이름</th>
+                  <th className="p-3 w-32 whitespace-nowrap">맞은 개수</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-[14px]">
                 {sortedStudents.map((s, index) => (
                   <tr key={s._id}>
-                    <td className="p-3 text-center text-slate-500">{index + 1}</td>
-                    <td className="p-3 font-medium text-slate-900">{s.name}</td>
-                    <td className="p-3">
+                    <td className="p-3 text-center text-slate-500 whitespace-nowrap">{index + 1}</td>
+                    <td className="p-3 font-medium text-slate-900 whitespace-nowrap">{s.name}</td>
+                    <td className="p-3 whitespace-nowrap">
                       <input
                         type="number"
                         min={0}

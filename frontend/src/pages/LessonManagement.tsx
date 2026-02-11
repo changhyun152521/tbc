@@ -59,11 +59,11 @@ export default function LessonManagement() {
               <table className="w-full text-left border-collapse min-w-[600px]">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr className="text-slate-600 text-[13px] font-semibold">
-                    <th className="p-4">반 이름</th>
-                    <th className="p-4">담당 강사</th>
+                    <th className="p-4 whitespace-nowrap">반 이름</th>
+                    <th className="p-4 whitespace-nowrap">담당 강사</th>
                     <th className="p-4 whitespace-nowrap">소속 학생 수</th>
                     <th className="p-4 whitespace-nowrap">오늘 등록 교시 수</th>
-                    <th className="p-4 text-center">관리</th>
+                    <th className="p-4 text-center whitespace-nowrap">관리</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-[14px]">
@@ -76,14 +76,14 @@ export default function LessonManagement() {
                   ) : (
                     list.map((row) => (
                       <tr key={row._id} className="hover:bg-slate-50 transition-colors text-slate-700">
-                        <td className="p-4 font-medium text-slate-950">{row.name}</td>
-                        <td className="p-4">{teacherNames(row)}</td>
-                        <td className="p-4">{row.studentCount ?? 0}명</td>
-                        <td className="p-4">{row.todayPeriodCount ?? 0}개 교시</td>
-                        <td className="p-4 text-center">
+                        <td className="p-4 font-medium text-slate-950 whitespace-nowrap">{row.name}</td>
+                        <td className="p-4 whitespace-nowrap">{teacherNames(row)}</td>
+                        <td className="p-4 whitespace-nowrap">{row.studentCount ?? 0}명</td>
+                        <td className="p-4 whitespace-nowrap">{row.todayPeriodCount ?? 0}개 교시</td>
+                        <td className="p-4 text-center whitespace-nowrap">
                           <Link
                             to={`/admin/lessons/classroom/${row._id}`}
-                            className="inline-block px-4 py-2 bg-slate-950 text-white rounded-lg text-sm font-semibold hover:bg-slate-800"
+                            className="inline-block px-4 py-2 bg-slate-950 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 whitespace-nowrap"
                           >
                             교실관리
                           </Link>

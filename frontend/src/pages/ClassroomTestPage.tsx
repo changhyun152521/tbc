@@ -134,17 +134,15 @@ export default function ClassroomTestPage() {
     return count ? `${typeLabel} ${count}` : typeLabel;
   };
 
-  /** 24시 기준, 모바일에서 한 줄로 보이도록 compact 포맷 */
-  const formatCreatedAt = (d: string | undefined) => {
+  /** 시험일 한 줄 표시 (YYYY.MM.DD) */
+  const formatTestDate = (d: string | undefined) => {
     if (!d) return '-';
     try {
       const date = new Date(d);
       const y = date.getFullYear();
       const m = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
-      const h = String(date.getHours()).padStart(2, '0');
-      const min = String(date.getMinutes()).padStart(2, '0');
-      return `${y}.${m}.${day} ${h}:${min}`;
+      return `${y}.${m}.${day}`;
     } catch {
       return d;
     }
@@ -197,10 +195,10 @@ export default function ClassroomTestPage() {
               <table className="w-full text-left border-collapse min-w-[500px]">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr className="text-slate-600 text-[13px] font-semibold">
-                    <th className="p-4">생성일</th>
-                    <th className="p-4">구분</th>
-                    <th className="p-4">문항수</th>
-                    <th className="p-4 text-center">관리</th>
+                    <th className="p-4 min-w-[90px] whitespace-nowrap">시험일</th>
+                    <th className="p-4 whitespace-nowrap">구분</th>
+                    <th className="p-4 whitespace-nowrap">문항수</th>
+                    <th className="p-4 text-center whitespace-nowrap">관리</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-[14px]">
@@ -213,13 +211,13 @@ export default function ClassroomTestPage() {
                   ) : (
                     tests.map((t) => (
                       <tr key={t._id} className="hover:bg-slate-50 text-slate-700">
-                        <td className="p-4 text-slate-600 text-xs sm:text-[14px] whitespace-nowrap">{formatCreatedAt(t.createdAt)}</td>
-                        <td className="p-4 font-medium text-slate-900">
+                        <td className="p-4 min-w-[90px] text-slate-600 text-xs sm:text-[14px] whitespace-nowrap">{formatTestDate(t.date)}</td>
+                        <td className="p-4 font-medium text-slate-900 whitespace-nowrap">
                           {TEST_TYPE_LABEL[t.testType] ?? t.testType}
                         </td>
-                        <td className="p-4">{t.questionCount != null ? `${t.questionCount}문항` : '-'}</td>
-                        <td className="p-4">
-                          <div className="flex flex-wrap gap-2 justify-center">
+                        <td className="p-4 whitespace-nowrap">{t.questionCount != null ? `${t.questionCount}문항` : '-'}</td>
+                        <td className="p-4 whitespace-nowrap">
+                          <div className="flex flex-nowrap gap-2 justify-center">
                             <button
                               type="button"
                               onClick={() => openEditForm(t)}
@@ -237,9 +235,9 @@ export default function ClassroomTestPage() {
                             <button
                               type="button"
                               onClick={() => openScoreModal(t)}
-                              className="px-3 py-1.5 text-sm bg-slate-900 text-white rounded-lg hover:bg-slate-800"
+                              className="px-3 py-1.5 text-sm min-w-[80px] bg-slate-900 text-white rounded-lg hover:bg-slate-800"
                             >
-                              점수
+                              {(t.scores?.length ?? 0) > 0 ? '채점수정' : '채점'}
                             </button>
                           </div>
                         </td>

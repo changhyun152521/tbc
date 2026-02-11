@@ -49,11 +49,11 @@ export default function TeacherTable({
                 className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
               />
             </th>
-            <th className="p-4">이름</th>
-            <th className="p-4">로그인 ID</th>
+            <th className="p-4 whitespace-nowrap">이름</th>
+            <th className="p-4 whitespace-nowrap">로그인 ID</th>
             <th className="p-4 whitespace-nowrap">전화번호</th>
             <th className="p-4 whitespace-nowrap">담당 반 개수</th>
-            <th className="p-4 text-center">관리</th>
+            <th className="p-4 text-center whitespace-nowrap">관리</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 text-[14px]">
@@ -74,24 +74,24 @@ export default function TeacherTable({
                     className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
                   />
                 </td>
-                <td className="p-4 font-medium text-slate-950">{row.name}</td>
-                <td className="p-4">{getLoginId(row)}</td>
-                <td className="p-4 font-number">{getPhone(row)}</td>
-                <td className="p-4 text-slate-500">
+                <td className="p-4 font-medium text-slate-950 whitespace-nowrap">{row.name}</td>
+                <td className="p-4 whitespace-nowrap">{getLoginId(row)}</td>
+                <td className="p-4 font-number whitespace-nowrap">{getPhone(row)}</td>
+                <td className="p-4 text-slate-500 whitespace-nowrap">
                   {row.classCount != null ? `${row.classCount}개 반 담당` : '-'}
                 </td>
-                <td className="p-4 text-center">
+                <td className="p-4 text-center whitespace-nowrap">
                   <button
                     type="button"
                     onClick={() => onEdit(row._id)}
-                    className="text-slate-400 hover:text-slate-950 mr-3"
+                    className="text-slate-400 hover:text-slate-950 mr-3 whitespace-nowrap"
                   >
                     수정
                   </button>
                   <button
                     type="button"
                     onClick={() => onDelete(row._id)}
-                    className="text-slate-400 hover:text-red-600"
+                    className="text-slate-400 hover:text-red-600 whitespace-nowrap"
                   >
                     삭제
                   </button>

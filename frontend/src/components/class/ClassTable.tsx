@@ -47,10 +47,10 @@ export default function ClassTable({
                 className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
               />
             </th>
-            <th className="p-4">반 이름</th>
+            <th className="p-4 whitespace-nowrap">반 이름</th>
             <th className="p-4 whitespace-nowrap">담당 강사 수</th>
             <th className="p-4 whitespace-nowrap">소속 학생 수</th>
-            <th className="p-4 text-center">관리</th>
+            <th className="p-4 text-center whitespace-nowrap">관리</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 text-[14px]">
@@ -71,27 +71,27 @@ export default function ClassTable({
                     className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
                   />
                 </td>
-                <td className="p-4 font-medium text-slate-950">{row.name}</td>
-                <td className="p-4">{teacherCount(row)}</td>
-                <td className="p-4">{row.studentCount != null ? `${row.studentCount}명` : '-'}</td>
-                <td className="p-4 text-center">
+                <td className="p-4 font-medium text-slate-950 whitespace-nowrap">{row.name}</td>
+                <td className="p-4 whitespace-nowrap">{teacherCount(row)}</td>
+                <td className="p-4 whitespace-nowrap">{row.studentCount != null ? `${row.studentCount}명` : '-'}</td>
+                <td className="p-4 text-center whitespace-nowrap">
                   <Link
                     to={`/admin/classes/${row._id}`}
-                    className="text-slate-400 hover:text-slate-950 mr-3"
+                    className="text-slate-400 hover:text-slate-950 mr-3 whitespace-nowrap"
                   >
                     상세 관리
                   </Link>
                   <button
                     type="button"
                     onClick={() => onEdit(row._id)}
-                    className="text-slate-400 hover:text-slate-950 mr-3"
+                    className="text-slate-400 hover:text-slate-950 mr-3 whitespace-nowrap"
                   >
                     수정
                   </button>
                   <button
                     type="button"
                     onClick={() => onDelete(row._id)}
-                    className="text-slate-400 hover:text-red-600"
+                    className="text-slate-400 hover:text-red-600 whitespace-nowrap"
                   >
                     삭제
                   </button>

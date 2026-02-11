@@ -152,9 +152,9 @@ export default function AddStudentsModal({
                         className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
                       />
                     </th>
-                    <th className="p-3">이름</th>
-                    <th className="p-3">학교</th>
-                    <th className="p-3">학년</th>
+                    <th className="p-3 whitespace-nowrap">이름</th>
+                    <th className="p-3 whitespace-nowrap">학교</th>
+                    <th className="p-3 whitespace-nowrap">학년</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -175,9 +175,9 @@ export default function AddStudentsModal({
                             className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
                           />
                         </td>
-                        <td className="p-3 font-medium text-slate-950">{s.name}</td>
-                        <td className="p-3">{s.school}</td>
-                        <td className="p-3">{s.grade}</td>
+                        <td className="p-3 font-medium text-slate-950 whitespace-nowrap">{s.name}</td>
+                        <td className="p-3 whitespace-nowrap">{s.school}</td>
+                        <td className="p-3 whitespace-nowrap">{s.grade}</td>
                       </tr>
                     ))
                   )}
