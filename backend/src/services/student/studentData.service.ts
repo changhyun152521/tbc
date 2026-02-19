@@ -169,9 +169,10 @@ export async function getDashboard(studentId: string, classIdParam?: string | nu
     }))
     .slice(0, 50);
 
+  // 기간 제한 없이 날짜 최신순으로 코멘트 있는 행만 5개
   let recentComments: { _id: string; date: string; teacherName: string; note: string; parentNote?: string }[];
   if (viewAs === 'admin_access') {
-    recentComments = last7Days
+    recentComments = allLessonsFlat
       .filter((l) => ((l.note ?? '').trim() !== '' || (l.parentNote ?? '').trim() !== ''))
       .map((l) => ({
         _id: l._id,
@@ -180,10 +181,10 @@ export async function getDashboard(studentId: string, classIdParam?: string | nu
         note: (l.note ?? '').trim(),
         parentNote: (l.parentNote ?? '').trim(),
       }))
-      .slice(0, 20);
+      .slice(0, 5);
   } else {
     const commentField = viewAs === 'parent' ? 'parentNote' : 'note';
-    recentComments = last7Days
+    recentComments = allLessonsFlat
       .filter((l) => ((l[commentField] ?? '') as string).trim() !== '')
       .map((l) => ({
         _id: l._id,
@@ -191,7 +192,7 @@ export async function getDashboard(studentId: string, classIdParam?: string | nu
         teacherName: l.teacherName ?? '',
         note: ((l[commentField] ?? '') as string).trim(),
       }))
-      .slice(0, 20);
+      .slice(0, 5);
   }
 
   const recentTestsWithMyScore = recentTests.map((t) => {
