@@ -22,12 +22,24 @@ function getStorage(remember: boolean): Storage {
   return remember ? localStorage : sessionStorage;
 }
 
+/** JWT payload의 exp(초)만 읽어 만료 여부 확인. 서명 검증 없음. */
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1])) as { exp?: number };
+    if (typeof payload.exp !== 'number') return false;
+    return payload.exp * 1000 < Date.now();
+  } catch {
+    return true;
+  }
+}
+
 function loadFromStorage(storage: Storage): { token: string; role: UserRole; name: string } | null {
   const token = storage.getItem(STORAGE_KEY_TOKEN);
   const role = storage.getItem(STORAGE_KEY_ROLE) as UserRole | null;
   const name = storage.getItem(STORAGE_KEY_NAME);
-  if (token && role && name) return { token, role, name };
-  return null;
+  if (!token || !role || !name) return null;
+  if (isTokenExpired(token)) return null;
+  return { token, role, name };
 }
 
 interface AuthContextValue {
@@ -81,9 +93,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(saved.token);
       setRole(saved.role);
       setName(saved.name);
+    } else {
+      // 저장된 토큰이 없거나 만료된 경우 스토리지 정리 (만료 시 로그인 화면으로)
+      const token = storage.getItem(STORAGE_KEY_TOKEN);
+      if (token && isTokenExpired(token)) {
+        clearStorage();
+      }
     }
     setIsReady(true);
-  }, []);
+  }, [clearStorage]);
 
   const login = useCallback(
     async (loginId: string, password: string, remember: boolean) => {

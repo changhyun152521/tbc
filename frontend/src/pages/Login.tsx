@@ -222,6 +222,16 @@ export default function Login() {
           </motion.section>
         </div>
 
+        {/* 푸터: 저작권·개발자 (진하지 않게) */}
+        <footer className="mt-auto pt-10 pb-6 text-center">
+          <p className="text-[12px] text-slate-400 font-normal">
+            © 2026 TBC-CLASS. All rights reserved.
+          </p>
+          <p className="text-[12px] text-slate-500 font-normal mt-1">
+            Developed by 이창현수학
+          </p>
+        </footer>
+
         {/* 아이디 찾기 모달 */}
         {findIdOpen && (
           <div
