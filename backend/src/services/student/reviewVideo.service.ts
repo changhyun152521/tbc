@@ -13,6 +13,14 @@ function periodIdOf(period: IPeriod & { _id?: mongoose.Types.ObjectId }): string
   return period._id ? period._id.toString() : '';
 }
 
+function teacherNameOf(period: IPeriod & { teacherId?: mongoose.Types.ObjectId | { name?: string } }): string {
+  const t = period.teacherId;
+  if (typeof t === 'object' && t !== null && 'name' in t && typeof (t as { name?: string }).name === 'string') {
+    return (t as { name: string }).name;
+  }
+  return '';
+}
+
 export async function getReviewVideoForStudent(
   studentId: string,
   lessonDayId: string,
@@ -136,6 +144,7 @@ export async function listPendingForStudent(studentId: string) {
     classId: { $in: ids },
     date: { $gte: from },
   })
+    .populate('periods.teacherId', 'name')
     .sort({ date: -1 })
     .lean()
     .exec();
@@ -146,12 +155,16 @@ export async function listPendingForStudent(studentId: string) {
     className: string;
     date: string;
     period: number;
+    teacherName: string;
     attendance: string;
     maxPercent: number;
   }[] = [];
 
   for (const day of days) {
-    const periods = (day.periods || []) as (IPeriod & { _id?: mongoose.Types.ObjectId })[];
+    const periods = (day.periods || []) as (IPeriod & {
+      _id?: mongoose.Types.ObjectId;
+      teacherId?: mongoose.Types.ObjectId | { name?: string };
+    })[];
     periods.forEach((period, idx) => {
       const videoId = (period.reviewVideoId ?? '').trim();
       if (!videoId) return;
@@ -165,6 +178,7 @@ export async function listPendingForStudent(studentId: string) {
         className: classNameById.get(day.classId.toString()) ?? '',
         date: day.date instanceof Date ? day.date.toISOString().slice(0, 10) : String(day.date).slice(0, 10),
         period: idx + 1,
+        teacherName: teacherNameOf(period),
         attendance: 'X',
         maxPercent: 0,
       });
@@ -192,7 +206,11 @@ export async function listPendingForStudent(studentId: string) {
       ...i,
       maxPercent: percentMap.get(`${i.lessonDayId}-${i.periodId}`) ?? 0,
     }))
-    .filter((i) => i.maxPercent < COMPLETE_PERCENT);
+    .filter((i) => i.maxPercent < COMPLETE_PERCENT)
+    .sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date);
+      return b.period - a.period;
+    });
 }
 
 export async function getClassWatchStats(classId: string) {

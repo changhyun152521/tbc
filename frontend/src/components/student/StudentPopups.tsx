@@ -16,11 +16,31 @@ interface PendingVideo {
   className: string;
   date: string;
   period: number;
+  teacherName: string;
   maxPercent: number;
 }
 
+const DISPLAY_COMPLETE_PERCENT = 80;
+
 function todayYmd(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
+}
+
+function formatLessonDate(d: string): string {
+  try {
+    const date = new Date(`${d}T12:00:00`);
+    const m = date.getMonth() + 1;
+    const day = date.getDate();
+    const wd = date.toLocaleDateString('ko-KR', { weekday: 'short' });
+    return `${m}. ${day} (${wd})`;
+  } catch {
+    return d;
+  }
+}
+
+function progressLabel(maxPercent: number): string {
+  if (maxPercent >= DISPLAY_COMPLETE_PERCENT) return '진행완료';
+  return `진행률 ${Math.round(maxPercent)}%`;
 }
 
 export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolean }) {
@@ -74,7 +94,7 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
   }, [stage, role, isAdminAccess]);
 
   const current = announcements[0];
-  const pendingItem = pending[0];
+  const showMultipleClasses = new Set(pending.map((p) => p.className).filter(Boolean)).size > 1;
 
   const closeAnnouncement = async (hideToday: boolean) => {
     if (!current) return;
@@ -92,10 +112,14 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
     if (rest.length === 0) setStage('pending');
   };
 
-  const closePending = () => {
-    const rest = pending.slice(1);
-    setPending(rest);
-    if (rest.length === 0) setStage('done');
+  const closePendingModal = () => {
+    setPending([]);
+    setStage('done');
+  };
+
+  const openVideo = (item: PendingVideo) => {
+    navigate(`/student/videos/${item.lessonDayId}/${item.periodId}`);
+    closePendingModal();
   };
 
   if (stage === 'announcement' && current) {
@@ -126,33 +150,48 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
     );
   }
 
-  if (stage === 'pending' && pendingItem) {
+  if (stage === 'pending' && pending.length > 0) {
     return (
       <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50">
-        <div className="bg-white rounded-2xl shadow-lg max-w-md w-full p-6">
-          <h2 className="text-lg font-bold text-slate-950 mb-2">결석 수업 복습 영상</h2>
-          <p className="text-sm text-slate-600 mb-6 leading-relaxed">
-            {pendingItem.className} · {pendingItem.date} {pendingItem.period}교시 결석 수업의 복습 영상을 아직 다 보지 않았어요.
+        <div className="bg-white rounded-2xl shadow-lg max-w-md w-full p-6 max-h-[80vh] flex flex-col">
+          <h2 className="text-lg font-bold text-slate-950 mb-1">결석 수업 복습 영상</h2>
+          <p className="text-sm text-slate-500 mb-4">
+            최근 14일 결석 수업 중 아직 다 보지 않은 영상 {pending.length}개
           </p>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <button
-              type="button"
-              onClick={closePending}
-              className="flex-1 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700"
-            >
-              나중에
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                navigate(`/student/videos/${pendingItem.lessonDayId}/${pendingItem.periodId}`);
-                closePending();
-              }}
-              className="flex-1 py-2.5 bg-slate-950 text-white rounded-lg text-sm font-semibold"
-            >
-              영상 보기
-            </button>
-          </div>
+          <ul className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1 space-y-2 mb-4">
+            {pending.map((item) => {
+              const done = item.maxPercent >= DISPLAY_COMPLETE_PERCENT;
+              const teacherLabel = item.teacherName ? `${item.teacherName} 선생님` : '담당 강사';
+              return (
+                <li key={`${item.lessonDayId}-${item.periodId}`}>
+                  <button
+                    type="button"
+                    onClick={() => openVideo(item)}
+                    className="w-full text-left p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:border-slate-200 transition-colors"
+                  >
+                    {showMultipleClasses && item.className && (
+                      <p className="text-[11px] font-bold text-slate-400 mb-1">{item.className}</p>
+                    )}
+                    <p className="text-sm font-semibold text-slate-900">
+                      {formatLessonDate(item.date)} · {item.period}교시 · {teacherLabel}
+                    </p>
+                    <p
+                      className={`text-xs mt-1 font-medium ${done ? 'text-emerald-600' : 'text-slate-500'}`}
+                    >
+                      {progressLabel(item.maxPercent)}
+                    </p>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <button
+            type="button"
+            onClick={closePendingModal}
+            className="w-full py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700 font-medium"
+          >
+            나중에
+          </button>
         </div>
       </div>
     );
