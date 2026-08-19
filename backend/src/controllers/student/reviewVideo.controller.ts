@@ -45,7 +45,7 @@ export async function putProgress(req: Request, res: Response<ApiResponse>): Pro
   try {
     const studentId = await requireRealStudent(req, res);
     if (!studentId) return;
-    const { lessonDayId, periodId, currentTime, watchedSec, durationSec } = req.body ?? {};
+    const { lessonDayId, periodId, currentTime, watchedSec, playTimeSec, durationSec } = req.body ?? {};
     if (!lessonDayId || !periodId) {
       res.status(400).json({ success: false, message: 'lessonDayId와 periodId가 필요합니다.' });
       return;
@@ -56,6 +56,7 @@ export async function putProgress(req: Request, res: Response<ApiResponse>): Pro
       periodId: String(periodId),
       currentTime: Number(currentTime),
       watchedSec: Number(watchedSec),
+      playTimeSec: Number(playTimeSec),
       durationSec: Number(durationSec),
     });
     if ('error' in result) {

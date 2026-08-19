@@ -10,6 +10,18 @@ interface VideoData {
   period: number;
   lastPositionSec: number;
   maxPercent: number;
+  playTimeSec: number;
+}
+
+function formatPlayTime(sec: number): string {
+  const s = Math.max(0, Math.floor(sec));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  if (m >= 60) {
+    const h = Math.floor(m / 60);
+    return `${h}시간 ${m % 60}분 ${r}초`;
+  }
+  return `${m}분 ${r}초`;
 }
 
 declare global {
@@ -68,9 +80,11 @@ export default function ReviewVideo() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [percent, setPercent] = useState(0);
+  const [playTime, setPlayTime] = useState(0);
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer | null>(null);
   const watchedRef = useRef<Set<number>>(new Set());
+  const playTimeRef = useRef(0);
   const tickRef = useRef<number | null>(null);
   const lastFlushRef = useRef(0);
 
@@ -80,11 +94,24 @@ export default function ReviewVideo() {
     const currentTime = player.getCurrentTime() || 0;
     const watchedSec = watchedRef.current.size;
     try {
-      const res = await apiClient.put<{ success: boolean; data?: { maxPercent: number } }>(
-        '/student/review-videos/progress',
-        { lessonDayId, periodId, currentTime, watchedSec, durationSec: duration }
-      );
-      if (res.data.success && res.data.data) setPercent(res.data.data.maxPercent);
+      const res = await apiClient.put<{
+        success: boolean;
+        data?: { maxPercent: number; playTimeSec: number };
+      }>('/student/review-videos/progress', {
+        lessonDayId,
+        periodId,
+        currentTime,
+        watchedSec,
+        playTimeSec: playTimeRef.current,
+        durationSec: duration,
+      });
+      if (res.data.success && res.data.data) {
+        setPercent(res.data.data.maxPercent);
+        if (typeof res.data.data.playTimeSec === 'number') {
+          playTimeRef.current = Math.max(playTimeRef.current, res.data.data.playTimeSec);
+          setPlayTime(playTimeRef.current);
+        }
+      }
     } catch {
       // ignore heartbeat errors
     }
@@ -100,6 +127,8 @@ export default function ReviewVideo() {
         if (res.data.success && res.data.data) {
           setData(res.data.data);
           setPercent(res.data.data.maxPercent ?? 0);
+          playTimeRef.current = res.data.data.playTimeSec ?? 0;
+          setPlayTime(playTimeRef.current);
         } else {
           setError('영상을 불러올 수 없습니다.');
         }
@@ -127,8 +156,12 @@ export default function ReviewVideo() {
     const startTick = (player: YTPlayer) => {
       if (tickRef.current) window.clearInterval(tickRef.current);
       tickRef.current = window.setInterval(() => {
+        const playing = window.YT?.PlayerState.PLAYING;
+        if (playing != null && player.getPlayerState() !== playing) return;
         const t = Math.floor(player.getCurrentTime() || 0);
         if (t >= 0) watchedRef.current.add(t);
+        playTimeRef.current += 1;
+        setPlayTime(playTimeRef.current);
         const now = Date.now();
         if (now - lastFlushRef.current > 8000) {
           lastFlushRef.current = now;
@@ -215,7 +248,9 @@ export default function ReviewVideo() {
       <h1 className="text-xl font-title font-bold text-slate-950 mt-3 mb-1">
         {data.date} · {data.period}교시 복습 영상
       </h1>
-      <p className="text-sm text-slate-500 mb-4">시청률 {Math.round(percent)}%</p>
+      <p className="text-sm text-slate-500 mb-4">
+        진행률 {Math.round(percent)}% · 시청 시간 {formatPlayTime(playTime)}
+      </p>
       <div className="aspect-video w-full bg-slate-900 rounded-xl overflow-hidden">
         <div ref={hostRef} className="w-full h-full" />
       </div>

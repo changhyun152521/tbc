@@ -6,7 +6,10 @@ export interface IVideoWatchProgress extends Document {
   periodId: mongoose.Types.ObjectId;
   youtubeVideoId: string;
   durationSec: number;
+  /** 영상에서 실제로 재생된 고유 초 수 (진행률 계산) */
   watchedSec: number;
+  /** 플레이어가 PLAYING 상태였던 누적 시간 (같은 구간 재시청 포함) */
+  playTimeSec: number;
   maxPercent: number;
   lastPositionSec: number;
   lastWatchedAt?: Date;
@@ -24,6 +27,7 @@ const videoWatchProgressSchema = new Schema<IVideoWatchProgress>(
     youtubeVideoId: { type: String, required: true, trim: true },
     durationSec: { type: Number, default: 0 },
     watchedSec: { type: Number, default: 0 },
+    playTimeSec: { type: Number, default: 0 },
     maxPercent: { type: Number, default: 0 },
     lastPositionSec: { type: Number, default: 0 },
     lastWatchedAt: { type: Date, required: false },

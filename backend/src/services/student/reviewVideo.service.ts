@@ -17,7 +17,7 @@ export async function getReviewVideoForStudent(
   studentId: string,
   lessonDayId: string,
   periodId: string
-): Promise<{ youtubeVideoId: string; lessonDayId: string; periodId: string; date: string; period: number; lastPositionSec: number; maxPercent: number } | { error: string; status: number }> {
+): Promise<{ youtubeVideoId: string; lessonDayId: string; periodId: string; date: string; period: number; lastPositionSec: number; maxPercent: number; playTimeSec: number; watchedSec: number } | { error: string; status: number }> {
   if (!mongoose.Types.ObjectId.isValid(lessonDayId) || !mongoose.Types.ObjectId.isValid(periodId)) {
     return { error: '올바른 ID가 아닙니다.', status: 400 };
   }
@@ -51,6 +51,8 @@ export async function getReviewVideoForStudent(
     period: idx + 1,
     lastPositionSec: progress?.lastPositionSec ?? 0,
     maxPercent: progress?.maxPercent ?? 0,
+    playTimeSec: progress?.playTimeSec ?? 0,
+    watchedSec: progress?.watchedSec ?? 0,
   };
 }
 
@@ -60,14 +62,16 @@ export async function upsertProgress(input: {
   periodId: string;
   currentTime: number;
   watchedSec: number;
+  playTimeSec: number;
   durationSec: number;
-}): Promise<{ maxPercent: number; watchedSec: number; completed: boolean } | { error: string; status: number }> {
+}): Promise<{ maxPercent: number; watchedSec: number; playTimeSec: number; completed: boolean } | { error: string; status: number }> {
   const access = await getReviewVideoForStudent(input.studentId, input.lessonDayId, input.periodId);
   if ('error' in access) return access;
 
   const duration = Math.max(0, Number(input.durationSec) || 0);
   const currentTime = Math.max(0, Number(input.currentTime) || 0);
   let incomingWatched = Math.max(0, Number(input.watchedSec) || 0);
+  let incomingPlayTime = Math.max(0, Number(input.playTimeSec) || 0);
   if (duration > 0) incomingWatched = Math.min(incomingWatched, duration + 1);
 
   const now = new Date();
@@ -77,12 +81,16 @@ export async function upsertProgress(input: {
     periodId: new mongoose.Types.ObjectId(input.periodId),
   }).exec();
 
+  const existingPlayTime = existing?.playTimeSec ?? existing?.watchedSec ?? 0;
   let watchedSec = incomingWatched;
+  let playTimeSec = incomingPlayTime;
   if (existing) {
     const elapsed = existing.lastProgressAt ? (now.getTime() - existing.lastProgressAt.getTime()) / 1000 : 15;
     const allowedIncrease = Math.max(2, elapsed + 8);
     watchedSec = Math.min(incomingWatched, existing.watchedSec + allowedIncrease);
     watchedSec = Math.max(watchedSec, existing.watchedSec);
+    playTimeSec = Math.min(incomingPlayTime, existingPlayTime + allowedIncrease);
+    playTimeSec = Math.max(playTimeSec, existingPlayTime);
   }
 
   const percent = duration > 0 ? Math.min(100, (watchedSec / duration) * 100) : 0;
@@ -93,6 +101,7 @@ export async function upsertProgress(input: {
     youtubeVideoId: access.youtubeVideoId,
     durationSec: duration > 0 ? duration : existing?.durationSec ?? 0,
     watchedSec,
+    playTimeSec,
     maxPercent,
     lastPositionSec: duration > 0 ? Math.min(currentTime, duration) : currentTime,
     lastWatchedAt: now,
@@ -110,7 +119,7 @@ export async function upsertProgress(input: {
     { upsert: true, new: true }
   ).exec();
 
-  return { maxPercent, watchedSec, completed };
+  return { maxPercent, watchedSec, playTimeSec, completed };
 }
 
 export async function listPendingForStudent(studentId: string) {
@@ -208,6 +217,7 @@ export async function getClassWatchStats(classId: string) {
     period: number;
     attendance: string;
     watchedSec: number;
+    playTimeSec: number;
     maxPercent: number;
     hasVideo: boolean;
   }[] = [];
@@ -230,6 +240,7 @@ export async function getClassWatchStats(classId: string) {
           period: idx + 1,
           attendance: rec.attendance ?? '',
           watchedSec: 0,
+          playTimeSec: 0,
           maxPercent: 0,
           hasVideo: true,
         });
@@ -257,6 +268,7 @@ export async function getClassWatchStats(classId: string) {
     return {
       ...r,
       watchedSec: p?.watchedSec ?? 0,
+      playTimeSec: p?.playTimeSec ?? p?.watchedSec ?? 0,
       maxPercent: p?.maxPercent ?? 0,
     };
   });

@@ -8,6 +8,7 @@ interface WatchStatRow {
   period: number;
   attendance: string;
   watchedSec: number;
+  playTimeSec: number;
   maxPercent: number;
 }
 
@@ -73,8 +74,8 @@ export default function ClassWatchStatsSection({ classId }: ClassWatchStatsSecti
                 <th className="py-3 px-4 text-slate-500 text-xs font-bold whitespace-nowrap">수업일</th>
                 <th className="py-3 px-4 text-slate-500 text-xs font-bold whitespace-nowrap">교시</th>
                 <th className="py-3 px-4 text-slate-500 text-xs font-bold whitespace-nowrap">출결</th>
+                <th className="py-3 px-4 text-slate-500 text-xs font-bold whitespace-nowrap">진행률</th>
                 <th className="py-3 px-4 text-slate-500 text-xs font-bold whitespace-nowrap">시청 시간</th>
-                <th className="py-3 px-4 text-slate-500 text-xs font-bold whitespace-nowrap">시청률</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-[14px]">
@@ -86,8 +87,8 @@ export default function ClassWatchStatsSection({ classId }: ClassWatchStatsSecti
                   <td className="py-3 px-4 whitespace-nowrap">
                     {row.attendance === 'O' ? '출석' : row.attendance === 'X' ? '결석' : '-'}
                   </td>
-                  <td className="py-3 px-4 whitespace-nowrap font-number">{formatDuration(row.watchedSec)}</td>
                   <td className="py-3 px-4 whitespace-nowrap font-number">{Math.round(row.maxPercent)}%</td>
+                  <td className="py-3 px-4 whitespace-nowrap font-number">{formatDuration(row.playTimeSec ?? row.watchedSec)}</td>
                 </tr>
               ))}
             </tbody>
