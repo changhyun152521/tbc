@@ -213,7 +213,7 @@ export default function LessonHistory() {
         </div>
 
         {/* 날짜 선택기: 기록이 있는 날만 선택 가능 */}
-        <div className="mt-6 sm:mt-8 w-full max-w-[200px] sm:max-w-[220px]">
+        <div className="mt-6 sm:mt-8 w-full max-w-[300px] sm:max-w-[320px]">
           <RecordDatePicker
             value={selectedDate}
             onChange={handleDateChange}
@@ -351,7 +351,7 @@ export default function LessonHistory() {
                     {canWatchReviewVideo ? (
                       <Link
                         to={`/student/videos/${l.lessonDayId}/${l.periodId}`}
-                        className="block w-full text-center py-2.5 bg-slate-900 text-white rounded-xl text-sm font-semibold"
+                        className="block w-full text-center py-2.5 bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-sm font-medium hover:bg-slate-200/70 transition-colors"
                       >
                         복습 영상 보기
                       </Link>
@@ -359,7 +359,7 @@ export default function LessonHistory() {
                       <button
                         type="button"
                         onClick={() => setVideoBlockedOpen(true)}
-                        className="block w-full text-center py-2.5 bg-slate-900 text-white rounded-xl text-sm font-semibold"
+                        className="block w-full text-center py-2.5 bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-sm font-medium hover:bg-slate-200/70 transition-colors"
                       >
                         복습 영상 보기
                       </button>

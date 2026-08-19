@@ -113,8 +113,43 @@ export default function RecordDatePicker({
 
   const monthLabel = `${viewMonth.year}년 ${viewMonth.month + 1}월`;
 
+  const sortedAvailableDates = [...availableDates].sort();
+  const currentDateIndex = sortedAvailableDates.indexOf(value);
+  const canGoPrev = currentDateIndex > 0;
+  const canGoNext = currentDateIndex >= 0 && currentDateIndex < sortedAvailableDates.length - 1;
+
+  const goPrevDate = () => {
+    if (!canGoPrev) return;
+    onChange(sortedAvailableDates[currentDateIndex - 1]);
+  };
+
+  const goNextDate = () => {
+    if (!canGoNext) return;
+    onChange(sortedAvailableDates[currentDateIndex + 1]);
+  };
+
+  const navButtonClass = (enabled: boolean) =>
+    `shrink-0 p-2 rounded-full border transition-colors ${
+      enabled
+        ? 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+        : 'border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed'
+    }`;
+
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
+    <div ref={containerRef} className={`flex items-center gap-2 ${className}`}>
+      <button
+        type="button"
+        onClick={goPrevDate}
+        disabled={!canGoPrev}
+        className={navButtonClass(canGoPrev)}
+        aria-label="이전 날짜"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+
+      <div className="relative flex-1 min-w-0">
       <button
         type="button"
         onClick={() => setIsOpen((o) => !o)}
@@ -198,6 +233,19 @@ export default function RecordDatePicker({
           </div>
         </div>
       )}
+      </div>
+
+      <button
+        type="button"
+        onClick={goNextDate}
+        disabled={!canGoNext}
+        className={navButtonClass(canGoNext)}
+        aria-label="다음 날짜"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
     </div>
   );
 }
