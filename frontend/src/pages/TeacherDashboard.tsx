@@ -6,7 +6,7 @@ import { apiClient } from '../api/client';
 interface TeacherDashboardData {
   classCount: number;
   studentCount: number;
-  incompleteReviewVideos: Array<{
+  recentAbsences: Array<{
     studentId: string;
     studentName: string;
     className: string;
@@ -14,6 +14,7 @@ interface TeacherDashboardData {
     periodId: string;
     date: string;
     period: number;
+    hasReviewVideo: boolean;
     maxPercent: number;
   }>;
   recentPeriods: Array<{
@@ -25,6 +26,8 @@ interface TeacherDashboardData {
     period: number;
   }>;
 }
+
+const PROGRESS_DONE_PERCENT = 80;
 
 function formatDateLabel(d: string): string {
   try {
@@ -38,9 +41,26 @@ function formatDateLabel(d: string): string {
   }
 }
 
-function progressLabel(maxPercent: number): string {
-  if (maxPercent >= 80) return '진행완료';
-  return `진행률 ${Math.round(maxPercent)}%`;
+function VideoProgressBadge({ hasReviewVideo, maxPercent }: { hasReviewVideo: boolean; maxPercent: number }) {
+  if (!hasReviewVideo) {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-500">
+        영상 없음
+      </span>
+    );
+  }
+  if (maxPercent >= PROGRESS_DONE_PERCENT) {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-700">
+        진행완료 {Math.round(maxPercent)}%
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-700">
+      진행률 {Math.round(maxPercent)}%
+    </span>
+  );
 }
 
 export default function TeacherDashboard() {
@@ -151,24 +171,30 @@ export default function TeacherDashboard() {
         </div>
 
         <div className="mb-8">
-          <h3 className="text-[12px] sm:text-[14px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-1">
-            결석 · 복습영상 미완
+          <h3 className="text-[12px] sm:text-[14px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">
+            최근 14일 결석
           </h3>
+          <p className="text-xs text-slate-400 mb-4 ml-1">내 교시 기준 · 복습 영상 진행률 포함</p>
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             {loading ? (
               <div className="p-8 text-center text-slate-400 text-sm">로딩 중...</div>
-            ) : !data?.incompleteReviewVideos.length ? (
-              <div className="p-8 text-center text-slate-400 text-sm">확인할 항목이 없습니다.</div>
+            ) : !data?.recentAbsences.length ? (
+              <div className="p-8 text-center text-slate-400 text-sm">최근 14일간 결석 학생이 없습니다.</div>
             ) : (
               <ul className="divide-y divide-slate-100">
-                {data.incompleteReviewVideos.map((row) => (
+                {data.recentAbsences.map((row) => (
                   <li key={`${row.studentId}-${row.lessonDayId}-${row.periodId}`} className="px-4 py-3 sm:px-5">
-                    <p className="text-sm font-semibold text-slate-900">
-                      {row.studentName} · {row.className}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {formatDateLabel(row.date)} · {row.period}교시 · {progressLabel(row.maxPercent)}
-                    </p>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-900">
+                          {row.studentName} · {row.className}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {formatDateLabel(row.date)} · {row.period}교시
+                        </p>
+                      </div>
+                      <VideoProgressBadge hasReviewVideo={row.hasReviewVideo} maxPercent={row.maxPercent} />
+                    </div>
                   </li>
                 ))}
               </ul>
