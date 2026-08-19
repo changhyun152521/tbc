@@ -11,6 +11,7 @@ interface VideoData {
   lastPositionSec: number;
   maxPercent: number;
   playTimeSec: number;
+  watchedSec: number;
 }
 
 function formatPlayTime(sec: number): string {
@@ -84,6 +85,8 @@ export default function ReviewVideo() {
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer | null>(null);
   const watchedRef = useRef<Set<number>>(new Set());
+  /** 서버에 저장된 누적 시청 구간(초). 재입장 시 세션 카운트와 합산해 진행률을 이어감 */
+  const baselineWatchedSecRef = useRef(0);
   const playTimeRef = useRef(0);
   const tickRef = useRef<number | null>(null);
   const lastFlushRef = useRef(0);
@@ -92,11 +95,11 @@ export default function ReviewVideo() {
     if (!player || !lessonDayId || !periodId) return;
     const duration = player.getDuration() || 0;
     const currentTime = player.getCurrentTime() || 0;
-    const watchedSec = watchedRef.current.size;
+    const watchedSec = baselineWatchedSecRef.current + watchedRef.current.size;
     try {
       const res = await apiClient.put<{
         success: boolean;
-        data?: { maxPercent: number; playTimeSec: number };
+        data?: { maxPercent: number; playTimeSec: number; watchedSec: number };
       }>('/student/review-videos/progress', {
         lessonDayId,
         periodId,
@@ -107,6 +110,10 @@ export default function ReviewVideo() {
       });
       if (res.data.success && res.data.data) {
         setPercent(res.data.data.maxPercent);
+        if (typeof res.data.data.watchedSec === 'number') {
+          baselineWatchedSecRef.current = res.data.data.watchedSec;
+          watchedRef.current.clear();
+        }
         if (typeof res.data.data.playTimeSec === 'number') {
           playTimeRef.current = Math.max(playTimeRef.current, res.data.data.playTimeSec);
           setPlayTime(playTimeRef.current);
@@ -127,6 +134,8 @@ export default function ReviewVideo() {
         if (res.data.success && res.data.data) {
           setData(res.data.data);
           setPercent(res.data.data.maxPercent ?? 0);
+          baselineWatchedSecRef.current = res.data.data.watchedSec ?? 0;
+          watchedRef.current.clear();
           playTimeRef.current = res.data.data.playTimeSec ?? 0;
           setPlayTime(playTimeRef.current);
         } else {
