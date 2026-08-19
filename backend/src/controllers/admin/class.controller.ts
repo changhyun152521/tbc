@@ -12,11 +12,25 @@ export async function createClass(req: Request, res: Response<ApiResponse>): Pro
       return;
     }
     const body = req.body;
+    const role = req.user?.role ?? '';
+    let teacherIds: string[] | undefined;
+
+    if (role === 'teacher') {
+      const teacherId = await getTeacherIdByUserId(req.user?.id ?? '');
+      if (!teacherId) {
+        res.status(403).json({ success: false, message: '강사 정보를 찾을 수 없습니다.' });
+        return;
+      }
+      teacherIds = [teacherId.toString()];
+    }
+
     const classDoc = await classService.createClass({
       name: body.name,
       description: body.description,
+      teacherIds,
     });
-    res.status(201).json({ success: true, data: classDoc });
+    const populated = await classService.getClassById(classDoc._id.toString());
+    res.status(201).json({ success: true, data: populated ?? classDoc });
   } catch (err) {
     const message = err instanceof Error ? err.message : '반 생성에 실패했습니다.';
     res.status(500).json({ success: false, message });

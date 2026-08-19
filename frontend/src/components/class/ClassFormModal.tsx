@@ -7,6 +7,8 @@ interface ClassFormModalProps {
   initialValues?: ClassFormValues | null;
   onClose: () => void;
   onSubmit: (values: ClassFormValues) => Promise<void>;
+  /** 강사 생성 시 본인 자동 배정 안내 */
+  teacherSelfAssign?: boolean;
 }
 
 const emptyForm: ClassFormValues = {
@@ -21,6 +23,7 @@ export default function ClassFormModal({
   initialValues,
   onClose,
   onSubmit,
+  teacherSelfAssign = false,
 }: ClassFormModalProps) {
   const [form, setForm] = useState<ClassFormValues>(emptyForm);
   const [error, setError] = useState('');
@@ -96,6 +99,11 @@ export default function ClassFormModal({
                   placeholder="반에 대한 메모"
                 />
               </div>
+              {teacherSelfAssign && mode === 'create' && (
+                <p className="text-sm text-slate-500 bg-slate-50 rounded-lg px-3 py-2.5">
+                  새 반을 만들면 본인이 담당 강사로 자동 등록됩니다.
+                </p>
+              )}
             </div>
             {error && (
               <p className="mt-4 text-sm text-red-600" role="alert">{error}</p>

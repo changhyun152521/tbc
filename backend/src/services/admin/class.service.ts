@@ -8,6 +8,7 @@ import { Test } from '../../models/Test.model';
 export interface CreateClassInput {
   name: string;
   description?: string;
+  teacherIds?: string[];
 }
 
 export interface UpdateClassInput {
@@ -17,10 +18,11 @@ export interface UpdateClassInput {
 }
 
 export async function createClass(input: CreateClassInput): Promise<IClass> {
+  const teacherIds = (input.teacherIds ?? []).map((tid) => new mongoose.Types.ObjectId(tid));
   const doc = await Class.create({
     name: input.name.trim(),
     description: input.description?.trim() ?? '',
-    teacherIds: [],
+    teacherIds,
     studentIds: [],
   });
   return doc;
