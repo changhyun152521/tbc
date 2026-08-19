@@ -12,6 +12,14 @@ export interface IStudentRecord {
   parentNote?: string;
 }
 
+export interface IReviewVideo {
+  _id?: mongoose.Types.ObjectId;
+  url: string;
+  videoId: string;
+  title?: string;
+  order: number;
+}
+
 export interface IPeriod {
   _id?: mongoose.Types.ObjectId;
   teacherId: mongoose.Types.ObjectId;
@@ -21,9 +29,11 @@ export interface IPeriod {
   homeworkDescription?: string;
   /** 과제 마감기한 */
   homeworkDueDate?: Date;
-  /** 복습 영상 원본 URL */
+  /** 복습 영상 목록 (다중 지원) */
+  reviewVideos?: IReviewVideo[];
+  /** @deprecated 단일 영상 URL (하위 호환용) */
   reviewVideoUrl?: string;
-  /** 추출된 YouTube videoId */
+  /** @deprecated 단일 영상 ID (하위 호환용) */
   reviewVideoId?: string;
   records: IStudentRecord[];
 }
@@ -47,12 +57,23 @@ const studentRecordSchema = new Schema<IStudentRecord>(
   { _id: false }
 );
 
+const reviewVideoSchema = new Schema<IReviewVideo>(
+  {
+    url: { type: String, default: '', trim: true },
+    videoId: { type: String, default: '', trim: true },
+    title: { type: String, default: '', trim: true },
+    order: { type: Number, default: 0 },
+  },
+  { _id: true }
+);
+
 const periodSchema = new Schema<IPeriod>(
   {
     teacherId: { type: Schema.Types.ObjectId, required: true, ref: 'Teacher' },
     memo: { type: String, default: '' },
     homeworkDescription: { type: String, default: '' },
     homeworkDueDate: { type: Date, required: false },
+    reviewVideos: { type: [reviewVideoSchema], default: [] },
     reviewVideoUrl: { type: String, default: '', trim: true },
     reviewVideoId: { type: String, default: '', trim: true },
     records: { type: [studentRecordSchema], default: [] },

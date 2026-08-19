@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { LessonDay } from '../../models/LessonDay.model';
-import type { ILessonDay, IPeriod, IStudentRecord } from '../../models/LessonDay.model';
+import type { ILessonDay, IPeriod, IStudentRecord, IReviewVideo } from '../../models/LessonDay.model';
 import { Class } from '../../models/Class.model';
 import { VideoWatchProgress } from '../../models/VideoWatchProgress.model';
 import { extractYoutubeVideoId } from '../../utils/youtube';
@@ -163,6 +163,7 @@ export async function updatePeriod(
     homeworkDescription?: string;
     homeworkDueDate?: string | Date | null;
     reviewVideoUrl?: string;
+    reviewVideos?: { url: string; title?: string; order: number }[];
     records?: { studentId: string; attendance: 'O' | 'X' | ''; homework: 'O' | 'X' | ''; note?: string; parentNote?: string }[];
   }
 ): Promise<ILessonDay | null> {
@@ -183,7 +184,33 @@ export async function updatePeriod(
       p.homeworkDueDate = Number.isNaN(d.getTime()) ? undefined : d;
     }
   }
-  if (payload.reviewVideoUrl !== undefined) {
+  if (payload.reviewVideos !== undefined) {
+    const existingVideos = (period.reviewVideos ?? []) as IReviewVideo[];
+    const oldVideoIds = new Set(existingVideos.map((v) => v.videoId));
+    const newVideos: IReviewVideo[] = payload.reviewVideos.map((v, i) => ({
+      url: (v.url ?? '').trim(),
+      videoId: extractYoutubeVideoId((v.url ?? '').trim()) ?? '',
+      title: (v.title ?? '').trim(),
+      order: v.order ?? i,
+    }));
+    const newVideoIds = new Set(newVideos.map((v) => v.videoId));
+    period.reviewVideos = newVideos;
+    // 삭제된 영상의 시청 기록 제거
+    if (period._id) {
+      const removedVideoIds = [...oldVideoIds].filter((id) => id && !newVideoIds.has(id));
+      if (removedVideoIds.length > 0) {
+        await VideoWatchProgress.deleteMany({
+          lessonDayId: lesson._id,
+          periodId: period._id,
+          youtubeVideoId: { $in: removedVideoIds },
+        }).exec();
+      }
+    }
+    // 하위 호환: 첫 번째 영상을 단일 필드에도 저장
+    const first = newVideos[0];
+    period.reviewVideoUrl = first?.url ?? '';
+    period.reviewVideoId = first?.videoId ?? '';
+  } else if (payload.reviewVideoUrl !== undefined) {
     const url = (payload.reviewVideoUrl ?? '').trim();
     const newId = extractYoutubeVideoId(url) ?? '';
     const oldId = (period.reviewVideoId ?? '').trim();

@@ -18,6 +18,13 @@ export interface StudentRecord {
   parentNote?: string;
 }
 
+export interface ReviewVideoItem {
+  url: string;
+  videoId: string;
+  title?: string;
+  order: number;
+}
+
 export interface PeriodItem {
   _id?: string;
   teacherId: string | { _id: string; name: string };
@@ -27,8 +34,11 @@ export interface PeriodItem {
   homeworkDescription?: string;
   /** 과제 마감기한 (YYYY-MM-DD) */
   homeworkDueDate?: string;
-  /** 복습 영상 유튜브 URL */
+  /** 복습 영상 목록 (다중 지원) */
+  reviewVideos?: ReviewVideoItem[];
+  /** @deprecated 단일 영상 URL (하위 호환용) */
   reviewVideoUrl?: string;
+  /** @deprecated 단일 영상 ID (하위 호환용) */
   reviewVideoId?: string;
   records: StudentRecord[];
 }

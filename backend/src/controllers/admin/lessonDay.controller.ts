@@ -196,13 +196,14 @@ export async function updatePeriod(req: Request, res: Response<ApiResponse>): Pr
       res.status(400).json({ success: false, message: '유효한 periodIndex가 필요합니다.' });
       return;
     }
-    const { teacherId, memo, homeworkDescription, homeworkDueDate, reviewVideoUrl, records } = req.body;
+    const { teacherId, memo, homeworkDescription, homeworkDueDate, reviewVideoUrl, reviewVideos, records } = req.body;
     const doc = await lessonDayService.updatePeriod(req.params.id, periodIndex, {
       teacherId,
       memo,
       homeworkDescription,
       homeworkDueDate,
-      reviewVideoUrl,
+      reviewVideos: reviewVideos ?? undefined,
+      reviewVideoUrl: reviewVideos ? undefined : reviewVideoUrl,
       records,
     });
     if (!doc) {

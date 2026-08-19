@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import AttendanceHomeworkTable from './AttendanceHomeworkTable';
-import type { PeriodItem, StudentRecord, AttendanceHomeworkValue } from '../../types/lesson';
+import type { PeriodItem, StudentRecord, AttendanceHomeworkValue, ReviewVideoItem } from '../../types/lesson';
 import type { ClassStudentItem } from '../../types/class';
 
 interface PeriodSectionProps {
@@ -13,7 +13,7 @@ interface PeriodSectionProps {
     periodIndex: number,
     teacherId: string,
     records: { studentId: string; attendance: AttendanceHomeworkValue; homework: AttendanceHomeworkValue; note?: string; parentNote?: string }[],
-    options?: { memo?: string; homeworkDescription?: string; homeworkDueDate?: string | null; reviewVideoUrl?: string }
+    options?: { memo?: string; homeworkDescription?: string; homeworkDueDate?: string | null; reviewVideoUrl?: string; reviewVideos?: ReviewVideoItem[] }
   ) => void;
   onDelete: (periodIndex: number) => void;
   /** 상단 일괄 저장 시 트리거. 변경되면 이 교시에 변경이 있으면 저장 수행 (지정 시 교시별 저장 버튼 숨김) */
@@ -107,7 +107,14 @@ export default function PeriodSection({
   const [memo, setMemo] = useState(memoInitial);
   const [homeworkDescription, setHomeworkDescription] = useState(homeworkDescInitial);
   const [homeworkDueDate, setHomeworkDueDate] = useState(dueDateInitial);
-  const [reviewVideoUrl, setReviewVideoUrl] = useState(period.reviewVideoUrl ?? '');
+  const buildInitialVideos = (p: PeriodItem): ReviewVideoItem[] => {
+    const vids = p.reviewVideos ?? [];
+    if (vids.length > 0) return vids.map((v, i) => ({ ...v, order: v.order ?? i }));
+    const legacy = (p.reviewVideoUrl ?? '').trim();
+    if (legacy) return [{ url: legacy, videoId: p.reviewVideoId ?? '', title: '', order: 0 }];
+    return [];
+  };
+  const [reviewVideos, setReviewVideos] = useState<ReviewVideoItem[]>(() => buildInitialVideos(period));
   const [dueDateConfirmOpen, setDueDateConfirmOpen] = useState(false);
   const pendingBulkSaveRef = useRef(false);
 
@@ -123,7 +130,7 @@ export default function PeriodSection({
             : new Date(period.homeworkDueDate).toISOString().slice(0, 10))
         : ''
     );
-    setReviewVideoUrl(period.reviewVideoUrl ?? '');
+    setReviewVideos(buildInitialVideos(period));
   }, [period]); // classStudents 제외: 부모 리렌더 시 새 배열 참조로 인해 초기화되면 사용자가 누른 O/X·COMMENT가 덮어씌워지는 문제 방지
 
   useEffect(() => {
@@ -133,7 +140,7 @@ export default function PeriodSection({
       memo !== (period.memo ?? '') ||
       homeworkDescription !== (period.homeworkDescription ?? '') ||
       homeworkDueDate !== periodDueStr ||
-      reviewVideoUrl !== (period.reviewVideoUrl ?? '') ||
+      JSON.stringify(reviewVideos) !== JSON.stringify(buildInitialVideos(period)) ||
       !recordsEqual(records, merged);
     if (!isChanged) return;
     requestSave(true);
@@ -191,7 +198,7 @@ export default function PeriodSection({
       memo: memo.trim() || undefined,
       homeworkDescription: homeworkDescription.trim() || undefined,
       homeworkDueDate: homeworkDueDate.trim() || null,
-      reviewVideoUrl: reviewVideoUrl.trim(),
+      reviewVideos: reviewVideos.map((v, i) => ({ ...v, order: i })),
     });
   };
 
@@ -233,7 +240,7 @@ export default function PeriodSection({
     memo !== (period.memo ?? '') ||
     homeworkDescription !== (period.homeworkDescription ?? '') ||
     homeworkDueDate !== periodDueStr ||
-    reviewVideoUrl !== (period.reviewVideoUrl ?? '') ||
+    JSON.stringify(reviewVideos) !== JSON.stringify(buildInitialVideos(period)) ||
     !recordsEqual(records, merged);
 
   useEffect(() => {
@@ -306,14 +313,51 @@ export default function PeriodSection({
           </div>
         </div>
         <div>
-          <label className="block text-slate-600 text-sm font-semibold mb-1.5">복습 영상 (유튜브)</label>
-          <input
-            type="url"
-            value={reviewVideoUrl}
-            onChange={(e) => setReviewVideoUrl(e.target.value)}
-            placeholder="https://www.youtube.com/watch?v=..."
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none"
-          />
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-slate-600 text-sm font-semibold">복습 영상 (유튜브)</label>
+            <button
+              type="button"
+              onClick={() => setReviewVideos((prev) => [...prev, { url: '', videoId: '', title: '', order: prev.length }])}
+              className="text-xs text-sky-700 font-medium hover:text-sky-900"
+            >
+              + 영상 추가
+            </button>
+          </div>
+          {reviewVideos.length === 0 ? (
+            <p className="text-xs text-slate-400 py-2">등록된 영상이 없습니다. 영상 추가 버튼을 눌러 추가하세요.</p>
+          ) : (
+            <div className="space-y-2">
+              {reviewVideos.map((v, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 font-bold w-5 shrink-0 text-center">{i + 1}</span>
+                  <div className="flex-1 space-y-1">
+                    <input
+                      type="text"
+                      value={v.title}
+                      onChange={(e) => setReviewVideos((prev) => prev.map((x, j) => j === i ? { ...x, title: e.target.value } : x))}
+                      placeholder="영상 제목 (선택)"
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none"
+                    />
+                    <input
+                      type="url"
+                      value={v.url}
+                      onChange={(e) => setReviewVideos((prev) => prev.map((x, j) => j === i ? { ...x, url: e.target.value } : x))}
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setReviewVideos((prev) => prev.filter((_, j) => j !== i))}
+                    className="text-red-400 hover:text-red-600 text-lg leading-none shrink-0"
+                    aria-label="영상 삭제"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex flex-nowrap items-center justify-end gap-2 mb-3 lg:mb-2">
           <button

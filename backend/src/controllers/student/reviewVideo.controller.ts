@@ -25,7 +25,7 @@ export async function getReviewVideo(req: Request, res: Response<ApiResponse>): 
   try {
     const studentId = await requireRealStudent(req, res);
     if (!studentId) return;
-    const result = await reviewVideoService.getReviewVideoForStudent(
+    const result = await reviewVideoService.getReviewVideosForStudent(
       studentId,
       req.params.lessonDayId,
       req.params.periodId
@@ -45,15 +45,17 @@ export async function putProgress(req: Request, res: Response<ApiResponse>): Pro
   try {
     const studentId = await requireRealStudent(req, res);
     if (!studentId) return;
-    const { lessonDayId, periodId, currentTime, watchedSec, playTimeSec, durationSec } = req.body ?? {};
-    if (!lessonDayId || !periodId) {
-      res.status(400).json({ success: false, message: 'lessonDayId와 periodId가 필요합니다.' });
+    const { lessonDayId, periodId, videoIndex, youtubeVideoId, currentTime, watchedSec, playTimeSec, durationSec } = req.body ?? {};
+    if (!lessonDayId || !periodId || !youtubeVideoId) {
+      res.status(400).json({ success: false, message: 'lessonDayId, periodId, youtubeVideoId가 필요합니다.' });
       return;
     }
     const result = await reviewVideoService.upsertProgress({
       studentId,
       lessonDayId: String(lessonDayId),
       periodId: String(periodId),
+      videoIndex: Number(videoIndex) || 0,
+      youtubeVideoId: String(youtubeVideoId),
       currentTime: Number(currentTime),
       watchedSec: Number(watchedSec),
       playTimeSec: Number(playTimeSec),

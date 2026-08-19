@@ -100,7 +100,7 @@ export async function getTeacherDashboard(userId: string) {
       if (period.teacherId?.toString() !== teacherId.toString()) return;
       const pid = periodIdOf(period);
       if (!pid) return;
-      const hasReviewVideo = Boolean((period.reviewVideoId ?? '').trim());
+      const hasReviewVideo = Boolean(((period as { reviewVideos?: { videoId?: string }[] }).reviewVideos ?? []).some((v) => (v.videoId ?? '').trim()) || (period.reviewVideoId ?? '').trim());
       for (const rec of period.records || []) {
         if ((rec as IStudentRecord).attendance !== 'X') continue;
         const sid = rec.studentId?.toString();

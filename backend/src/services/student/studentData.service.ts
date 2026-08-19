@@ -90,7 +90,7 @@ function flattenLessonDaysForStudent(
         parentNote: parentNoteStr,
         lessonDayId: day._id.toString(),
         periodId,
-        hasReviewVideo: Boolean((period.reviewVideoId ?? '').trim()),
+        hasReviewVideo: Boolean(((period as { reviewVideos?: { videoId?: string }[] }).reviewVideos ?? []).some((v) => (v.videoId ?? '').trim()) || (period.reviewVideoId ?? '').trim()),
       });
     });
   }
