@@ -2,9 +2,10 @@ import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import type { ClassListItem } from '../../types/class';
 
-function teacherCount(row: ClassListItem): string {
-  const n = row.teacherIds?.length ?? 0;
-  return n ? `${n}명` : '-';
+function teacherNames(row: ClassListItem): string {
+  const t = row.teacherIds;
+  if (!Array.isArray(t) || t.length === 0) return '-';
+  return t.map((x) => (typeof x === 'object' && x?.name ? x.name : '-')).join(', ');
 }
 
 interface ClassTableProps {
@@ -54,7 +55,7 @@ export default function ClassTable({
               </th>
             )}
             <th className="p-4 whitespace-nowrap">반 이름</th>
-            <th className="p-4 whitespace-nowrap">담당 강사 수</th>
+            <th className="p-4 whitespace-nowrap">담당 강사</th>
             <th className="p-4 whitespace-nowrap">소속 학생 수</th>
             <th className="p-4 text-center whitespace-nowrap">관리</th>
           </tr>
@@ -80,7 +81,7 @@ export default function ClassTable({
                   </td>
                 )}
                 <td className="p-4 font-medium text-slate-950 whitespace-nowrap">{row.name}</td>
-                <td className="p-4 whitespace-nowrap">{teacherCount(row)}</td>
+                <td className="p-4 whitespace-nowrap">{teacherNames(row)}</td>
                 <td className="p-4 whitespace-nowrap">{row.studentCount != null ? `${row.studentCount}명` : '-'}</td>
                 <td className="p-4 text-center whitespace-nowrap">
                   <Link
