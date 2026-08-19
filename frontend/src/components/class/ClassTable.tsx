@@ -86,7 +86,7 @@ export default function ClassTable({
                 <td className="p-4 text-center whitespace-nowrap">
                   <Link
                     to={`/admin/classes/${row._id}`}
-                    className="text-slate-400 hover:text-slate-950 mr-3 whitespace-nowrap"
+                    className="inline-block px-4 py-2 bg-slate-950 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 whitespace-nowrap"
                   >
                     상세 관리
                   </Link>
@@ -95,14 +95,14 @@ export default function ClassTable({
                       <button
                         type="button"
                         onClick={() => onEdit(row._id)}
-                        className="text-slate-400 hover:text-slate-950 mr-3 whitespace-nowrap"
+                        className="ml-3 text-slate-400 hover:text-slate-950 whitespace-nowrap"
                       >
                         수정
                       </button>
                       <button
                         type="button"
                         onClick={() => onDelete(row._id)}
-                        className="text-slate-400 hover:text-red-600 whitespace-nowrap"
+                        className="ml-3 text-slate-400 hover:text-red-600 whitespace-nowrap"
                       >
                         삭제
                       </button>
