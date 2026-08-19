@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import * as reviewVideoService from '../../services/student/reviewVideo.service';
 import * as studentDataService from '../../services/student/studentData.service';
-import { canAccessClass } from '../../services/teacher/teacherClass.service';
+import { canAccessClass, getTeacherIdByUserId } from '../../services/teacher/teacherClass.service';
 import { ApiResponse } from '../../types/api';
 
 function getUserId(req: Request): string {
@@ -94,7 +94,15 @@ export async function getClassWatchStats(req: Request, res: Response<ApiResponse
       res.status(403).json({ success: false, message: '이 반에 대한 권한이 없습니다.' });
       return;
     }
-    const list = await reviewVideoService.getClassWatchStats(classId);
+    const teacherId = role === 'teacher' ? await getTeacherIdByUserId(userId) : null;
+    if (role === 'teacher' && !teacherId) {
+      res.status(200).json({ success: true, data: [] });
+      return;
+    }
+    const list = await reviewVideoService.getClassWatchStats(
+      classId,
+      teacherId ? teacherId.toString() : undefined
+    );
     res.status(200).json({ success: true, data: list });
   } catch (err) {
     const message = err instanceof Error ? err.message : '시청 현황 조회에 실패했습니다.';

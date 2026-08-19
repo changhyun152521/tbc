@@ -400,7 +400,7 @@ export async function listPendingForStudent(studentId: string) {
     });
 }
 
-export async function getClassWatchStats(classId: string) {
+export async function getClassWatchStats(classId: string, teacherId?: string) {
   if (!mongoose.Types.ObjectId.isValid(classId)) return [];
   const cid = new mongoose.Types.ObjectId(classId);
   const classDoc = await Class.findById(cid).select('studentIds').lean().exec();
@@ -431,6 +431,7 @@ export async function getClassWatchStats(classId: string) {
   for (const day of days) {
     const periods = (day.periods || []) as (IPeriod & { _id?: mongoose.Types.ObjectId })[];
     periods.forEach((period, idx) => {
+      if (teacherId && period.teacherId?.toString() !== teacherId) return;
       const reviewVideos = getReviewVideos(period);
       if (reviewVideos.length === 0 || !period._id) return;
       const date = day.date instanceof Date ? day.date.toISOString().slice(0, 10) : String(day.date).slice(0, 10);
