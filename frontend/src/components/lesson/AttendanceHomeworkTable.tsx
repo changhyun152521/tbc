@@ -46,12 +46,7 @@ function AttendanceHomeworkCell({
 }) {
   const current = value || '';
   return (
-    <div className="flex justify-center items-center gap-1.5">
-      {current === '' && (
-        <span className="text-slate-400 text-sm font-semibold w-6 text-center select-none" aria-label="미입력">
-          -
-        </span>
-      )}
+    <div className="flex justify-center gap-1">
       {O_X.map((v) => {
         const isSelected = current === v;
         return (
