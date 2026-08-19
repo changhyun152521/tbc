@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
+import { useAuth } from '../contexts/AuthContext';
 import type { ClassDetail as ClassDetailType, ClassStudentItem } from '../types/class';
 import AddStudentsModal from '../components/class/AddStudentsModal';
 import AddTeachersModal from '../components/class/AddTeachersModal';
@@ -9,6 +10,8 @@ import ClassWatchStatsSection from '../components/class/ClassWatchStatsSection';
 
 export default function ClassDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { role } = useAuth();
   const [detail, setDetail] = useState<ClassDetailType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -16,6 +19,9 @@ export default function ClassDetail() {
   const [addStudentsOpen, setAddStudentsOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [tab, setTab] = useState<'members' | 'announcements' | 'videos'>('members');
+  const [myTeacherId, setMyTeacherId] = useState<string | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<{ _id: string; name: string; isSelf: boolean } | null>(null);
+  const [removingTeacher, setRemovingTeacher] = useState(false);
 
   const fetchDetail = useCallback(async () => {
     if (!id) return;
@@ -37,6 +43,23 @@ export default function ClassDetail() {
     fetchDetail();
   }, [fetchDetail]);
 
+  useEffect(() => {
+    if (role !== 'teacher') return;
+    let cancelled = false;
+    apiClient
+      .get<{ success: boolean; data?: { teacherId?: string } }>('/me')
+      .then((res) => {
+        if (cancelled) return;
+        setMyTeacherId(res.data.data?.teacherId ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setMyTeacherId(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [role]);
+
   const handleRemoveFromClass = async (studentId: string) => {
     if (!id) return;
     try {
@@ -45,6 +68,25 @@ export default function ClassDetail() {
       await fetchDetail();
     } catch (err) {
       setError(err instanceof Error ? err.message : '학생 제거에 실패했습니다.');
+    }
+  };
+
+  const confirmRemoveTeacher = async () => {
+    if (!id || !removeTarget) return;
+    const wasSelf = removeTarget.isSelf;
+    setRemovingTeacher(true);
+    try {
+      await apiClient.delete(`/admin/classes/${id}/teachers?teacherId=${encodeURIComponent(removeTarget._id)}`);
+      setRemoveTarget(null);
+      if (wasSelf) {
+        navigate('/admin/classes');
+        return;
+      }
+      await fetchDetail();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '강사 제거에 실패했습니다.');
+    } finally {
+      setRemovingTeacher(false);
     }
   };
 
@@ -199,8 +241,25 @@ export default function ClassDetail() {
                 ) : (
                   teachers.map((t) => (
                     <tr key={t._id} className="hover:bg-slate-50 text-slate-700">
-                      <td className="py-3 px-4 font-medium text-slate-950 whitespace-nowrap">{t.name}</td>
-                      <td className="py-3 px-4 text-center whitespace-nowrap"></td>
+                      <td className="py-3 px-4 font-medium text-slate-950 whitespace-nowrap">
+                        {t.name}
+                        {myTeacherId === t._id ? <span className="ml-2 text-xs text-slate-400 font-medium">나</span> : null}
+                      </td>
+                      <td className="py-3 px-4 text-center whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setRemoveTarget({
+                              _id: t._id,
+                              name: t.name,
+                              isSelf: Boolean(myTeacherId && myTeacherId === t._id),
+                            })
+                          }
+                          className="px-3 py-1.5 border border-red-200 text-red-700 rounded-lg text-xs font-medium hover:bg-red-50"
+                        >
+                          반에서 제거
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -316,6 +375,51 @@ export default function ClassDetail() {
         onClose={() => setAddStudentsOpen(false)}
         onAdded={fetchDetail}
       />
+
+      {removeTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50"
+          onClick={() => !removingTeacher && setRemoveTarget(null)}
+        >
+          <div
+            className="bg-white border border-slate-200 rounded-2xl shadow-lg p-6 max-w-sm w-full"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-labelledby="remove-teacher-title"
+          >
+            <h3 id="remove-teacher-title" className="text-lg font-bold text-slate-950 mb-2">
+              강사 제거
+            </h3>
+            {removeTarget.isSelf ? (
+              <p className="text-sm text-slate-600 leading-relaxed mb-6">
+                본인을 이 반에서 제거하면 담당 반 목록에서 <span className="font-semibold text-slate-900">{detail?.name}</span>이(가) 사라지고, 더 이상 이 반을 관리할 수 없습니다. 정말 제거하시겠습니까?
+              </p>
+            ) : (
+              <p className="text-sm text-slate-600 leading-relaxed mb-6">
+                <span className="font-semibold text-slate-900">{removeTarget.name}</span> 강사를 이 반에서 제거하시겠습니까?
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setRemoveTarget(null)}
+                disabled={removingTeacher}
+                className="flex-1 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700 disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmRemoveTeacher()}
+                disabled={removingTeacher}
+                className="flex-1 py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50"
+              >
+                {removingTeacher ? '제거 중...' : '제거'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import { User } from '../models/User.model';
 import { IUser } from '../models/User.model';
 import { Student } from '../models/Student.model';
+import { Teacher } from '../models/Teacher.model';
 
 const SALT_ROUNDS = 10;
 
@@ -17,6 +18,8 @@ export interface MeProfile {
   updatedAt: Date;
   /** 학생 역할일 때, 관리 접속 계정으로 로그인한 경우 true */
   isAdminAccess?: boolean;
+  /** 강사 역할일 때 Teacher 문서 ID */
+  teacherId?: string;
 }
 
 function toMeProfile(user: IUser, isAdminAccess?: boolean): MeProfile {
@@ -42,7 +45,12 @@ export async function getMe(userId: string): Promise<MeProfile | null> {
     const asAdmin = await Student.findOne({ adminAccessUserId: user._id }).select('_id').lean().exec();
     isAdminAccess = !!asAdmin;
   }
-  return toMeProfile(user, isAdminAccess);
+  const profile = toMeProfile(user, isAdminAccess);
+  if (user.role === 'teacher') {
+    const teacher = await Teacher.findOne({ userId: user._id }).select('_id').lean().exec();
+    if (teacher) profile.teacherId = teacher._id.toString();
+  }
+  return profile;
 }
 
 export async function updatePassword(
