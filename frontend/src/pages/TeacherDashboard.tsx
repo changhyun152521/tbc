@@ -71,11 +71,27 @@ export default function TeacherDashboard() {
     let cancelled = false;
     setLoading(true);
     apiClient
-      .get<{ success: boolean; data: TeacherDashboardData }>('/admin/teacher/dashboard')
+      .get<{ success: boolean; data: TeacherDashboardData & { incompleteReviewVideos?: TeacherDashboardData['recentAbsences'] } }>(
+        '/admin/teacher/dashboard'
+      )
       .then((res) => {
         if (cancelled) return;
-        if (res.data.success && res.data.data) setData(res.data.data);
-        else setData(null);
+        if (res.data.success && res.data.data) {
+          const raw = res.data.data;
+          const legacy = raw.incompleteReviewVideos ?? [];
+          const absences = raw.recentAbsences ?? legacy.map((row) => ({
+            ...row,
+            hasReviewVideo: (row as { hasReviewVideo?: boolean }).hasReviewVideo ?? true,
+          }));
+          setData({
+            classCount: raw.classCount ?? 0,
+            studentCount: raw.studentCount ?? 0,
+            recentAbsences: absences,
+            recentPeriods: raw.recentPeriods ?? [],
+          });
+        } else {
+          setData(null);
+        }
       })
       .catch(() => {
         if (!cancelled) setData(null);
@@ -178,11 +194,11 @@ export default function TeacherDashboard() {
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             {loading ? (
               <div className="p-8 text-center text-slate-400 text-sm">로딩 중...</div>
-            ) : !data?.recentAbsences.length ? (
+            ) : recentAbsences.length === 0 ? (
               <div className="p-8 text-center text-slate-400 text-sm">최근 14일간 결석 학생이 없습니다.</div>
             ) : (
               <ul className="divide-y divide-slate-100">
-                {data.recentAbsences.map((row) => (
+                {recentAbsences.map((row) => (
                   <li key={`${row.studentId}-${row.lessonDayId}-${row.periodId}`} className="px-4 py-3 sm:px-5">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
@@ -209,11 +225,11 @@ export default function TeacherDashboard() {
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             {loading ? (
               <div className="p-8 text-center text-slate-400 text-sm">로딩 중...</div>
-            ) : !data?.recentPeriods.length ? (
+            ) : recentPeriods.length === 0 ? (
               <div className="p-8 text-center text-slate-400 text-sm">최근 7일간 등록된 내 교시가 없습니다.</div>
             ) : (
               <ul className="divide-y divide-slate-100">
-                {data.recentPeriods.map((row) => (
+                {recentPeriods.map((row) => (
                   <li key={`${row.lessonDayId}-${row.periodId}`}>
                     <Link
                       to={`/admin/lessons/classroom/${row.classId}`}
