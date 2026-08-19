@@ -35,6 +35,45 @@ function toggleValue(current: AttendanceHomeworkValue, clickValue: 'O' | 'X'): A
 
 const O_X: ['O', 'X'] = ['O', 'X'];
 
+function AttendanceHomeworkCell({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: AttendanceHomeworkValue;
+  onChange: (value: AttendanceHomeworkValue) => void;
+  disabled?: boolean;
+}) {
+  const current = value || '';
+  return (
+    <div className="flex justify-center items-center gap-1.5">
+      {current === '' && (
+        <span className="text-slate-400 text-sm font-semibold w-6 text-center select-none" aria-label="미입력">
+          -
+        </span>
+      )}
+      {O_X.map((v) => {
+        const isSelected = current === v;
+        return (
+          <button
+            key={v}
+            type="button"
+            disabled={disabled}
+            onClick={() => onChange(toggleValue(current, v))}
+            className={`w-7 h-7 rounded-full border-2 text-xs font-medium transition-all shrink-0 ${
+              isSelected
+                ? 'bg-slate-800 text-white border-slate-800'
+                : 'border-slate-200 text-slate-300 hover:border-slate-300 hover:text-slate-400'
+            }`}
+          >
+            {v}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function AttendanceHomeworkTable({
   records,
   onAttendanceChange,
@@ -66,48 +105,18 @@ export default function AttendanceHomeworkTable({
                 {studentName(row)}
               </td>
               <td className="p-3">
-                <div className="flex justify-center gap-1">
-                  {O_X.map((v) => {
-                    const isSelected = (row.attendance || '') === v;
-                    return (
-                      <button
-                        key={v}
-                        type="button"
-                        disabled={disabled}
-                        onClick={() => onAttendanceChange(studentIdStr(row), toggleValue(row.attendance || '', v))}
-                        className={`w-7 h-7 rounded-full border-2 text-xs font-medium transition-all shrink-0 ${
-                          isSelected
-                            ? 'bg-slate-800 text-white border-slate-800'
-                            : 'border-slate-200 text-slate-300 hover:border-slate-300 hover:text-slate-400'
-                        }`}
-                      >
-                        {v}
-                      </button>
-                    );
-                  })}
-                </div>
+                <AttendanceHomeworkCell
+                  value={row.attendance || ''}
+                  disabled={disabled}
+                  onChange={(v) => onAttendanceChange(studentIdStr(row), v)}
+                />
               </td>
               <td className="p-3">
-                <div className="flex justify-center gap-1">
-                  {O_X.map((v) => {
-                    const isSelected = (row.homework || '') === v;
-                    return (
-                      <button
-                        key={v}
-                        type="button"
-                        disabled={disabled}
-                        onClick={() => onHomeworkChange(studentIdStr(row), toggleValue(row.homework || '', v))}
-                        className={`w-7 h-7 rounded-full border-2 text-xs font-medium transition-all shrink-0 ${
-                          isSelected
-                            ? 'bg-slate-800 text-white border-slate-800'
-                            : 'border-slate-200 text-slate-300 hover:border-slate-300 hover:text-slate-400'
-                        }`}
-                      >
-                        {v}
-                      </button>
-                    );
-                  })}
-                </div>
+                <AttendanceHomeworkCell
+                  value={row.homework || ''}
+                  disabled={disabled}
+                  onChange={(v) => onHomeworkChange(studentIdStr(row), v)}
+                />
               </td>
               <td className="p-2 sm:p-3 min-w-[140px] sm:min-w-[200px]">
                 {onNoteChange ? (

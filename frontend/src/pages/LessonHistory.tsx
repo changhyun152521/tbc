@@ -334,10 +334,10 @@ export default function LessonHistory() {
                   <div className="bg-slate-50 rounded-lg p-3 text-center border border-slate-100">
                     <p className="text-[11px] font-bold text-slate-400 mb-1 uppercase tracking-tight">과제 이행</p>
                     <p className="text-xl font-bold uppercase">
-                      {l.homeworkDone === true ? (
-                        <span className="text-emerald-600">O</span>
-                      ) : l.homework === '미제출' || l.homeworkDone === false ? (
+                      {l.homework === '미제출' ? (
                         <span className="text-rose-500">X</span>
+                      ) : l.homeworkDone === true || l.homework === '제출' ? (
+                        <span className="text-emerald-600">O</span>
                       ) : (
                         <span className="text-slate-400">-</span>
                       )}

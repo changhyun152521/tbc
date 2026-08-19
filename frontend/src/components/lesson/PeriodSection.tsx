@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import AttendanceHomeworkTable from './AttendanceHomeworkTable';
 import type { PeriodItem, StudentRecord, AttendanceHomeworkValue } from '../../types/lesson';
 import type { ClassStudentItem } from '../../types/class';
@@ -26,6 +26,10 @@ interface PeriodSectionProps {
   saving?: boolean;
 }
 
+function normalizeAttendanceHomework(value: AttendanceHomeworkValue | undefined): AttendanceHomeworkValue {
+  return value === 'O' || value === 'X' ? value : '';
+}
+
 function teacherId(p: PeriodItem): string {
   const t = p.teacherId;
   return typeof t === 'object' && t?._id ? (t as { _id: string })._id : String(t);
@@ -45,7 +49,12 @@ function mergeRecords(
   return classStudents.map((s) => {
     const existing = byId[s._id];
     return existing
-      ? { ...existing, studentId: s }
+      ? {
+          ...existing,
+          studentId: s,
+          attendance: normalizeAttendanceHomework(existing.attendance),
+          homework: normalizeAttendanceHomework(existing.homework),
+        }
       : { studentId: s, attendance: '' as const, homework: '' as const, note: '', parentNote: '' };
   });
 }
@@ -99,6 +108,8 @@ export default function PeriodSection({
   const [homeworkDescription, setHomeworkDescription] = useState(homeworkDescInitial);
   const [homeworkDueDate, setHomeworkDueDate] = useState(dueDateInitial);
   const [reviewVideoUrl, setReviewVideoUrl] = useState(period.reviewVideoUrl ?? '');
+  const [dueDateConfirmOpen, setDueDateConfirmOpen] = useState(false);
+  const pendingBulkSaveRef = useRef(false);
 
   useEffect(() => {
     setSelectedTeacherId(teacherId(period));
@@ -125,8 +136,7 @@ export default function PeriodSection({
       reviewVideoUrl !== (period.reviewVideoUrl ?? '') ||
       !recordsEqual(records, merged);
     if (!isChanged) return;
-    onWillSave?.(periodIndex);
-    handleSave();
+    requestSave(true);
   }, [saveAllTrigger]);
 
   const handleAttendanceChange = (studentId: string, value: AttendanceHomeworkValue) => {
@@ -165,13 +175,14 @@ export default function PeriodSection({
     );
   };
 
-  const handleSave = () => {
+  const performSave = (bulk: boolean) => {
+    if (bulk) onWillSave?.(periodIndex);
     const payload = records.map((r) => {
       const sid = typeof r.studentId === 'object' && r.studentId?._id ? r.studentId._id : String(r.studentId);
       return {
         studentId: sid,
-        attendance: r.attendance,
-        homework: r.homework,
+        attendance: normalizeAttendanceHomework(r.attendance),
+        homework: normalizeAttendanceHomework(r.homework),
         note: r.note ?? '',
         parentNote: r.parentNote ?? '',
       };
@@ -182,6 +193,28 @@ export default function PeriodSection({
       homeworkDueDate: homeworkDueDate.trim() || null,
       reviewVideoUrl: reviewVideoUrl.trim(),
     });
+  };
+
+  const needsDueDateConfirm = () => !homeworkDueDate.trim();
+
+  const requestSave = (bulk = false) => {
+    if (needsDueDateConfirm()) {
+      pendingBulkSaveRef.current = bulk;
+      setDueDateConfirmOpen(true);
+      return;
+    }
+    performSave(bulk);
+  };
+
+  const confirmSaveWithoutDueDate = () => {
+    setDueDateConfirmOpen(false);
+    performSave(pendingBulkSaveRef.current);
+    pendingBulkSaveRef.current = false;
+  };
+
+  const cancelSaveWithoutDueDate = () => {
+    setDueDateConfirmOpen(false);
+    pendingBulkSaveRef.current = false;
   };
 
   const handleBulkAttendance = (value: AttendanceHomeworkValue) => {
@@ -225,7 +258,7 @@ export default function PeriodSection({
         {saveAllTrigger == null && (
           <button
             type="button"
-            onClick={handleSave}
+            onClick={() => requestSave()}
             disabled={saving || !hasChanges}
             className="px-5 py-2.5 sm:py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50 hover:border-slate-400 disabled:opacity-50 shrink-0 min-w-[72px]"
           >
@@ -320,6 +353,43 @@ export default function PeriodSection({
           onParentNoteChange={hasClassStudents ? handleParentNoteChange : undefined}
         />
       </div>
+
+      {dueDateConfirmOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50"
+          onClick={cancelSaveWithoutDueDate}
+        >
+          <div
+            className="bg-white border border-slate-200 rounded-2xl shadow-lg p-6 max-w-sm w-full"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-labelledby="due-date-confirm-title"
+          >
+            <h3 id="due-date-confirm-title" className="text-lg font-bold text-slate-950 mb-2">
+              과제 마감기한 미설정
+            </h3>
+            <p className="text-sm text-slate-600 leading-relaxed mb-6">
+              과제 마감기한을 설정하지 않았습니다. 마감기한 없이 저장하시겠습니까?
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={cancelSaveWithoutDueDate}
+                className="flex-1 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={confirmSaveWithoutDueDate}
+                className="flex-1 py-2.5 bg-slate-900 text-white rounded-lg text-sm font-semibold"
+              >
+                저장
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

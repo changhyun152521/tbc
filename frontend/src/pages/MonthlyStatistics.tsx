@@ -9,6 +9,7 @@ interface LessonItem {
   _id: string;
   date: string;
   period: string;
+  homework?: string;
   homeworkDone?: boolean;
   attendanceStatus?: string;
 }
@@ -177,8 +178,10 @@ export default function MonthlyStatistics() {
       const att = (l.attendanceStatus ?? '').trim();
       if (att === 'X') byDate[d].attendanceDisplay = 'X';
       else if (att === 'O' && byDate[d].attendanceDisplay !== 'X') byDate[d].attendanceDisplay = 'O';
-      if (l.homeworkDone === false) byDate[d].homeworkDisplay = 'X';
-      else if (l.homeworkDone === true && byDate[d].homeworkDisplay !== 'X') byDate[d].homeworkDisplay = 'O';
+      if (l.homework === '미제출') byDate[d].homeworkDisplay = 'X';
+      else if ((l.homeworkDone === true || l.homework === '제출') && byDate[d].homeworkDisplay !== 'X') {
+        byDate[d].homeworkDisplay = 'O';
+      }
     }
     return byDate;
   }, [lessons]);

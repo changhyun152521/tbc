@@ -199,8 +199,8 @@ export async function updatePeriod(
   if (payload.records != null) {
     period.records = payload.records.map((r) => ({
       studentId: new mongoose.Types.ObjectId(r.studentId),
-      attendance: r.attendance,
-      homework: r.homework,
+      attendance: r.attendance === 'O' || r.attendance === 'X' ? r.attendance : '',
+      homework: r.homework === 'O' || r.homework === 'X' ? r.homework : '',
       note: r.note ?? '',
       parentNote: r.parentNote ?? '',
     }));
