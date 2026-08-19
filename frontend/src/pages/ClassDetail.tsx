@@ -37,16 +37,6 @@ export default function ClassDetail() {
     fetchDetail();
   }, [fetchDetail]);
 
-  const handleRemoveTeacher = async (teacherId: string) => {
-    if (!id) return;
-    try {
-      await apiClient.delete(`/admin/classes/${id}/teachers?teacherId=${encodeURIComponent(teacherId)}`);
-      await fetchDetail();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '강사 연결 해제에 실패했습니다.');
-    }
-  };
-
   const handleRemoveFromClass = async (studentId: string) => {
     if (!id) return;
     try {
