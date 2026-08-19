@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { query } from 'express-validator';
+import { param, query } from 'express-validator';
 import { authenticate, requireRoles } from '../middlewares/auth.middleware';
 import * as parentController from '../controllers/parent.controller';
 
@@ -13,6 +13,13 @@ router.get('/classes', parentController.getClasses);
 
 // 자녀 대시보드
 router.get('/dashboard', parentController.getDashboard);
+
+router.get('/announcements/active', parentController.listActiveAnnouncements);
+router.post(
+  '/announcements/:id/dismiss',
+  [param('id').isMongoId().withMessage('올바른 ID가 아닙니다.')],
+  parentController.dismissAnnouncement
+);
 
 // 자녀 진도/과제 현황 (쿼리: from, to 선택)
 router.get(

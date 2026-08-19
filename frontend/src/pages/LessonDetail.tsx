@@ -65,7 +65,7 @@ export default function LessonDetail() {
     periodIndex: number,
     teacherId: string,
     records: { studentId: string; attendance: AttendanceHomeworkValue; homework: AttendanceHomeworkValue; note?: string; parentNote?: string }[],
-    options?: { memo?: string; homeworkDescription?: string; homeworkDueDate?: string | null }
+    options?: { memo?: string; homeworkDescription?: string; homeworkDueDate?: string | null; reviewVideoUrl?: string }
   ) => {
     if (!id) return;
     setSavingPeriodIndex(periodIndex);
@@ -76,6 +76,7 @@ export default function LessonDetail() {
         memo: options?.memo ?? '',
         homeworkDescription: options?.homeworkDescription ?? '',
         homeworkDueDate: options?.homeworkDueDate ?? undefined,
+        reviewVideoUrl: options?.reviewVideoUrl ?? '',
         records,
       });
       await fetchDetail();

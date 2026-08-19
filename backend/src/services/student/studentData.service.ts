@@ -7,6 +7,18 @@ import { Test } from '../../models/Test.model';
 
 const RECENT_LIMIT = 10;
 
+export async function getStudentIdAndAccessType(
+  userId: string
+): Promise<{ studentId: string; isAdminAccess: boolean } | null> {
+  if (!mongoose.Types.ObjectId.isValid(userId)) return null;
+  const uid = new mongoose.Types.ObjectId(userId);
+  const byMain = await Student.findOne({ userId: uid }).select('_id').lean().exec();
+  if (byMain) return { studentId: byMain._id.toString(), isAdminAccess: false };
+  const byAdminAccess = await Student.findOne({ adminAccessUserId: uid }).select('_id').lean().exec();
+  if (byAdminAccess) return { studentId: byAdminAccess._id.toString(), isAdminAccess: true };
+  return null;
+}
+
 /**
  * studentId로 해당 학생의 classId 조회.
  * 1) Student.classId 사용, 없으면 2) 반 목록(Class.studentIds)에 포함된 반 ID 반환.
@@ -45,11 +57,11 @@ function getTeacherName(period: IPeriod & { teacherId?: mongoose.Types.ObjectId 
 function flattenLessonDaysForStudent(
   lessonDays: { _id: mongoose.Types.ObjectId; date: Date; periods: (IPeriod & { teacherId?: mongoose.Types.ObjectId | { name?: string } })[] }[],
   studentId: string
-): { _id: string; date: Date; period: string; progress: string; homework: string; homeworkDone: boolean; attendanceStatus: string; homeworkDescription?: string; homeworkDueDate?: string; teacherName?: string; note?: string; parentNote?: string }[] {
+): { _id: string; date: Date; period: string; progress: string; homework: string; homeworkDone: boolean; attendanceStatus: string; homeworkDescription?: string; homeworkDueDate?: string; teacherName?: string; note?: string; parentNote?: string; lessonDayId: string; periodId: string; hasReviewVideo: boolean }[] {
   const sid = studentId;
-  const result: { _id: string; date: Date; period: string; progress: string; homework: string; homeworkDone: boolean; attendanceStatus: string; homeworkDescription?: string; homeworkDueDate?: string; teacherName?: string; note?: string; parentNote?: string }[] = [];
+  const result: { _id: string; date: Date; period: string; progress: string; homework: string; homeworkDone: boolean; attendanceStatus: string; homeworkDescription?: string; homeworkDueDate?: string; teacherName?: string; note?: string; parentNote?: string; lessonDayId: string; periodId: string; hasReviewVideo: boolean }[] = [];
   for (const day of lessonDays) {
-    const periods = (day.periods || []) as (IPeriod & { teacherId?: mongoose.Types.ObjectId | { name?: string } })[];
+    const periods = (day.periods || []) as (IPeriod & { teacherId?: mongoose.Types.ObjectId | { name?: string }; _id?: mongoose.Types.ObjectId })[];
     periods.forEach((period, idx) => {
       const record = (period.records || []).find(
         (r: IStudentRecord) => r.studentId?.toString() === sid
@@ -62,6 +74,7 @@ function flattenLessonDaysForStudent(
         : undefined;
       const noteStr = (record?.note ?? '').trim() || undefined;
       const parentNoteStr = (record?.parentNote ?? '').trim() || undefined;
+      const periodId = period._id ? period._id.toString() : `${day._id}-${idx}`;
       result.push({
         _id: `${day._id}-${idx}`,
         date: day.date,
@@ -75,6 +88,9 @@ function flattenLessonDaysForStudent(
         teacherName: getTeacherName(period) || undefined,
         note: noteStr,
         parentNote: parentNoteStr,
+        lessonDayId: day._id.toString(),
+        periodId,
+        hasReviewVideo: Boolean((period.reviewVideoId ?? '').trim()),
       });
     });
   }

@@ -2,11 +2,14 @@ import mongoose from 'mongoose';
 import { LessonDay } from '../../models/LessonDay.model';
 import type { ILessonDay, IPeriod, IStudentRecord } from '../../models/LessonDay.model';
 import { Class } from '../../models/Class.model';
+import { VideoWatchProgress } from '../../models/VideoWatchProgress.model';
+import { extractYoutubeVideoId } from '../../utils/youtube';
 
 export interface ListLessonDaysFilter {
   dateFrom?: string;
   dateTo?: string;
   classId?: string;
+  classIds?: mongoose.Types.ObjectId[];
   teacherId?: string;
 }
 
@@ -36,7 +39,9 @@ export async function listLessonDays(filter: ListLessonDaysFilter = {}) {
     if (filter.dateFrom) (q.date as Record<string, Date>).$gte = new Date(filter.dateFrom);
     if (filter.dateTo) (q.date as Record<string, Date>).$lte = new Date(filter.dateTo);
   }
-  if (filter.classId && mongoose.Types.ObjectId.isValid(filter.classId)) {
+  if (filter.classIds && filter.classIds.length > 0) {
+    q.classId = { $in: filter.classIds };
+  } else if (filter.classId && mongoose.Types.ObjectId.isValid(filter.classId)) {
     q.classId = new mongoose.Types.ObjectId(filter.classId);
   }
   if (filter.teacherId && mongoose.Types.ObjectId.isValid(filter.teacherId)) {
@@ -66,6 +71,13 @@ export async function getLessonDayById(id: string): Promise<ILessonDay | null> {
     .populate('periods.records.studentId', 'name')
     .exec();
   return doc ?? null;
+}
+
+export async function getLessonDayClassId(id: string): Promise<string | null> {
+  if (!mongoose.Types.ObjectId.isValid(id)) return null;
+  const doc = await LessonDay.findById(id).select('classId').lean().exec();
+  if (!doc?.classId) return null;
+  return doc.classId.toString();
 }
 
 /** 반 ID + 날짜로 해당 날짜의 수업일 조회 (없으면 null) */
@@ -150,6 +162,7 @@ export async function updatePeriod(
     memo?: string;
     homeworkDescription?: string;
     homeworkDueDate?: string | Date | null;
+    reviewVideoUrl?: string;
     records?: { studentId: string; attendance: 'O' | 'X' | ''; homework: 'O' | 'X' | ''; note?: string; parentNote?: string }[];
   }
 ): Promise<ILessonDay | null> {
@@ -168,6 +181,19 @@ export async function updatePeriod(
     } else {
       const d = typeof payload.homeworkDueDate === 'string' ? new Date(payload.homeworkDueDate) : payload.homeworkDueDate;
       p.homeworkDueDate = Number.isNaN(d.getTime()) ? undefined : d;
+    }
+  }
+  if (payload.reviewVideoUrl !== undefined) {
+    const url = (payload.reviewVideoUrl ?? '').trim();
+    const newId = extractYoutubeVideoId(url) ?? '';
+    const oldId = (period.reviewVideoId ?? '').trim();
+    period.reviewVideoUrl = url;
+    period.reviewVideoId = newId;
+    if (period._id && oldId !== newId) {
+      await VideoWatchProgress.deleteMany({
+        lessonDayId: lesson._id,
+        periodId: period._id,
+      }).exec();
     }
   }
   if (payload.records != null) {

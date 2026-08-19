@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import RecordDatePicker from '../components/RecordDatePicker';
 
 function LibraryIcon({ className, strokeWidth, stroke, style }: { className?: string; strokeWidth?: number; stroke?: string; style?: React.CSSProperties }) {
@@ -44,6 +45,9 @@ interface LessonItem {
   homeworkDescription?: string;
   homeworkDueDate?: string;
   teacherName?: string;
+  lessonDayId?: string;
+  periodId?: string;
+  hasReviewVideo?: boolean;
   /** 학생 코멘트 (학생 계정에서 표시) */
   note?: string;
   /** 학부모 코멘트 (학부모 계정에서 표시) */
@@ -98,9 +102,11 @@ export default function LessonHistory() {
       setError('');
       const from = new Date(date + 'T00:00:00').toISOString();
       const to = new Date(date + 'T23:59:59').toISOString();
+      const params: Record<string, string> = { from, to };
+      if (selectedClassId) params.classId = selectedClassId;
       apiClient
         .get<{ success: boolean; data: { lessons: LessonItem[]; isAdminAccess?: boolean } }>(`/${apiPrefix}/lessons`, {
-          params: { from, to },
+          params,
         })
         .then((res) => {
           if (res.data.success && res.data.data) {
@@ -265,6 +271,18 @@ export default function LessonHistory() {
                     {l.homeworkDescription || '-'}
                   </p>
                 </div>
+
+                {role === 'student' && !isAdminAccess && l.hasReviewVideo && l.lessonDayId && l.periodId && (
+                  <>
+                    <div className="h-[1px] bg-slate-50" />
+                    <Link
+                      to={`/student/videos/${l.lessonDayId}/${l.periodId}`}
+                      className="block w-full text-center py-2.5 bg-slate-900 text-white rounded-xl text-sm font-semibold"
+                    >
+                      복습 영상 보기
+                    </Link>
+                  </>
+                )}
 
                 {(() => {
                   if (isAdminAccess) {

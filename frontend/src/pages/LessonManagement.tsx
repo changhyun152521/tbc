@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '../api/client';
+import { useAuth } from '../contexts/AuthContext';
 import type { ClassListItemForLesson } from '../types/class';
 
 export default function LessonManagement() {
+  const { role } = useAuth();
   const [list, setList] = useState<ClassListItemForLesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -70,7 +72,7 @@ export default function LessonManagement() {
                   {list.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="p-8 text-center text-slate-500">
-                        등록된 반이 없습니다.
+                        {role === 'teacher' ? '담당 반이 없습니다.' : '등록된 반이 없습니다.'}
                       </td>
                     </tr>
                   ) : (

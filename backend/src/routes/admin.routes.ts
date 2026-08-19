@@ -5,6 +5,8 @@ import * as studentController from '../controllers/admin/student.controller';
 import * as teacherController from '../controllers/admin/teacher.controller';
 import * as classController from '../controllers/admin/class.controller';
 import * as lessonDayController from '../controllers/admin/lessonDay.controller';
+import * as announcementController from '../controllers/admin/announcement.controller';
+import * as reviewVideoController from '../controllers/student/reviewVideo.controller';
 
 const router = Router();
 
@@ -109,6 +111,39 @@ router.delete(
     query('studentId').optional(),
   ],
   classController.removeStudent
+);
+
+// Announcements (반별 공지)
+router.get(
+  '/classes/:classId/announcements',
+  [param('classId').isMongoId().withMessage('올바른 반 ID가 아닙니다.')],
+  announcementController.listByClass
+);
+router.post(
+  '/classes/:classId/announcements',
+  [
+    param('classId').isMongoId().withMessage('올바른 반 ID가 아닙니다.'),
+    body('title').trim().notEmpty().withMessage('제목은 필수입니다.'),
+    body('startsAt').notEmpty().withMessage('시작일은 필수입니다.'),
+    body('endsAt').notEmpty().withMessage('종료일은 필수입니다.'),
+  ],
+  announcementController.create
+);
+router.put(
+  '/announcements/:id',
+  [param('id').isMongoId().withMessage('올바른 ID가 아닙니다.')],
+  announcementController.update
+);
+router.delete(
+  '/announcements/:id',
+  [param('id').isMongoId().withMessage('올바른 ID가 아닙니다.')],
+  announcementController.remove
+);
+
+router.get(
+  '/classes/:classId/review-watch-stats',
+  [param('classId').isMongoId().withMessage('올바른 반 ID가 아닙니다.')],
+  reviewVideoController.getClassWatchStats
 );
 
 // Lesson Days (수업 관리: 날짜+반 단위, 교시별 출결/과제)

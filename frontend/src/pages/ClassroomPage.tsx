@@ -125,7 +125,7 @@ export default function ClassroomPage() {
     periodIndex: number,
     teacherId: string,
     records: { studentId: string; attendance: AttendanceHomeworkValue; homework: AttendanceHomeworkValue; note?: string; parentNote?: string }[],
-    options?: { memo?: string; homeworkDescription?: string; homeworkDueDate?: string | null }
+    options?: { memo?: string; homeworkDescription?: string; homeworkDueDate?: string | null; reviewVideoUrl?: string }
   ) => {
     if (!lessonDay?._id) return;
     try {
@@ -135,6 +135,7 @@ export default function ClassroomPage() {
         memo: options?.memo ?? '',
         homeworkDescription: options?.homeworkDescription ?? '',
         homeworkDueDate: options?.homeworkDueDate ?? undefined,
+        reviewVideoUrl: options?.reviewVideoUrl ?? '',
         records,
       });
       await fetchLessonByDate();

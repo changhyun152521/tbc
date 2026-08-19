@@ -27,6 +27,9 @@ export interface PeriodItem {
   homeworkDescription?: string;
   /** 과제 마감기한 (YYYY-MM-DD) */
   homeworkDueDate?: string;
+  /** 복습 영상 유튜브 URL */
+  reviewVideoUrl?: string;
+  reviewVideoId?: string;
   records: StudentRecord[];
 }
 
