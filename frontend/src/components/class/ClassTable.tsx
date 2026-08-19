@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ClassListItem } from '../../types/class';
 
@@ -33,12 +33,26 @@ export default function ClassTable({
   const someSelected = list.some((c) => selectedIds.has(c._id));
   const selectAllRef = useRef<HTMLInputElement>(null);
 
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deleteTargetName, setDeleteTargetName] = useState<string>('');
+
+  const openDeleteConfirm = (id: string, name: string) => {
+    setDeleteTargetId(id);
+    setDeleteTargetName(name);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deleteTargetId) onDelete(deleteTargetId);
+    setDeleteTargetId(null);
+  };
+
   useEffect(() => {
     const el = selectAllRef.current;
     if (el) el.indeterminate = someSelected && !allSelected;
   }, [someSelected, allSelected]);
 
   return (
+    <>
     <div className="overflow-x-auto">
       <table className="w-full text-left border-collapse min-w-[800px]">
         <thead className="bg-slate-50 border-b border-slate-200">
@@ -84,30 +98,30 @@ export default function ClassTable({
                 <td className="p-4 whitespace-nowrap">{teacherNames(row)}</td>
                 <td className="p-4 whitespace-nowrap">{row.studentCount != null ? `${row.studentCount}명` : '-'}</td>
                 <td className="p-4 text-center whitespace-nowrap">
-                  <Link
-                    to={`/admin/classes/${row._id}`}
-                    className="inline-block px-4 py-2 bg-slate-950 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 whitespace-nowrap"
-                  >
-                    상세 관리
-                  </Link>
-                  {!readOnly && (
-                    <>
+                  <div className="inline-flex items-center gap-2">
+                    <Link
+                      to={`/admin/classes/${row._id}`}
+                      className="inline-block px-4 py-2 bg-slate-950 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 whitespace-nowrap"
+                    >
+                      상세 관리
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => openDeleteConfirm(row._id, row.name)}
+                      className="px-4 py-2 border border-red-200 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-50 whitespace-nowrap"
+                    >
+                      삭제
+                    </button>
+                    {!readOnly && (
                       <button
                         type="button"
                         onClick={() => onEdit(row._id)}
-                        className="ml-3 text-slate-400 hover:text-slate-950 whitespace-nowrap"
+                        className="text-slate-400 hover:text-slate-950 whitespace-nowrap"
                       >
                         수정
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => onDelete(row._id)}
-                        className="ml-3 text-slate-400 hover:text-red-600 whitespace-nowrap"
-                      >
-                        삭제
-                      </button>
-                    </>
-                  )}
+                    )}
+                  </div>
                 </td>
               </tr>
             ))
@@ -115,5 +129,42 @@ export default function ClassTable({
         </tbody>
       </table>
     </div>
+
+      {deleteTargetId && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50"
+          onClick={() => setDeleteTargetId(null)}
+        >
+          <div
+            className="bg-white border border-slate-200 rounded-2xl shadow-lg w-full max-w-sm p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-bold text-slate-950 mb-2">반 삭제</h3>
+            <p className="text-sm text-slate-600 leading-relaxed mb-1">
+              <span className="font-semibold text-slate-900">「{deleteTargetName}」</span> 반을 삭제하시겠습니까?
+            </p>
+            <p className="text-sm text-red-600 font-medium mb-6">
+              ⚠ 삭제된 반은 복구할 수 없으며, 소속 학생·수업 데이터에 영향을 줄 수 있습니다.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteTargetId(null)}
+                className="flex-1 py-2.5 border border-slate-200 rounded-lg text-slate-700 font-medium hover:bg-slate-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteConfirm}
+                className="flex-1 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700"
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

@@ -210,15 +210,7 @@ export default function ClassDetail() {
                   teachers.map((t) => (
                     <tr key={t._id} className="hover:bg-slate-50 text-slate-700">
                       <td className="py-3 px-4 font-medium text-slate-950 whitespace-nowrap">{t.name}</td>
-                      <td className="py-3 px-4 text-center whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveTeacher(t._id)}
-                          className="text-slate-400 hover:text-red-600 whitespace-nowrap"
-                        >
-                          반에서 제거
-                        </button>
-                      </td>
+                      <td className="py-3 px-4 text-center whitespace-nowrap"></td>
                     </tr>
                   ))
                 )}
