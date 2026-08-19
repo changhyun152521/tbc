@@ -69,14 +69,6 @@ export async function getLessons(req: Request, res: Response<ApiResponse>): Prom
     const classId = req.query.classId as string | undefined;
     const result = await studentDataService.getLessons(studentId, from, to, classId || null);
     const payload = result ?? { lessons: [] };
-    if (payload && typeof payload === 'object' && 'lessons' in payload) {
-      const lessons = (payload as { lessons: Array<Record<string, unknown>> }).lessons;
-      if (Array.isArray(lessons)) {
-        for (const l of lessons) {
-          l.hasReviewVideo = false;
-        }
-      }
-    }
     res.status(200).json({ success: true, data: payload });
   } catch (err) {
     const message = err instanceof Error ? err.message : '자녀 진도/과제 조회에 실패했습니다.';

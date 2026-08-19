@@ -63,12 +63,6 @@ export async function getLessons(req: Request, res: Response<ApiResponse>): Prom
     const payload = result ?? { lessons: [] };
     if (info.isAdminAccess && payload && typeof payload === 'object' && 'lessons' in payload) {
       (payload as { isAdminAccess?: boolean }).isAdminAccess = true;
-      const lessons = (payload as { lessons: Array<Record<string, unknown>> }).lessons;
-      if (Array.isArray(lessons)) {
-        for (const l of lessons) {
-          l.hasReviewVideo = false;
-        }
-      }
     }
     res.status(200).json({ success: true, data: payload });
   } catch (err) {

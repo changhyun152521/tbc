@@ -90,8 +90,15 @@ export default function LessonHistory() {
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [list, setList] = useState<LessonItem[]>([]);
   const [isAdminAccess, setIsAdminAccess] = useState(false);
+  const [videoBlockedOpen, setVideoBlockedOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const canWatchReviewVideo = role === 'student' && !isAdminAccess;
+  const videoBlockedMessage =
+    role === 'parent'
+      ? '복습 영상은 학생 회원만 시청할 수 있습니다. 자녀의 학생 계정으로 로그인해 주세요.'
+      : '복습 영상은 학생 본인 계정에서만 시청할 수 있습니다. 관리자 접속 계정으로는 시청할 수 없습니다.';
 
   const apiPrefix = role === 'parent' ? 'parent' : 'student';
 
@@ -272,15 +279,25 @@ export default function LessonHistory() {
                   </p>
                 </div>
 
-                {role === 'student' && !isAdminAccess && l.hasReviewVideo && l.lessonDayId && l.periodId && (
+                {l.hasReviewVideo && l.lessonDayId && l.periodId && (
                   <>
                     <div className="h-[1px] bg-slate-50" />
-                    <Link
-                      to={`/student/videos/${l.lessonDayId}/${l.periodId}`}
-                      className="block w-full text-center py-2.5 bg-slate-900 text-white rounded-xl text-sm font-semibold"
-                    >
-                      복습 영상 보기
-                    </Link>
+                    {canWatchReviewVideo ? (
+                      <Link
+                        to={`/student/videos/${l.lessonDayId}/${l.periodId}`}
+                        className="block w-full text-center py-2.5 bg-slate-900 text-white rounded-xl text-sm font-semibold"
+                      >
+                        복습 영상 보기
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setVideoBlockedOpen(true)}
+                        className="block w-full text-center py-2.5 bg-slate-900 text-white rounded-xl text-sm font-semibold"
+                      >
+                        복습 영상 보기
+                      </button>
+                    )}
                   </>
                 )}
 
@@ -354,6 +371,32 @@ export default function LessonHistory() {
           ))
         )}
       </div>
+
+      {videoBlockedOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50"
+          onClick={() => setVideoBlockedOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-labelledby="video-blocked-title"
+          >
+            <h2 id="video-blocked-title" className="text-lg font-bold text-slate-950 mb-2">
+              복습 영상 시청 안내
+            </h2>
+            <p className="text-sm text-slate-600 leading-relaxed mb-6">{videoBlockedMessage}</p>
+            <button
+              type="button"
+              onClick={() => setVideoBlockedOpen(false)}
+              className="w-full py-2.5 bg-slate-900 text-white rounded-xl text-sm font-semibold"
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
