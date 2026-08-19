@@ -179,7 +179,7 @@ export default function TestScores() {
         </div>
 
         {/* 날짜 선택기: 기록이 있는 날만 선택 가능 */}
-        <div className="mt-6 sm:mt-8 w-full max-w-[200px] sm:max-w-[220px]">
+        <div className="mt-6 sm:mt-8 w-full max-w-[300px] sm:max-w-[320px]">
           <RecordDatePicker
             value={selectedDate}
             onChange={handleDateChange}

@@ -41,6 +41,21 @@ function formatDateLabel(d: string): string {
   }
 }
 
+function groupByDate<T extends { date: string; period: number }>(items: T[]): { date: string; items: T[] }[] {
+  const map = new Map<string, T[]>();
+  for (const item of items) {
+    const list = map.get(item.date) ?? [];
+    list.push(item);
+    map.set(item.date, list);
+  }
+  return [...map.entries()]
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([date, groupItems]) => ({
+      date,
+      items: [...groupItems].sort((a, b) => a.period - b.period),
+    }));
+}
+
 function VideoProgressBadge({ hasReviewVideo, maxPercent }: { hasReviewVideo: boolean; maxPercent: number }) {
   if (!hasReviewVideo) {
     return (
@@ -119,6 +134,8 @@ export default function TeacherDashboard() {
 
   const recentAbsences = data?.recentAbsences ?? [];
   const recentPeriods = data?.recentPeriods ?? [];
+  const absencesByDate = groupByDate(recentAbsences);
+  const periodsByDate = groupByDate(recentPeriods);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col pt-8 sm:pt-12 px-4 sm:px-6 lg:px-10 pb-16 sm:pb-20 font-sans text-slate-900">
@@ -200,23 +217,30 @@ export default function TeacherDashboard() {
             ) : recentAbsences.length === 0 ? (
               <div className="p-8 text-center text-slate-400 text-sm">최근 14일간 결석 학생이 없습니다.</div>
             ) : (
-              <ul className="divide-y divide-slate-100">
-                {recentAbsences.map((row) => (
-                  <li key={`${row.studentId}-${row.lessonDayId}-${row.periodId}`} className="px-4 py-3 sm:px-5">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-900">
-                          {row.studentName} · {row.className}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          {formatDateLabel(row.date)} · {row.period}교시
-                        </p>
-                      </div>
-                      <VideoProgressBadge hasReviewVideo={row.hasReviewVideo} maxPercent={row.maxPercent} />
+              <div className="divide-y divide-slate-100">
+                {absencesByDate.map((group) => (
+                  <section key={group.date}>
+                    <div className="px-4 py-2.5 sm:px-5 bg-slate-50 border-b border-slate-100">
+                      <p className="text-xs font-bold text-slate-500">{formatDateLabel(group.date)}</p>
                     </div>
-                  </li>
+                    <ul className="divide-y divide-slate-50">
+                      {group.items.map((row) => (
+                        <li key={`${row.studentId}-${row.lessonDayId}-${row.periodId}`} className="px-4 py-3 sm:px-5">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-slate-900">
+                                {row.studentName} · {row.className}
+                              </p>
+                              <p className="text-xs text-slate-500 mt-0.5">{row.period}교시</p>
+                            </div>
+                            <VideoProgressBadge hasReviewVideo={row.hasReviewVideo} maxPercent={row.maxPercent} />
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
                 ))}
-              </ul>
+              </div>
             )}
           </div>
         </div>
@@ -231,21 +255,27 @@ export default function TeacherDashboard() {
             ) : recentPeriods.length === 0 ? (
               <div className="p-8 text-center text-slate-400 text-sm">최근 7일간 등록된 내 교시가 없습니다.</div>
             ) : (
-              <ul className="divide-y divide-slate-100">
-                {recentPeriods.map((row) => (
-                  <li key={`${row.lessonDayId}-${row.periodId}`}>
-                    <Link
-                      to={`/admin/lessons/classroom/${row.classId}`}
-                      className="block px-4 py-3 sm:px-5 hover:bg-slate-50 transition-colors"
-                    >
-                      <p className="text-sm font-semibold text-slate-900">
-                        {formatDateLabel(row.date)} · {row.period}교시
-                      </p>
-                      <p className="text-xs text-slate-500 mt-0.5">{row.className}</p>
-                    </Link>
-                  </li>
+              <div className="divide-y divide-slate-100">
+                {periodsByDate.map((group) => (
+                  <section key={group.date}>
+                    <div className="px-4 py-2.5 sm:px-5 bg-slate-50 border-b border-slate-100">
+                      <p className="text-xs font-bold text-slate-500">{formatDateLabel(group.date)}</p>
+                    </div>
+                    <ul className="divide-y divide-slate-50">
+                      {group.items.map((row) => (
+                        <li key={`${row.lessonDayId}-${row.periodId}`}>
+                          <Link
+                            to={`/admin/lessons/classroom/${row.classId}`}
+                            className="block px-4 py-3 sm:px-5 hover:bg-slate-50 transition-colors"
+                          >
+                            <p className="text-sm font-semibold text-slate-900">{row.period}교시 · {row.className}</p>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
                 ))}
-              </ul>
+              </div>
             )}
           </div>
         </div>
