@@ -99,22 +99,45 @@ export default function ReviewVideo() {
   const [videoPlayTimes, setVideoPlayTimes] = useState<number[]>([]);
   const [totalPercent, setTotalPercent] = useState(0);
 
-  const hostRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer | null>(null);
   const watchedRef = useRef<Set<number>>(new Set());
   const baselineWatchedSecRef = useRef(0);
   const playTimeRef = useRef(0);
   const tickRef = useRef<number | null>(null);
   const lastFlushRef = useRef(0);
+  const lastPositionByIndexRef = useRef<number[]>([]);
+  const activeIndexRef = useRef(0);
+  activeIndexRef.current = activeIndex;
 
   const activeVideo = data?.videos[activeIndex] ?? null;
+  const flushRef = useRef<(
+    player: YTPlayer | null,
+    index?: number,
+    snapshot?: { watchedSec: number; playTimeSec: number }
+  ) => Promise<void>>(async () => {});
+  const videoCountRef = useRef(0);
+  videoCountRef.current = data?.videos.length ?? 0;
 
   const flush = useCallback(
-    async (player: YTPlayer | null) => {
-      if (!player || !lessonDayId || !periodId || !activeVideo) return;
-      const duration = player.getDuration() || 0;
-      const currentTime = player.getCurrentTime() || 0;
-      const watchedSec = baselineWatchedSecRef.current + watchedRef.current.size;
+    async (
+      player: YTPlayer | null,
+      index = activeIndexRef.current,
+      snapshot?: { watchedSec: number; playTimeSec: number }
+    ) => {
+      const video = data?.videos[index];
+      if (!player || !lessonDayId || !periodId || !video) return;
+      let duration = 0;
+      let currentTime = 0;
+      try {
+        duration = player.getDuration() || 0;
+        currentTime = player.getCurrentTime() || 0;
+      } catch {
+        return;
+      }
+      lastPositionByIndexRef.current[index] = currentTime;
+      const watchedSec = snapshot?.watchedSec ?? baselineWatchedSecRef.current + watchedRef.current.size;
+      const playTimeSec = snapshot?.playTimeSec ?? playTimeRef.current;
       try {
         const res = await apiClient.put<{
           success: boolean;
@@ -122,20 +145,24 @@ export default function ReviewVideo() {
         }>('/student/review-videos/progress', {
           lessonDayId,
           periodId,
-          videoIndex: activeVideo.videoIndex,
-          youtubeVideoId: activeVideo.youtubeVideoId,
+          videoIndex: video.videoIndex,
+          youtubeVideoId: video.youtubeVideoId,
           currentTime,
           watchedSec,
-          playTimeSec: playTimeRef.current,
+          playTimeSec,
           durationSec: duration,
         });
         if (res.data.success && res.data.data) {
           const d = res.data.data;
           setVideoPercents((prev) => {
             const next = [...prev];
-            next[activeIndex] = d.maxPercent;
+            next[index] = d.maxPercent;
             return next;
           });
+          if (typeof d.totalPercent === 'number') {
+            setTotalPercent(d.totalPercent);
+          }
+          if (index !== activeIndexRef.current) return;
           if (typeof d.watchedSec === 'number') {
             baselineWatchedSecRef.current = d.watchedSec;
             watchedRef.current.clear();
@@ -144,20 +171,18 @@ export default function ReviewVideo() {
             playTimeRef.current = Math.max(playTimeRef.current, d.playTimeSec);
             setVideoPlayTimes((prev) => {
               const next = [...prev];
-              next[activeIndex] = playTimeRef.current;
+              next[index] = playTimeRef.current;
               return next;
             });
-          }
-          if (typeof d.totalPercent === 'number') {
-            setTotalPercent(d.totalPercent);
           }
         }
       } catch {
         // ignore heartbeat errors
       }
     },
-    [lessonDayId, periodId, activeVideo, activeIndex]
+    [lessonDayId, periodId, data]
   );
+  flushRef.current = flush;
 
   // 초기 데이터 로드
   useEffect(() => {
@@ -173,6 +198,7 @@ export default function ReviewVideo() {
           setTotalPercent(d.totalPercent ?? 0);
           setVideoPercents(d.videos.map((v) => v.maxPercent ?? 0));
           setVideoPlayTimes(d.videos.map((v) => v.playTimeSec ?? 0));
+          lastPositionByIndexRef.current = d.videos.map((v) => v.lastPositionSec ?? 0);
           // 첫 미완료 영상으로 이동
           const firstUnfinished = d.videos.findIndex((v) => !v.completed);
           setActiveIndex(firstUnfinished >= 0 ? firstUnfinished : 0);
@@ -204,10 +230,15 @@ export default function ReviewVideo() {
     playTimeRef.current = activeVideo.playTimeSec ?? 0;
   }, [activeIndex, activeVideo]);
 
-  // 플레이어 마운트/교체
+  // 플레이어 마운트/교체 — YouTube가 host div를 iframe으로 바꿔 버리므로
+  // React가 소유하는 wrapper 안에 매번 새 host를 만든다.
   useEffect(() => {
-    if (!activeVideo?.youtubeVideoId || !hostRef.current) return;
+    const wrapper = wrapperRef.current;
+    const videoId = activeVideo?.youtubeVideoId;
+    const playerIndex = activeIndex;
+    if (!wrapper || !videoId) return;
     let destroyed = false;
+    let autoNextTimer: number | null = null;
 
     const startTick = (player: YTPlayer) => {
       if (tickRef.current) window.clearInterval(tickRef.current);
@@ -225,7 +256,7 @@ export default function ReviewVideo() {
         const now = Date.now();
         if (now - lastFlushRef.current > 8000) {
           lastFlushRef.current = now;
-          void flush(player);
+          void flushRef.current(player, playerIndex);
         }
       }, 1000);
     };
@@ -237,30 +268,38 @@ export default function ReviewVideo() {
       }
     };
 
+    wrapper.replaceChildren();
+    const host = document.createElement('div');
+    host.style.width = '100%';
+    host.style.height = '100%';
+    wrapper.appendChild(host);
+
     void loadYoutubeApi().then(() => {
-      if (destroyed || !hostRef.current || !window.YT) return;
+      if (destroyed || !window.YT || !host.isConnected) return;
       try { playerRef.current?.destroy(); } catch { /* ignore */ }
-      playerRef.current = new window.YT.Player(hostRef.current, {
-        videoId: activeVideo.youtubeVideoId,
+      playerRef.current = new window.YT.Player(host, {
+        videoId,
         width: '100%',
         height: '100%',
         playerVars: { rel: 0, modestbranding: 1, playsinline: 1 },
         events: {
           onReady: (e) => {
-            if (activeVideo.lastPositionSec > 3) e.target.seekTo(activeVideo.lastPositionSec, true);
-            void flush(e.target);
+            if (destroyed) return;
+            const resumeAt = lastPositionByIndexRef.current[playerIndex] ?? 0;
+            if (resumeAt > 3) e.target.seekTo(resumeAt, true);
+            void flushRef.current(e.target, playerIndex);
           },
           onStateChange: (e) => {
+            if (destroyed) return;
             const playing = window.YT?.PlayerState.PLAYING;
             const paused = window.YT?.PlayerState.PAUSED;
             const ended = window.YT?.PlayerState.ENDED;
             if (e.data === playing) startTick(e.target);
             if (e.data === paused || e.data === ended) {
               stopTick();
-              void flush(e.target);
-              // 영상 완료 시 다음 영상으로 자동 이동
-              if (e.data === ended && data && activeIndex < data.videos.length - 1) {
-                setTimeout(() => {
+              void flushRef.current(e.target, playerIndex);
+              if (e.data === ended && playerIndex < videoCountRef.current - 1) {
+                autoNextTimer = window.setTimeout(() => {
                   setActiveIndex((prev) => prev + 1);
                 }, 1500);
               }
@@ -270,20 +309,26 @@ export default function ReviewVideo() {
       });
     });
 
-    const onHide = () => { void flush(playerRef.current); };
+    const onHide = () => { void flushRef.current(playerRef.current, playerIndex); };
     document.addEventListener('visibilitychange', onHide);
     window.addEventListener('pagehide', onHide);
 
     return () => {
       destroyed = true;
+      if (autoNextTimer != null) window.clearTimeout(autoNextTimer);
       stopTick();
       document.removeEventListener('visibilitychange', onHide);
       window.removeEventListener('pagehide', onHide);
-      void flush(playerRef.current);
+      const snapshot = {
+        watchedSec: baselineWatchedSecRef.current + watchedRef.current.size,
+        playTimeSec: playTimeRef.current,
+      };
+      void flushRef.current(playerRef.current, playerIndex, snapshot);
       try { playerRef.current?.destroy(); } catch { /* ignore */ }
       playerRef.current = null;
+      wrapper.replaceChildren();
     };
-  }, [activeVideo?.youtubeVideoId, activeVideo?.lastPositionSec, flush, activeIndex, data]);
+  }, [activeIndex, activeVideo?.youtubeVideoId]);
 
   if (loading) {
     return <div className="min-h-[50vh] flex items-center justify-center text-slate-500 text-sm">로딩 중...</div>;
@@ -351,7 +396,7 @@ export default function ReviewVideo() {
 
       {/* 영상 플레이어 */}
       <div className="aspect-video w-full bg-slate-900 rounded-xl overflow-hidden mb-3">
-        <div ref={hostRef} className="w-full h-full" />
+        <div ref={wrapperRef} className="w-full h-full" />
       </div>
 
       {/* 현재 영상 정보 */}
