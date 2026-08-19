@@ -10,6 +10,8 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { apiClient } from '../api/client';
+import { useAuth } from '../contexts/AuthContext';
+import TeacherDashboard from './TeacherDashboard';
 
 interface DashboardCounts {
   studentTotal: number;
@@ -18,6 +20,7 @@ interface DashboardCounts {
 }
 
 export default function AdminDashboard() {
+  const { role } = useAuth();
   const [counts, setCounts] = useState<DashboardCounts>({
     studentTotal: 0,
     teacherCount: 0,
@@ -68,6 +71,10 @@ export default function AdminDashboard() {
     { label: '담당 강사', value: counts.teacherCount, icon: UserSquare2 },
     { label: '운영 중인 반', value: counts.classCount, icon: Home },
   ];
+
+  if (role === 'teacher') {
+    return <TeacherDashboard />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col pt-8 sm:pt-12 px-4 sm:px-6 lg:px-10 pb-16 sm:pb-20 font-sans text-slate-900">

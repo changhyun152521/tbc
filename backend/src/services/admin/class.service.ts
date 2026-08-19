@@ -40,7 +40,7 @@ export async function listClasses(teacherId?: mongoose.Types.ObjectId | null) {
   }));
 }
 
-/** 수업관리 진입용: 반 목록 + 오늘 날짜 기준 등록 교시 수. teacherId가 있으면 해당 강사 담당 반만. */
+/** 수업관리 진입용: 반 목록 + 최근 수업 등록일. teacherId가 있으면 해당 강사 담당 반만. */
 export async function listClassesForLessonManagement(teacherId?: mongoose.Types.ObjectId | null) {
   const filter = teacherId ? { teacherIds: teacherId } : {};
   const list = await Class.find(filter)
@@ -49,21 +49,17 @@ export async function listClassesForLessonManagement(teacherId?: mongoose.Types.
     .lean()
     .exec();
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+  const classIds = list.map((c) => c._id as mongoose.Types.ObjectId);
+  const lastDateByClassId: Record<string, string | null> = {};
 
-  const todayLessons = await LessonDay.find({
-    date: { $gte: todayStart, $lt: todayEnd },
-  })
-    .select('classId periods')
-    .lean()
-    .exec();
-
-  const periodCountByClassId: Record<string, number> = {};
-  for (const ld of todayLessons) {
-    const cid = (ld.classId as mongoose.Types.ObjectId).toString();
-    periodCountByClassId[cid] = (ld.periods as unknown[]).length;
+  if (classIds.length > 0) {
+    const rows = await LessonDay.aggregate<{ _id: mongoose.Types.ObjectId; lastDate: Date }>([
+      { $match: { classId: { $in: classIds }, 'periods.0': { $exists: true } } },
+      { $group: { _id: '$classId', lastDate: { $max: '$date' } } },
+    ]).exec();
+    for (const row of rows) {
+      lastDateByClassId[row._id.toString()] = row.lastDate.toISOString().slice(0, 10);
+    }
   }
 
   return list.map((c) => {
@@ -71,12 +67,12 @@ export async function listClassesForLessonManagement(teacherId?: mongoose.Types.
     return {
       ...c,
       studentCount: (c.studentIds as mongoose.Types.ObjectId[]).length,
-      todayPeriodCount: periodCountByClassId[id] ?? 0,
+      lastLessonDate: lastDateByClassId[id] ?? null,
     };
   });
 }
 
-/** 시험관리 진입용: 반 목록 + 반별 시험 수. teacherId가 있으면 해당 강사 담당 반만. */
+/** 시험관리 진입용: 반 목록 + 최근 시험 등록일. teacherId가 있으면 해당 강사 담당 반만. */
 export async function listClassesForTestManagement(teacherId?: mongoose.Types.ObjectId | null) {
   const filter = teacherId ? { teacherIds: teacherId } : {};
   const list = await Class.find(filter)
@@ -85,12 +81,17 @@ export async function listClassesForTestManagement(teacherId?: mongoose.Types.Ob
     .lean()
     .exec();
 
-  const counts = await Test.aggregate<{ _id: mongoose.Types.ObjectId; count: number }>()
-    .group({ _id: '$classId', count: { $sum: 1 } })
-    .exec();
-  const testCountByClassId: Record<string, number> = {};
-  for (const row of counts) {
-    testCountByClassId[row._id.toString()] = row.count;
+  const classIds = list.map((c) => c._id as mongoose.Types.ObjectId);
+  const lastDateByClassId: Record<string, string | null> = {};
+
+  if (classIds.length > 0) {
+    const rows = await Test.aggregate<{ _id: mongoose.Types.ObjectId; lastDate: Date }>([
+      { $match: { classId: { $in: classIds } } },
+      { $group: { _id: '$classId', lastDate: { $max: '$createdAt' } } },
+    ]).exec();
+    for (const row of rows) {
+      lastDateByClassId[row._id.toString()] = row.lastDate.toISOString().slice(0, 10);
+    }
   }
 
   return list.map((c) => {
@@ -98,7 +99,7 @@ export async function listClassesForTestManagement(teacherId?: mongoose.Types.Ob
     return {
       ...c,
       studentCount: (c.studentIds as mongoose.Types.ObjectId[]).length,
-      testCount: testCountByClassId[id] ?? 0,
+      lastTestDate: lastDateByClassId[id] ?? null,
     };
   });
 }

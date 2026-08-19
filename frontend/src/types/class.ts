@@ -13,14 +13,14 @@ export interface ClassListItem {
   createdAt: string;
 }
 
-/** 수업관리 반 목록용: 오늘 등록 교시 수 포함 */
+/** 수업관리 반 목록용: 최근 수업 등록일 */
 export interface ClassListItemForLesson extends ClassListItem {
-  todayPeriodCount?: number;
+  lastLessonDate?: string | null;
 }
 
-/** 시험관리 반 목록용: 등록된 시험 수 포함 */
+/** 시험관리 반 목록용: 최근 시험 등록일 */
 export interface ClassListItemForTest extends ClassListItem {
-  testCount?: number;
+  lastTestDate?: string | null;
 }
 
 export interface ClassFormValues {

@@ -7,6 +7,7 @@ import * as classController from '../controllers/admin/class.controller';
 import * as lessonDayController from '../controllers/admin/lessonDay.controller';
 import * as announcementController from '../controllers/admin/announcement.controller';
 import * as reviewVideoController from '../controllers/student/reviewVideo.controller';
+import * as teacherDashboardController from '../controllers/admin/teacherDashboard.controller';
 
 const router = Router();
 
@@ -56,6 +57,8 @@ router.put(
   teacherController.updateTeacher
 );
 router.delete('/teachers/:id', mongoId(), teacherController.deleteTeacher);
+
+router.get('/teacher/dashboard', teacherDashboardController.getDashboard);
 
 // Classes
 router.post(

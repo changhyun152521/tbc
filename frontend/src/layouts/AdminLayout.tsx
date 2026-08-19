@@ -13,6 +13,13 @@ const ADMIN_NAV = [
   { to: '/admin/tests', label: '시험 관리' },
 ] as const;
 
+const TEACHER_NAV = [
+  { to: '/admin/dashboard', label: '대시보드' },
+  { to: '/admin/classes', label: '반 관리' },
+  { to: '/admin/lessons', label: '수업 관리' },
+  { to: '/admin/tests', label: '시험 관리' },
+] as const;
+
 function getPageTitle(pathname: string): string {
   if (pathname.includes('/admin/students')) return '학생 관리';
   if (pathname.includes('/admin/teachers')) return '강사 관리';
@@ -23,10 +30,12 @@ function getPageTitle(pathname: string): string {
 }
 
 export default function AdminLayout() {
-  const { name, logout } = useAuth();
+  const { name, role, logout } = useAuth();
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pageTitle = getPageTitle(location.pathname);
+  const navItems = role === 'teacher' ? TEACHER_NAV : ADMIN_NAV;
+  const roleLabel = role === 'teacher' ? '강사' : '관리자';
 
   return (
     <>
@@ -42,10 +51,10 @@ export default function AdminLayout() {
               className="h-6 w-auto object-contain brightness-0 invert"
             />
           </Link>
-          <p className="text-slate-400 text-sm mt-2">관리자</p>
+          <p className="text-slate-400 text-sm mt-2">{roleLabel}</p>
         </div>
         <nav className="p-2 flex-1">
-          {ADMIN_NAV.map(({ to, label }) => (
+          {navItems.map(({ to, label }) => (
             <Link
               key={to}
               to={to}
@@ -87,7 +96,7 @@ export default function AdminLayout() {
                       className="h-6 w-auto object-contain brightness-0 invert"
                     />
                   </Link>
-                  <p className="text-slate-400 text-sm mt-2">관리자</p>
+                  <p className="text-slate-400 text-sm mt-2">{roleLabel}</p>
                 </div>
                 <button
                   type="button"
@@ -101,7 +110,7 @@ export default function AdminLayout() {
                 </button>
               </div>
               <nav className="p-2 flex-1">
-                {ADMIN_NAV.map(({ to, label }) => (
+                {navItems.map(({ to, label }) => (
                   <Link
                     key={to}
                     to={to}

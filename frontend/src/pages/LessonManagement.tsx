@@ -39,6 +39,20 @@ export default function LessonManagement() {
     return t.map((x) => (typeof x === 'object' && x?.name ? x.name : '-')).join(', ');
   }
 
+  function formatLastDate(d: string | null | undefined): string {
+    if (!d) return '-';
+    try {
+      const date = new Date(`${d}T12:00:00`);
+      const y = date.getFullYear();
+      const m = date.getMonth() + 1;
+      const day = date.getDate();
+      const wd = date.toLocaleDateString('ko-KR', { weekday: 'short' });
+      return `${y}. ${m}. ${day} (${wd})`;
+    } catch {
+      return d;
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col pt-6 px-4 sm:px-6 lg:px-10 pb-12">
       <div className="w-full max-w-6xl mx-auto">
@@ -64,7 +78,7 @@ export default function LessonManagement() {
                     <th className="p-4 whitespace-nowrap">반 이름</th>
                     <th className="p-4 whitespace-nowrap">담당 강사</th>
                     <th className="p-4 whitespace-nowrap">소속 학생 수</th>
-                    <th className="p-4 whitespace-nowrap">오늘 등록 교시 수</th>
+                    <th className="p-4 whitespace-nowrap">최근 등록일</th>
                     <th className="p-4 text-center whitespace-nowrap">관리</th>
                   </tr>
                 </thead>
@@ -81,7 +95,7 @@ export default function LessonManagement() {
                         <td className="p-4 font-medium text-slate-950 whitespace-nowrap">{row.name}</td>
                         <td className="p-4 whitespace-nowrap">{teacherNames(row)}</td>
                         <td className="p-4 whitespace-nowrap">{row.studentCount ?? 0}명</td>
-                        <td className="p-4 whitespace-nowrap">{row.todayPeriodCount ?? 0}개 교시</td>
+                        <td className="p-4 whitespace-nowrap">{formatLastDate(row.lastLessonDate)}</td>
                         <td className="p-4 text-center whitespace-nowrap">
                           <Link
                             to={`/admin/lessons/classroom/${row._id}`}
