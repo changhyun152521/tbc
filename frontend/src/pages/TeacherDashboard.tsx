@@ -117,6 +117,9 @@ export default function TeacherDashboard() {
     { label: '담당 학생', value: data?.studentCount ?? 0, icon: Users },
   ];
 
+  const recentAbsences = data?.recentAbsences ?? [];
+  const recentPeriods = data?.recentPeriods ?? [];
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col pt-8 sm:pt-12 px-4 sm:px-6 lg:px-10 pb-16 sm:pb-20 font-sans text-slate-900">
       <div className="w-full max-w-5xl mx-auto">
