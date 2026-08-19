@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '../api/client';
+import { useAuth } from '../contexts/AuthContext';
 import type { ClassListItem, ClassFormValues } from '../types/class';
 import ClassSearchFilter from '../components/class/ClassSearchFilter';
 import ClassTable from '../components/class/ClassTable';
@@ -18,6 +19,8 @@ function filterClasses(list: ClassListItem[], search: string): ClassListItem[] {
 }
 
 export default function ClassManagement() {
+  const { role } = useAuth();
+  const isTeacher = role === 'teacher';
   const [rawList, setRawList] = useState<ClassListItem[]>([]);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -190,25 +193,29 @@ export default function ClassManagement() {
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-title font-bold text-slate-950">반 관리</h1>
-            <p className="text-sm text-slate-500 mt-1">전체 반 정보를 관리합니다.</p>
+            <p className="text-sm text-slate-500 mt-1">
+              {isTeacher ? '담당 반 정보를 확인하고 관리합니다.' : '전체 반 정보를 관리합니다.'}
+            </p>
           </div>
-          <div className="flex gap-2">
-            <ExcelDropdown
-              onDownloadTemplate={downloadTemplate}
-              onBulkUpload={() => setExcelBulkOpen(true)}
-              onExport={handleExport}
-              hasSelection={selectedIds.size > 0}
-              hasFilter={hasFilter}
-              selectionLabel="선택한 반만 다운로드"
-            />
-            <button
-              type="button"
-              onClick={openCreate}
-              className="px-4 py-2 bg-slate-950 text-white rounded-lg text-sm font-semibold hover:bg-slate-800"
-            >
-              + 반 추가
-            </button>
-          </div>
+          {!isTeacher && (
+            <div className="flex gap-2">
+              <ExcelDropdown
+                onDownloadTemplate={downloadTemplate}
+                onBulkUpload={() => setExcelBulkOpen(true)}
+                onExport={handleExport}
+                hasSelection={selectedIds.size > 0}
+                hasFilter={hasFilter}
+                selectionLabel="선택한 반만 다운로드"
+              />
+              <button
+                type="button"
+                onClick={openCreate}
+                className="px-4 py-2 bg-slate-950 text-white rounded-lg text-sm font-semibold hover:bg-slate-800"
+              >
+                + 반 추가
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="mb-4">
@@ -232,6 +239,8 @@ export default function ClassManagement() {
               onToggleSelectAll={handleToggleSelectAll}
               onEdit={openEdit}
               onDelete={openDelete}
+              readOnly={isTeacher}
+              emptyMessage={isTeacher ? '담당 반이 없습니다.' : '등록된 반이 없습니다.'}
             />
           )}
         </div>

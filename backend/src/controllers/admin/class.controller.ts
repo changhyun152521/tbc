@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import * as classService from '../../services/admin/class.service';
-import { getTeacherIdByUserId } from '../../services/teacher/teacherClass.service';
+import { canAccessClass, getTeacherIdByUserId } from '../../services/teacher/teacherClass.service';
 import { ApiResponse } from '../../types/api';
 
 export async function createClass(req: Request, res: Response<ApiResponse>): Promise<void> {
@@ -25,7 +25,16 @@ export async function createClass(req: Request, res: Response<ApiResponse>): Pro
 
 export async function listClasses(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
-    const list = await classService.listClasses();
+    const role = req.user?.role ?? '';
+    let teacherId = null;
+    if (role === 'teacher') {
+      teacherId = await getTeacherIdByUserId(req.user?.id ?? '');
+      if (!teacherId) {
+        res.status(200).json({ success: true, data: [] });
+        return;
+      }
+    }
+    const list = await classService.listClasses(teacherId);
     res.status(200).json({ success: true, data: list });
   } catch (err) {
     const message = err instanceof Error ? err.message : '반 목록 조회에 실패했습니다.';
@@ -75,6 +84,11 @@ export async function listClassesForTests(req: Request, res: Response<ApiRespons
 
 export async function getClass(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
+    const allowed = await canAccessClass(req.params.id, req.user?.id ?? '', req.user?.role ?? '');
+    if (!allowed) {
+      res.status(403).json({ success: false, message: '이 반에 대한 권한이 없습니다.' });
+      return;
+    }
     const classDoc = await classService.getClassById(req.params.id);
     if (!classDoc) {
       res.status(404).json({ success: false, message: '반을 찾을 수 없습니다.' });

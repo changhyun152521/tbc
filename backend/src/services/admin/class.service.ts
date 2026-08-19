@@ -26,8 +26,10 @@ export async function createClass(input: CreateClassInput): Promise<IClass> {
   return doc;
 }
 
-export async function listClasses() {
-  const list = await Class.find()
+/** teacherId가 있으면 해당 강사 담당 반만 */
+export async function listClasses(teacherId?: mongoose.Types.ObjectId | null) {
+  const filter = teacherId ? { teacherIds: teacherId } : {};
+  const list = await Class.find(filter)
     .populate('teacherIds', 'name')
     .sort({ createdAt: -1 })
     .lean()

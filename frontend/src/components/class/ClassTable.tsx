@@ -14,6 +14,8 @@ interface ClassTableProps {
   onToggleSelectAll: (checked: boolean) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  readOnly?: boolean;
+  emptyMessage?: string;
 }
 
 export default function ClassTable({
@@ -23,6 +25,8 @@ export default function ClassTable({
   onToggleSelectAll,
   onEdit,
   onDelete,
+  readOnly = false,
+  emptyMessage = '등록된 반이 없습니다.',
 }: ClassTableProps) {
   const allSelected = list.length > 0 && list.every((c) => selectedIds.has(c._id));
   const someSelected = list.some((c) => selectedIds.has(c._id));
@@ -38,15 +42,17 @@ export default function ClassTable({
       <table className="w-full text-left border-collapse min-w-[800px]">
         <thead className="bg-slate-50 border-b border-slate-200">
           <tr className="text-slate-600 text-[13px] font-semibold">
-            <th className="p-4 w-10">
-              <input
-                ref={selectAllRef}
-                type="checkbox"
-                checked={allSelected}
-                onChange={(e) => onToggleSelectAll(e.target.checked)}
-                className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
-              />
-            </th>
+            {!readOnly && (
+              <th className="p-4 w-10">
+                <input
+                  ref={selectAllRef}
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={(e) => onToggleSelectAll(e.target.checked)}
+                  className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                />
+              </th>
+            )}
             <th className="p-4 whitespace-nowrap">반 이름</th>
             <th className="p-4 whitespace-nowrap">담당 강사 수</th>
             <th className="p-4 whitespace-nowrap">소속 학생 수</th>
@@ -56,21 +62,23 @@ export default function ClassTable({
         <tbody className="divide-y divide-slate-100 text-[14px]">
           {list.length === 0 ? (
             <tr>
-              <td colSpan={5} className="p-8 text-center text-slate-500">
-                등록된 반이 없습니다.
+              <td colSpan={readOnly ? 4 : 5} className="p-8 text-center text-slate-500">
+                {emptyMessage}
               </td>
             </tr>
           ) : (
             list.map((row) => (
               <tr key={row._id} className="hover:bg-slate-50 transition-colors text-slate-700">
-                <td className="p-4">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(row._id)}
-                    onChange={() => onToggleSelect(row._id)}
-                    className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
-                  />
-                </td>
+                {!readOnly && (
+                  <td className="p-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(row._id)}
+                      onChange={() => onToggleSelect(row._id)}
+                      className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                    />
+                  </td>
+                )}
                 <td className="p-4 font-medium text-slate-950 whitespace-nowrap">{row.name}</td>
                 <td className="p-4 whitespace-nowrap">{teacherCount(row)}</td>
                 <td className="p-4 whitespace-nowrap">{row.studentCount != null ? `${row.studentCount}명` : '-'}</td>
@@ -81,20 +89,24 @@ export default function ClassTable({
                   >
                     상세 관리
                   </Link>
-                  <button
-                    type="button"
-                    onClick={() => onEdit(row._id)}
-                    className="text-slate-400 hover:text-slate-950 mr-3 whitespace-nowrap"
-                  >
-                    수정
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDelete(row._id)}
-                    className="text-slate-400 hover:text-red-600 whitespace-nowrap"
-                  >
-                    삭제
-                  </button>
+                  {!readOnly && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => onEdit(row._id)}
+                        className="text-slate-400 hover:text-slate-950 mr-3 whitespace-nowrap"
+                      >
+                        수정
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDelete(row._id)}
+                        className="text-slate-400 hover:text-red-600 whitespace-nowrap"
+                      >
+                        삭제
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))
