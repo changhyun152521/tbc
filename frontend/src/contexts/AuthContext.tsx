@@ -80,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionStorage.removeItem(STORAGE_KEY_TOKEN);
     sessionStorage.removeItem(STORAGE_KEY_ROLE);
     sessionStorage.removeItem(STORAGE_KEY_NAME);
+    sessionStorage.removeItem('tbc_student_popups_shown');
     setToken(null);
     setRole(null);
     setName(null);
@@ -115,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error(msg);
         }
         const { token: newToken, user } = res.data.data;
+        sessionStorage.removeItem('tbc_student_popups_shown');
         persist(newToken, user.role, user.name, remember);
       } catch (err: unknown) {
         if (axios.isAxiosError(err) && err.response?.data?.message) {

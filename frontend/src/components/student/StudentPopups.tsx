@@ -21,6 +21,15 @@ interface PendingVideo {
 }
 
 const DISPLAY_COMPLETE_PERCENT = 80;
+const POPUP_SESSION_KEY = 'tbc_student_popups_shown';
+
+function markPopupsShownThisLogin() {
+  sessionStorage.setItem(POPUP_SESSION_KEY, '1');
+}
+
+function werePopupsShownThisLogin(): boolean {
+  return sessionStorage.getItem(POPUP_SESSION_KEY) === '1';
+}
 
 function todayYmd(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
@@ -57,9 +66,12 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
 
   const [announcements, setAnnouncements] = useState<ActiveAnnouncement[]>([]);
   const [pending, setPending] = useState<PendingVideo[]>([]);
-  const [stage, setStage] = useState<'announcement' | 'pending' | 'done'>('announcement');
+  const [stage, setStage] = useState<'announcement' | 'pending' | 'done'>(() =>
+    werePopupsShownThisLogin() ? 'done' : 'announcement'
+  );
 
   useEffect(() => {
+    if (werePopupsShownThisLogin()) return;
     let cancelled = false;
     apiClient
       .get<{ success: boolean; data: ActiveAnnouncement[] }>(`/${apiPrefix}/announcements/active`)
@@ -80,6 +92,7 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
   useEffect(() => {
     if (stage !== 'pending') return;
     if (role !== 'student' || isAdminAccess) {
+      markPopupsShownThisLogin();
       setStage('done');
       return;
     }
@@ -90,10 +103,16 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
         if (cancelled) return;
         const list = res.data.success && Array.isArray(res.data.data) ? res.data.data : [];
         setPending(sortPendingVideos(list));
-        if (list.length === 0) setStage('done');
+        if (list.length === 0) {
+          markPopupsShownThisLogin();
+          setStage('done');
+        }
       })
       .catch(() => {
-        if (!cancelled) setStage('done');
+        if (!cancelled) {
+          markPopupsShownThisLogin();
+          setStage('done');
+        }
       });
     return () => {
       cancelled = true;
@@ -121,6 +140,7 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
 
   const closePendingModal = () => {
     setPending([]);
+    markPopupsShownThisLogin();
     setStage('done');
   };
 

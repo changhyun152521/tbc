@@ -93,6 +93,7 @@ export default function ReviewVideo() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [startChoice, setStartChoice] = useState<'ask' | 'resume' | 'restart' | null>(null);
 
   // 영상별 시청 상태 (클라이언트 세션)
   const [videoPercents, setVideoPercents] = useState<number[]>([]);
@@ -199,9 +200,13 @@ export default function ReviewVideo() {
           setVideoPercents(d.videos.map((v) => v.maxPercent ?? 0));
           setVideoPlayTimes(d.videos.map((v) => v.playTimeSec ?? 0));
           lastPositionByIndexRef.current = d.videos.map((v) => v.lastPositionSec ?? 0);
-          // 첫 미완료 영상으로 이동
-          const firstUnfinished = d.videos.findIndex((v) => !v.completed);
-          setActiveIndex(firstUnfinished >= 0 ? firstUnfinished : 0);
+          const hasProgress = d.videos.some((v) => (v.lastPositionSec ?? 0) > 3 || (v.watchedSec ?? 0) > 0);
+          if (hasProgress) {
+            setStartChoice('ask');
+          } else {
+            setActiveIndex(0);
+            setStartChoice('restart');
+          }
         } else {
           setError('영상을 불러올 수 없습니다.');
         }
@@ -230,12 +235,33 @@ export default function ReviewVideo() {
     playTimeRef.current = activeVideo.playTimeSec ?? 0;
   }, [activeIndex, activeVideo]);
 
+  const chooseResume = () => {
+    if (!data) return;
+    let resumeIndex = 0;
+    for (let i = data.videos.length - 1; i >= 0; i--) {
+      if ((data.videos[i].lastPositionSec ?? 0) > 3 || (data.videos[i].watchedSec ?? 0) > 0) {
+        resumeIndex = i;
+        break;
+      }
+    }
+    setActiveIndex(resumeIndex);
+    setStartChoice('resume');
+  };
+
+  const chooseRestart = () => {
+    lastPositionByIndexRef.current = lastPositionByIndexRef.current.map(() => 0);
+    setActiveIndex(0);
+    setStartChoice('restart');
+  };
+
   // 플레이어 마운트/교체 — YouTube가 host div를 iframe으로 바꿔 버리므로
   // React가 소유하는 wrapper 안에 매번 새 host를 만든다.
   useEffect(() => {
+    if (startChoice !== 'resume' && startChoice !== 'restart') return;
     const wrapper = wrapperRef.current;
     const videoId = activeVideo?.youtubeVideoId;
     const playerIndex = activeIndex;
+    const shouldSeek = startChoice === 'resume';
     if (!wrapper || !videoId) return;
     let destroyed = false;
     let autoNextTimer: number | null = null;
@@ -285,7 +311,7 @@ export default function ReviewVideo() {
         events: {
           onReady: (e) => {
             if (destroyed) return;
-            const resumeAt = lastPositionByIndexRef.current[playerIndex] ?? 0;
+            const resumeAt = shouldSeek ? (lastPositionByIndexRef.current[playerIndex] ?? 0) : 0;
             if (resumeAt > 3) e.target.seekTo(resumeAt, true);
             void flushRef.current(e.target, playerIndex);
           },
@@ -328,7 +354,7 @@ export default function ReviewVideo() {
       playerRef.current = null;
       wrapper.replaceChildren();
     };
-  }, [activeIndex, activeVideo?.youtubeVideoId]);
+  }, [activeIndex, activeVideo?.youtubeVideoId, startChoice]);
 
   if (loading) {
     return <div className="min-h-[50vh] flex items-center justify-center text-slate-500 text-sm">로딩 중...</div>;
@@ -341,6 +367,43 @@ export default function ReviewVideo() {
         <button type="button" onClick={() => navigate(-1)} className="text-slate-900 font-medium">
           돌아가기
         </button>
+      </div>
+    );
+  }
+
+  if (startChoice === 'ask') {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-6">
+        <Link to="/student/lessons" className="text-sm text-slate-500 hover:text-slate-800">
+          ← 진도/과제
+        </Link>
+        <h1 className="text-xl font-title font-bold text-slate-950 mt-3 mb-1">
+          {data.date} · {data.period}교시 복습 영상
+        </h1>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50">
+          <div className="bg-white rounded-2xl shadow-lg max-w-sm w-full p-6">
+            <h2 className="text-lg font-bold text-slate-950 mb-2">이어서 볼까요?</h2>
+            <p className="text-sm text-slate-600 leading-relaxed mb-6">
+              이전에 보던 지점이 있습니다. 이어서 시청할까요? 처음부터 보면 1번 영상 시작으로 돌아갑니다.
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={chooseResume}
+                className="w-full py-2.5 bg-slate-900 text-white rounded-lg text-sm font-semibold"
+              >
+                이어서 보기
+              </button>
+              <button
+                type="button"
+                onClick={chooseRestart}
+                className="w-full py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700"
+              >
+                처음부터 보기
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
