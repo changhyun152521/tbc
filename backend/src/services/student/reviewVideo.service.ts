@@ -4,6 +4,7 @@ import type { IPeriod, IStudentRecord } from '../../models/LessonDay.model';
 import { VideoWatchProgress } from '../../models/VideoWatchProgress.model';
 import { Student } from '../../models/Student.model';
 import { Class } from '../../models/Class.model';
+import { Teacher } from '../../models/Teacher.model';
 import * as studentDataService from '../student/studentData.service';
 
 const COMPLETE_PERCENT = 90;
@@ -13,12 +14,26 @@ function periodIdOf(period: IPeriod & { _id?: mongoose.Types.ObjectId }): string
   return period._id ? period._id.toString() : '';
 }
 
-function teacherNameOf(period: IPeriod & { teacherId?: mongoose.Types.ObjectId | { name?: string } }): string {
+function teacherIdStr(period: { teacherId?: unknown }): string {
+  const t = period.teacherId;
+  if (!t) return '';
+  if (typeof t === 'object' && t !== null && '_id' in t) {
+    return String((t as { _id: unknown })._id);
+  }
+  return String(t);
+}
+
+function resolveTeacherName(
+  period: { teacherId?: mongoose.Types.ObjectId | { _id?: mongoose.Types.ObjectId; name?: string } },
+  nameById: Map<string, string>
+): string {
   const t = period.teacherId;
   if (typeof t === 'object' && t !== null && 'name' in t && typeof (t as { name?: string }).name === 'string') {
-    return (t as { name: string }).name;
+    const populated = (t as { name: string }).name.trim();
+    if (populated) return populated;
   }
-  return '';
+  const id = teacherIdStr(period);
+  return id ? (nameById.get(id) ?? '') : '';
 }
 
 export async function getReviewVideoForStudent(
@@ -149,6 +164,22 @@ export async function listPendingForStudent(studentId: string) {
     .lean()
     .exec();
 
+  const teacherIdSet = new Set<string>();
+  for (const day of days) {
+    for (const period of day.periods || []) {
+      const id = teacherIdStr(period);
+      if (id) teacherIdSet.add(id);
+    }
+  }
+  const teacherDocs =
+    teacherIdSet.size > 0
+      ? await Teacher.find({ _id: { $in: [...teacherIdSet] } })
+          .select('name')
+          .lean()
+          .exec()
+      : [];
+  const teacherNameById = new Map(teacherDocs.map((t) => [t._id.toString(), t.name]));
+
   const items: {
     lessonDayId: string;
     periodId: string;
@@ -178,7 +209,7 @@ export async function listPendingForStudent(studentId: string) {
         className: classNameById.get(day.classId.toString()) ?? '',
         date: day.date instanceof Date ? day.date.toISOString().slice(0, 10) : String(day.date).slice(0, 10),
         period: idx + 1,
-        teacherName: teacherNameOf(period),
+        teacherName: resolveTeacherName(period, teacherNameById),
         attendance: 'X',
         maxPercent: 0,
       });

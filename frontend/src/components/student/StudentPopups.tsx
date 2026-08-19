@@ -161,7 +161,9 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
           <ul className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1 space-y-2 mb-4">
             {pending.map((item) => {
               const done = item.maxPercent >= DISPLAY_COMPLETE_PERCENT;
-              const teacherLabel = item.teacherName ? `${item.teacherName} 선생님` : '담당 강사';
+              const teacherLabel = item.teacherName
+                ? `담당 ${item.teacherName} 선생님`
+                : '담당 강사 미지정';
               return (
                 <li key={`${item.lessonDayId}-${item.periodId}`}>
                   <button
