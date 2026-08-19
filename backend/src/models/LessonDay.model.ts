@@ -18,6 +18,8 @@ export interface IReviewVideo {
   videoId: string;
   title?: string;
   order: number;
+  /** 영상 길이(초). 최초 재생 시 저장되어 미시청 영상도 분모에 포함 */
+  durationSec?: number;
 }
 
 export interface IPeriod {
@@ -63,6 +65,7 @@ const reviewVideoSchema = new Schema<IReviewVideo>(
     videoId: { type: String, default: '', trim: true },
     title: { type: String, default: '', trim: true },
     order: { type: Number, default: 0 },
+    durationSec: { type: Number, default: 0 },
   },
   { _id: true }
 );

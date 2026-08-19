@@ -37,12 +37,37 @@ function resolveTeacherName(
 }
 
 /** 교시의 reviewVideos 배열을 반환. 없으면 레거시 단일 필드에서 생성 */
-function getReviewVideos(period: IPeriod): IReviewVideo[] {
+export function getReviewVideos(period: IPeriod): IReviewVideo[] {
   const videos = (period.reviewVideos ?? []) as IReviewVideo[];
   if (videos.length > 0) return videos;
   const vid = (period.reviewVideoId ?? '').trim();
   if (!vid) return [];
-  return [{ url: period.reviewVideoUrl ?? '', videoId: vid, title: '', order: 0 }];
+  return [{ url: period.reviewVideoUrl ?? '', videoId: vid, title: '', order: 0, durationSec: 0 }];
+}
+
+type ProgressLite = {
+  videoIndex?: number;
+  watchedSec?: number;
+  playTimeSec?: number;
+  durationSec?: number;
+};
+
+/** 교시 전체: 각 영상 길이 합 대비 실제 시청 초 합 */
+export function aggregatePeriodWatch(videos: IReviewVideo[], progresses: ProgressLite[]) {
+  const byIndex = new Map(progresses.map((p) => [p.videoIndex ?? 0, p]));
+  let watchedSec = 0;
+  let playTimeSec = 0;
+  let totalDuration = 0;
+  videos.forEach((rv, i) => {
+    const p = byIndex.get(i);
+    const duration = Math.max(rv.durationSec ?? 0, p?.durationSec ?? 0);
+    const watched = Math.max(0, p?.watchedSec ?? 0);
+    totalDuration += duration;
+    watchedSec += duration > 0 ? Math.min(watched, duration) : watched;
+    playTimeSec += p?.playTimeSec ?? p?.watchedSec ?? 0;
+  });
+  const totalPercent = totalDuration > 0 ? Math.min(100, (watchedSec / totalDuration) * 100) : 0;
+  return { watchedSec, playTimeSec, totalDuration, totalPercent };
 }
 
 export interface VideoInfo {
@@ -105,8 +130,11 @@ export async function getReviewVideosForStudent(
   const videos: VideoInfo[] = reviewVideos.map((rv, i) => {
     const prog = progressByIndex.get(i);
     const watchedSec = prog?.watchedSec ?? 0;
-    const durationSec = prog?.durationSec ?? 0;
-    const maxPercent = prog?.maxPercent ?? 0;
+    const durationSec = Math.max(rv.durationSec ?? 0, prog?.durationSec ?? 0);
+    const maxPercent =
+      durationSec > 0
+        ? Math.min(100, (watchedSec / durationSec) * 100)
+        : prog?.maxPercent ?? 0;
     return {
       videoIndex: i,
       youtubeVideoId: rv.videoId,
@@ -120,9 +148,7 @@ export async function getReviewVideosForStudent(
     };
   });
 
-  const totalDurationSec = videos.reduce((s, v) => s + v.durationSec, 0);
-  const totalWatchedSec = videos.reduce((s, v) => s + v.watchedSec, 0);
-  const totalPercent = totalDurationSec > 0 ? Math.min(100, (totalWatchedSec / totalDurationSec) * 100) : 0;
+  const totals = aggregatePeriodWatch(reviewVideos, progresses);
 
   return {
     lessonDayId,
@@ -130,9 +156,9 @@ export async function getReviewVideosForStudent(
     date,
     period: idx + 1,
     videos,
-    totalPercent,
-    totalDurationSec,
-    totalWatchedSec,
+    totalPercent: totals.totalPercent,
+    totalDurationSec: totals.totalDuration,
+    totalWatchedSec: totals.watchedSec,
   };
 }
 
@@ -229,7 +255,21 @@ export async function upsertProgress(input: {
     { upsert: true, new: true }
   ).exec();
 
-  // 전체 교시 진행률 재계산
+  const day = await LessonDay.findById(input.lessonDayId).exec();
+  const period = day
+    ? ((day.periods || []) as (IPeriod & { _id?: mongoose.Types.ObjectId })[]).find(
+        (p) => p._id?.toString() === input.periodId
+      )
+    : undefined;
+  if (day && period && duration > 0) {
+    const videos = (period.reviewVideos ?? []) as IReviewVideo[];
+    if (videos[videoIndex] && (videos[videoIndex].durationSec ?? 0) < duration) {
+      videos[videoIndex].durationSec = duration;
+      period.reviewVideos = videos;
+      await day.save();
+    }
+  }
+
   const allProgresses = await VideoWatchProgress.find({
     studentId: new mongoose.Types.ObjectId(input.studentId),
     lessonDayId: new mongoose.Types.ObjectId(input.lessonDayId),
@@ -238,11 +278,10 @@ export async function upsertProgress(input: {
     .lean()
     .exec();
 
-  const totalDurationSec = allProgresses.reduce((s, p) => s + (p.durationSec ?? 0), 0);
-  const totalWatchedSec = allProgresses.reduce((s, p) => s + (p.watchedSec ?? 0), 0);
-  const totalPercent = totalDurationSec > 0 ? Math.min(100, (totalWatchedSec / totalDurationSec) * 100) : 0;
+  const reviewVideos = period ? getReviewVideos(period) : [];
+  const totals = aggregatePeriodWatch(reviewVideos, allProgresses);
 
-  return { maxPercent, watchedSec, playTimeSec, completed, totalPercent };
+  return { maxPercent, watchedSec, playTimeSec, completed, totalPercent: totals.totalPercent };
 }
 
 export async function listPendingForStudent(studentId: string) {
@@ -320,7 +359,16 @@ export async function listPendingForStudent(studentId: string) {
 
   if (items.length === 0) return [];
 
-  // 해당 교시의 모든 영상 진행률 집계
+  const periodVideos = new Map<string, IReviewVideo[]>();
+  for (const day of days) {
+    const periods = (day.periods || []) as (IPeriod & { _id?: mongoose.Types.ObjectId })[];
+    for (const period of periods) {
+      const pid = periodIdOf(period);
+      if (!pid) continue;
+      periodVideos.set(`${day._id.toString()}-${pid}`, getReviewVideos(period));
+    }
+  }
+
   const allProgresses = await VideoWatchProgress.find({
     studentId: new mongoose.Types.ObjectId(studentId),
     $or: items.map((i) => ({
@@ -331,23 +379,19 @@ export async function listPendingForStudent(studentId: string) {
     .lean()
     .exec();
 
-  // key: `lessonDayId-periodId`
-  const progressByPeriod = new Map<string, { totalDuration: number; totalWatched: number }>();
+  const progressByPeriod = new Map<string, ProgressLite[]>();
   for (const p of allProgresses) {
     const key = `${p.lessonDayId.toString()}-${p.periodId.toString()}`;
-    const cur = progressByPeriod.get(key) ?? { totalDuration: 0, totalWatched: 0 };
-    cur.totalDuration += p.durationSec ?? 0;
-    cur.totalWatched += p.watchedSec ?? 0;
-    progressByPeriod.set(key, cur);
+    const list = progressByPeriod.get(key) ?? [];
+    list.push(p);
+    progressByPeriod.set(key, list);
   }
 
   return items
     .map((i) => {
       const key = `${i.lessonDayId}-${i.periodId}`;
-      const prog = progressByPeriod.get(key);
-      const totalPercent =
-        prog && prog.totalDuration > 0 ? Math.min(100, (prog.totalWatched / prog.totalDuration) * 100) : 0;
-      return { ...i, maxPercent: totalPercent };
+      const totals = aggregatePeriodWatch(periodVideos.get(key) ?? [], progressByPeriod.get(key) ?? []);
+      return { ...i, maxPercent: totals.totalPercent };
     })
     .filter((i) => i.maxPercent < COMPLETE_PERCENT)
     .sort((a, b) => {
@@ -413,32 +457,37 @@ export async function getClassWatchStats(classId: string) {
 
   if (rows.length === 0) return [];
 
+  const periodVideos = new Map<string, IReviewVideo[]>();
+  for (const day of days) {
+    const periods = (day.periods || []) as (IPeriod & { _id?: mongoose.Types.ObjectId })[];
+    for (const period of periods) {
+      if (!period._id) continue;
+      periodVideos.set(`${day._id.toString()}-${period._id.toString()}`, getReviewVideos(period));
+    }
+  }
+
   const progresses = await VideoWatchProgress.find({
     lessonDayId: { $in: days.map((d) => d._id) },
   })
     .lean()
     .exec();
 
-  // 학생별 교시별 집계
-  const pMap = new Map<string, { watchedSec: number; playTimeSec: number; totalDuration: number }>();
+  const pMap = new Map<string, ProgressLite[]>();
   for (const p of progresses) {
     const key = `${p.studentId.toString()}-${p.lessonDayId.toString()}-${p.periodId.toString()}`;
-    const cur = pMap.get(key) ?? { watchedSec: 0, playTimeSec: 0, totalDuration: 0 };
-    cur.watchedSec += p.watchedSec ?? 0;
-    cur.playTimeSec += p.playTimeSec ?? p.watchedSec ?? 0;
-    cur.totalDuration += p.durationSec ?? 0;
-    pMap.set(key, cur);
+    const list = pMap.get(key) ?? [];
+    list.push(p);
+    pMap.set(key, list);
   }
 
   return rows.map((r) => {
-    const p = pMap.get(`${r.studentId}-${r.lessonDayId}-${r.periodId}`);
-    const totalPercent =
-      p && p.totalDuration > 0 ? Math.min(100, (p.watchedSec / p.totalDuration) * 100) : 0;
+    const videos = periodVideos.get(`${r.lessonDayId}-${r.periodId}`) ?? [];
+    const totals = aggregatePeriodWatch(videos, pMap.get(`${r.studentId}-${r.lessonDayId}-${r.periodId}`) ?? []);
     return {
       ...r,
-      watchedSec: p?.watchedSec ?? 0,
-      playTimeSec: p?.playTimeSec ?? 0,
-      maxPercent: totalPercent,
+      watchedSec: totals.watchedSec,
+      playTimeSec: totals.playTimeSec,
+      maxPercent: totals.totalPercent,
     };
   });
 }

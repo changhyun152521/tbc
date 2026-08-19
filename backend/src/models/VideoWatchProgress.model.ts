@@ -46,3 +46,24 @@ videoWatchProgressSchema.index({ lessonDayId: 1, periodId: 1 });
 export const VideoWatchProgress: Model<IVideoWatchProgress> =
   mongoose.models.VideoWatchProgress ??
   mongoose.model<IVideoWatchProgress>('VideoWatchProgress', videoWatchProgressSchema);
+
+/** 예전 unique(학생+수업일+교시)가 남아 있으면 2번 영상 기록이 저장되지 않음 */
+export async function dropLegacyVideoWatchProgressIndexes(): Promise<void> {
+  try {
+    const indexes = await VideoWatchProgress.collection.indexes();
+    const legacy = indexes.find(
+      (idx) =>
+        idx.unique === true &&
+        idx.key.studentId === 1 &&
+        idx.key.lessonDayId === 1 &&
+        idx.key.periodId === 1 &&
+        idx.key.videoIndex == null
+    );
+    if (legacy?.name) {
+      await VideoWatchProgress.collection.dropIndex(legacy.name);
+      console.log(`VideoWatchProgress 레거시 unique 인덱스 제거: ${legacy.name}`);
+    }
+  } catch (err) {
+    console.warn('VideoWatchProgress 인덱스 정리 건너뜀:', err instanceof Error ? err.message : err);
+  }
+}

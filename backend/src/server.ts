@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import app from './app';
 import { serverConfig, dbConfig } from './config';
 import { User } from './models/User.model';
+import { dropLegacyVideoWatchProgressIndexes } from './models/VideoWatchProgress.model';
 
 const SALT_ROUNDS = 10;
 
@@ -23,6 +24,7 @@ async function ensureAdmin() {
 async function main() {
   await mongoose.connect(dbConfig.uri);
   console.log('MongoDB 연결 성공');
+  await dropLegacyVideoWatchProgressIndexes();
   await ensureAdmin();
 
   app.listen(serverConfig.port, () => {

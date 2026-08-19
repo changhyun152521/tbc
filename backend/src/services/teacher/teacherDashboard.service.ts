@@ -5,6 +5,7 @@ import type { IPeriod, IStudentRecord } from '../../models/LessonDay.model';
 import { Student } from '../../models/Student.model';
 import { VideoWatchProgress } from '../../models/VideoWatchProgress.model';
 import { getTeacherIdByUserId } from './teacherClass.service';
+import { aggregatePeriodWatch, getReviewVideos } from '../student/reviewVideo.service';
 
 const ABSENCE_LOOKBACK_DAYS = 14;
 const PERIOD_LOOKBACK_DAYS = 7;
@@ -152,21 +153,36 @@ export async function getTeacherDashboard(userId: string) {
             .exec()
         : [];
 
-    const percentMap = new Map(
-      progresses.map((p) => [
-        `${p.studentId.toString()}-${p.lessonDayId.toString()}-${p.periodId.toString()}`,
-        p.maxPercent,
-      ])
-    );
+    const periodVideos = new Map<string, ReturnType<typeof getReviewVideos>>();
+    for (const day of absenceDays) {
+      const periods = (day.periods || []) as (IPeriod & { _id?: mongoose.Types.ObjectId })[];
+      for (const period of periods) {
+        const pid = periodIdOf(period);
+        if (!pid) continue;
+        periodVideos.set(`${day._id.toString()}-${pid}`, getReviewVideos(period));
+      }
+    }
+
+    const progressByKey = new Map<string, typeof progresses>();
+    for (const p of progresses) {
+      const key = `${p.studentId.toString()}-${p.lessonDayId.toString()}-${p.periodId.toString()}`;
+      const list = progressByKey.get(key) ?? [];
+      list.push(p);
+      progressByKey.set(key, list);
+    }
 
     recentAbsences = absenceCandidates
-      .map((c) => ({
-        ...c,
-        studentName: nameById.get(c.studentId) ?? '-',
-        maxPercent: c.hasReviewVideo
-          ? (percentMap.get(`${c.studentId}-${c.lessonDayId}-${c.periodId}`) ?? 0)
-          : 0,
-      }))
+      .map((c) => {
+        const key = `${c.studentId}-${c.lessonDayId}-${c.periodId}`;
+        const totals = c.hasReviewVideo
+          ? aggregatePeriodWatch(periodVideos.get(`${c.lessonDayId}-${c.periodId}`) ?? [], progressByKey.get(key) ?? [])
+          : { totalPercent: 0 };
+        return {
+          ...c,
+          studentName: nameById.get(c.studentId) ?? '-',
+          maxPercent: totals.totalPercent,
+        };
+      })
       .sort((a, b) => {
         if (a.date !== b.date) return b.date.localeCompare(a.date);
         return b.period - a.period;

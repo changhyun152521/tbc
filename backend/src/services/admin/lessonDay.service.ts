@@ -187,12 +187,18 @@ export async function updatePeriod(
   if (payload.reviewVideos !== undefined) {
     const existingVideos = (period.reviewVideos ?? []) as IReviewVideo[];
     const oldVideoIds = new Set(existingVideos.map((v) => v.videoId));
-    const newVideos: IReviewVideo[] = payload.reviewVideos.map((v, i) => ({
-      url: (v.url ?? '').trim(),
-      videoId: extractYoutubeVideoId((v.url ?? '').trim()) ?? '',
-      title: (v.title ?? '').trim(),
-      order: v.order ?? i,
-    }));
+    const newVideos: IReviewVideo[] = payload.reviewVideos.map((v, i) => {
+      const url = (v.url ?? '').trim();
+      const videoId = extractYoutubeVideoId(url) ?? '';
+      const existing = existingVideos.find((ev) => ev.videoId && ev.videoId === videoId);
+      return {
+        url,
+        videoId,
+        title: (v.title ?? '').trim(),
+        order: v.order ?? i,
+        durationSec: existing?.durationSec ?? 0,
+      };
+    });
     const newVideoIds = new Set(newVideos.map((v) => v.videoId));
     period.reviewVideos = newVideos;
     // 삭제된 영상의 시청 기록 제거

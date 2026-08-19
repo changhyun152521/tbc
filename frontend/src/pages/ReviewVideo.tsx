@@ -248,6 +248,7 @@ export default function ReviewVideo() {
         events: {
           onReady: (e) => {
             if (activeVideo.lastPositionSec > 3) e.target.seekTo(activeVideo.lastPositionSec, true);
+            void flush(e.target);
           },
           onStateChange: (e) => {
             const playing = window.YT?.PlayerState.PLAYING;
@@ -330,24 +331,16 @@ export default function ReviewVideo() {
           {videos.map((v, i) => {
             const pct = videoPercents[i] ?? v.maxPercent;
             const isCompleted = pct >= 90;
-            const isLocked = i > 0 && (videoPercents[i - 1] ?? videos[i - 1].maxPercent) < 90;
             const isActive = i === activeIndex;
             return (
               <button
                 key={i}
                 type="button"
-                disabled={isLocked}
-                onClick={() => {
-                  if (!isLocked) setActiveIndex(i);
-                }}
+                onClick={() => setActiveIndex(i)}
                 className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition-colors
-                  ${isActive ? 'bg-slate-900 text-white border-slate-900' : isLocked ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed' : isCompleted ? 'bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                  ${isActive ? 'bg-slate-900 text-white border-slate-900' : isCompleted ? 'bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
               >
-                {isLocked ? (
-                  <span className="text-xs">🔒</span>
-                ) : isCompleted ? (
-                  <span className="text-xs">✓</span>
-                ) : null}
+                {isCompleted ? <span className="text-xs">✓</span> : null}
                 {v.title ? v.title : `${i + 1}번 영상`}
                 <span className="text-xs opacity-70">{Math.round(pct)}%</span>
               </button>
@@ -368,7 +361,7 @@ export default function ReviewVideo() {
           진행률 {Math.round(videoPercents[activeIndex] ?? activeVideo?.maxPercent ?? 0)}%
           {' · '}시청 시간 {formatTime(videoPlayTimes[activeIndex] ?? activeVideo?.playTimeSec ?? 0)}
         </span>
-        {!isSingle && activeIndex < videos.length - 1 && (videoPercents[activeIndex] ?? activeVideo?.maxPercent ?? 0) >= 90 && (
+        {!isSingle && activeIndex < videos.length - 1 && (
           <button
             type="button"
             onClick={() => setActiveIndex((prev) => prev + 1)}
