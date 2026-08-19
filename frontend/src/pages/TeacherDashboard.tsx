@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { LayoutDashboard, Home, Users, BookOpen, FileText, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Home, Users, UserSquare2, BookOpen, FileText, ChevronRight } from 'lucide-react';
 import { apiClient } from '../api/client';
 
 interface TeacherDashboardData {
@@ -69,6 +69,8 @@ export default function TeacherDashboard() {
   }, []);
 
   const quickMenus = [
+    { to: '/admin/students', label: '학생 관리', icon: Users },
+    { to: '/admin/teachers', label: '강사 관리', icon: UserSquare2 },
     { to: '/admin/classes', label: '반 관리', icon: Home },
     { to: '/admin/lessons', label: '수업 관리', icon: BookOpen },
     { to: '/admin/tests', label: '시험 관리', icon: FileText },
