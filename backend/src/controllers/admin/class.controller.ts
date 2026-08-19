@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import * as classService from '../../services/admin/class.service';
+import { getTeacherIdByUserId } from '../../services/teacher/teacherClass.service';
 import { ApiResponse } from '../../types/api';
 
 export async function createClass(req: Request, res: Response<ApiResponse>): Promise<void> {
@@ -35,7 +36,16 @@ export async function listClasses(req: Request, res: Response<ApiResponse>): Pro
 /** 수업관리 진입용: 반 목록 + 오늘 교시 수 */
 export async function listClassesForLessons(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
-    const list = await classService.listClassesForLessonManagement();
+    const role = req.user?.role ?? '';
+    let teacherId = null;
+    if (role === 'teacher') {
+      teacherId = await getTeacherIdByUserId(req.user?.id ?? '');
+      if (!teacherId) {
+        res.status(200).json({ success: true, data: [] });
+        return;
+      }
+    }
+    const list = await classService.listClassesForLessonManagement(teacherId);
     res.status(200).json({ success: true, data: list });
   } catch (err) {
     const message = err instanceof Error ? err.message : '반 목록 조회에 실패했습니다.';
@@ -46,7 +56,16 @@ export async function listClassesForLessons(req: Request, res: Response<ApiRespo
 /** 시험관리 진입용: 반 목록 + 반별 시험 수 */
 export async function listClassesForTests(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
-    const list = await classService.listClassesForTestManagement();
+    const role = req.user?.role ?? '';
+    let teacherId = null;
+    if (role === 'teacher') {
+      teacherId = await getTeacherIdByUserId(req.user?.id ?? '');
+      if (!teacherId) {
+        res.status(200).json({ success: true, data: [] });
+        return;
+      }
+    }
+    const list = await classService.listClassesForTestManagement(teacherId);
     res.status(200).json({ success: true, data: list });
   } catch (err) {
     const message = err instanceof Error ? err.message : '반 목록 조회에 실패했습니다.';

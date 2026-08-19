@@ -1,7 +1,9 @@
 import { Router } from 'express';
-import { query } from 'express-validator';
+import { param, query } from 'express-validator';
 import { authenticate, requireRoles } from '../middlewares/auth.middleware';
 import * as studentController from '../controllers/student.controller';
+import * as announcementController from '../controllers/admin/announcement.controller';
+import * as reviewVideoController from '../controllers/student/reviewVideo.controller';
 
 const router = Router();
 
@@ -13,6 +15,24 @@ router.get('/classes', studentController.getClasses);
 
 // 대시보드
 router.get('/dashboard', studentController.getDashboard);
+
+router.get('/announcements/active', announcementController.listActiveForMe);
+router.post(
+  '/announcements/:id/dismiss',
+  [param('id').isMongoId().withMessage('올바른 ID가 아닙니다.')],
+  announcementController.dismiss
+);
+
+router.get('/review-videos/pending', reviewVideoController.listPending);
+router.put('/review-videos/progress', reviewVideoController.putProgress);
+router.get(
+  '/review-videos/:lessonDayId/:periodId',
+  [
+    param('lessonDayId').isMongoId().withMessage('올바른 수업 ID가 아닙니다.'),
+    param('periodId').isMongoId().withMessage('올바른 교시 ID가 아닙니다.'),
+  ],
+  reviewVideoController.getReviewVideo
+);
 
 // 진도/과제 현황 (쿼리: from, to 선택)
 router.get(

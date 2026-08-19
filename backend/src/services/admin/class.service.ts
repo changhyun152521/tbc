@@ -38,9 +38,10 @@ export async function listClasses() {
   }));
 }
 
-/** 수업관리 진입용: 반 목록 + 오늘 날짜 기준 등록 교시 수 */
-export async function listClassesForLessonManagement() {
-  const list = await Class.find()
+/** 수업관리 진입용: 반 목록 + 오늘 날짜 기준 등록 교시 수. teacherId가 있으면 해당 강사 담당 반만. */
+export async function listClassesForLessonManagement(teacherId?: mongoose.Types.ObjectId | null) {
+  const filter = teacherId ? { teacherIds: teacherId } : {};
+  const list = await Class.find(filter)
     .populate('teacherIds', 'name')
     .sort({ createdAt: -1 })
     .lean()
@@ -73,9 +74,10 @@ export async function listClassesForLessonManagement() {
   });
 }
 
-/** 시험관리 진입용: 반 목록 + 반별 시험 수 */
-export async function listClassesForTestManagement() {
-  const list = await Class.find()
+/** 시험관리 진입용: 반 목록 + 반별 시험 수. teacherId가 있으면 해당 강사 담당 반만. */
+export async function listClassesForTestManagement(teacherId?: mongoose.Types.ObjectId | null) {
+  const filter = teacherId ? { teacherIds: teacherId } : {};
+  const list = await Class.find(filter)
     .populate('teacherIds', 'name')
     .sort({ createdAt: -1 })
     .lean()

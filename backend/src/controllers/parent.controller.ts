@@ -3,6 +3,8 @@ import { validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 import { Student } from '../models/Student.model';
 import * as studentDataService from '../services/student/studentData.service';
+import * as announcementService from '../services/admin/announcement.service';
+import { kstToday } from '../utils/dateKst';
 import { ApiResponse } from '../types/api';
 
 function getUserId(req: Request): string {
@@ -66,7 +68,16 @@ export async function getLessons(req: Request, res: Response<ApiResponse>): Prom
     const to = req.query.to as string | undefined;
     const classId = req.query.classId as string | undefined;
     const result = await studentDataService.getLessons(studentId, from, to, classId || null);
-    res.status(200).json({ success: true, data: result ?? { lessons: [] } });
+    const payload = result ?? { lessons: [] };
+    if (payload && typeof payload === 'object' && 'lessons' in payload) {
+      const lessons = (payload as { lessons: Array<Record<string, unknown>> }).lessons;
+      if (Array.isArray(lessons)) {
+        for (const l of lessons) {
+          l.hasReviewVideo = false;
+        }
+      }
+    }
+    res.status(200).json({ success: true, data: payload });
   } catch (err) {
     const message = err instanceof Error ? err.message : '자녀 진도/과제 조회에 실패했습니다.';
     res.status(500).json({ success: false, message });
@@ -112,6 +123,42 @@ export async function getMonthlyStatistics(req: Request, res: Response<ApiRespon
     res.status(200).json({ success: true, data: result });
   } catch (err) {
     const message = err instanceof Error ? err.message : '자녀 월별 통계 조회에 실패했습니다.';
+    res.status(500).json({ success: false, message });
+  }
+}
+
+export async function listActiveAnnouncements(req: Request, res: Response<ApiResponse>): Promise<void> {
+  try {
+    const userId = getUserId(req);
+    const studentId = await getChildStudentIdByParentUserId(userId);
+    if (!studentId) {
+      res.status(404).json({ success: false, message: '연결된 자녀 정보를 찾을 수 없습니다.' });
+      return;
+    }
+    const classes = await studentDataService.getStudentClasses(studentId);
+    const list = await announcementService.getActiveForStudent(
+      classes.map((c) => c._id),
+      userId
+    );
+    res.status(200).json({ success: true, data: list });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '공지 조회에 실패했습니다.';
+    res.status(500).json({ success: false, message });
+  }
+}
+
+export async function dismissAnnouncement(req: Request, res: Response<ApiResponse>): Promise<void> {
+  try {
+    const userId = getUserId(req);
+    const hideUntil = typeof req.body.hideUntil === 'string' ? req.body.hideUntil : kstToday();
+    const result = await announcementService.dismissAnnouncement(userId, req.params.id, hideUntil);
+    if ('error' in result && result.error) {
+      res.status(400).json({ success: false, message: result.error });
+      return;
+    }
+    res.status(200).json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '공지 숨기기에 실패했습니다.';
     res.status(500).json({ success: false, message });
   }
 }

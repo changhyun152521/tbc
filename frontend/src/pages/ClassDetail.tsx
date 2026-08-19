@@ -4,6 +4,8 @@ import { apiClient } from '../api/client';
 import type { ClassDetail as ClassDetailType, ClassStudentItem } from '../types/class';
 import AddStudentsModal from '../components/class/AddStudentsModal';
 import AddTeachersModal from '../components/class/AddTeachersModal';
+import ClassAnnouncementsSection from '../components/class/ClassAnnouncementsSection';
+import ClassWatchStatsSection from '../components/class/ClassWatchStatsSection';
 
 export default function ClassDetail() {
   const { id } = useParams<{ id: string }>();
@@ -13,6 +15,7 @@ export default function ClassDetail() {
   const [addTeachersOpen, setAddTeachersOpen] = useState(false);
   const [addStudentsOpen, setAddStudentsOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [tab, setTab] = useState<'members' | 'announcements' | 'videos'>('members');
 
   const fetchDetail = useCallback(async () => {
     if (!id) return;
@@ -133,12 +136,40 @@ export default function ClassDetail() {
           <h1 className="text-2xl font-title font-bold text-slate-950">{detail?.name ?? '-'}</h1>
         </div>
 
+        <div className="flex gap-1 border-b border-slate-200">
+          {(
+            [
+              { id: 'members', label: '구성원' },
+              { id: 'announcements', label: '공지사항' },
+              { id: 'videos', label: '복습 영상 현황' },
+            ] as const
+          ).map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px ${
+                tab === t.id
+                  ? 'border-slate-900 text-slate-950'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
         {error && (
           <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm" role="alert">
             {error}
           </div>
         )}
 
+        {tab === 'announcements' && id && <ClassAnnouncementsSection classId={id} />}
+        {tab === 'videos' && id && <ClassWatchStatsSection classId={id} />}
+
+        {tab === 'members' && (
+        <>
         {/* 1. 반 기본 정보 */}
         <section className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm px-4 py-3 sm:px-6 sm:py-4">
           <h2 className="text-slate-600 text-sm sm:text-base font-bold uppercase tracking-wide mb-2">반 기본 정보</h2>
@@ -285,6 +316,8 @@ export default function ClassDetail() {
             </table>
           </div>
         </section>
+        </>
+        )}
       </div>
 
       <AddTeachersModal

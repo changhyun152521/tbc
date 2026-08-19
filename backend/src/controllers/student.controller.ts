@@ -1,7 +1,5 @@
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
-import mongoose from 'mongoose';
-import { Student } from '../models/Student.model';
 import * as studentDataService from '../services/student/studentData.service';
 import { ApiResponse } from '../types/api';
 
@@ -10,19 +8,8 @@ function getUserId(req: Request): string {
 }
 
 async function getStudentIdByUserId(userId: string): Promise<string | null> {
-  const r = await getStudentIdAndAccessType(userId);
+  const r = await studentDataService.getStudentIdAndAccessType(userId);
   return r?.studentId ?? null;
-}
-
-/** 학생 ID와 관리자 접속 여부 반환 (관리자용 계정으로 로그인 시 isAdminAccess true) */
-async function getStudentIdAndAccessType(userId: string): Promise<{ studentId: string; isAdminAccess: boolean } | null> {
-  if (!mongoose.Types.ObjectId.isValid(userId)) return null;
-  const uid = new mongoose.Types.ObjectId(userId);
-  const byMain = await Student.findOne({ userId: uid }).select('_id').lean().exec();
-  if (byMain) return { studentId: byMain._id.toString(), isAdminAccess: false };
-  const byAdminAccess = await Student.findOne({ adminAccessUserId: uid }).select('_id').lean().exec();
-  if (byAdminAccess) return { studentId: byAdminAccess._id.toString(), isAdminAccess: true };
-  return null;
 }
 
 export async function getClasses(req: Request, res: Response<ApiResponse>): Promise<void> {
@@ -42,7 +29,7 @@ export async function getClasses(req: Request, res: Response<ApiResponse>): Prom
 
 export async function getDashboard(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
-    const info = await getStudentIdAndAccessType(getUserId(req));
+    const info = await studentDataService.getStudentIdAndAccessType(getUserId(req));
     if (!info) {
       res.status(404).json({ success: false, message: '학생 정보를 찾을 수 없습니다.' });
       return;
@@ -64,7 +51,7 @@ export async function getLessons(req: Request, res: Response<ApiResponse>): Prom
       res.status(400).json({ success: false, message: errors.array()[0].msg });
       return;
     }
-    const info = await getStudentIdAndAccessType(getUserId(req));
+    const info = await studentDataService.getStudentIdAndAccessType(getUserId(req));
     if (!info) {
       res.status(404).json({ success: false, message: '학생 정보를 찾을 수 없습니다.' });
       return;
@@ -76,6 +63,12 @@ export async function getLessons(req: Request, res: Response<ApiResponse>): Prom
     const payload = result ?? { lessons: [] };
     if (info.isAdminAccess && payload && typeof payload === 'object' && 'lessons' in payload) {
       (payload as { isAdminAccess?: boolean }).isAdminAccess = true;
+      const lessons = (payload as { lessons: Array<Record<string, unknown>> }).lessons;
+      if (Array.isArray(lessons)) {
+        for (const l of lessons) {
+          l.hasReviewVideo = false;
+        }
+      }
     }
     res.status(200).json({ success: true, data: payload });
   } catch (err) {

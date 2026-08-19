@@ -61,3 +61,15 @@ export async function canAccessClass(classId: string, userId: string, role: stri
   if (!classDoc) return false;
   return classDoc.teacherIds.some((id) => id.toString() === teacherId.toString());
 }
+
+/** admin이면 null(전체), teacher면 담당 반 ID 목록 */
+export async function getAssignedClassIds(
+  userId: string,
+  role: string
+): Promise<mongoose.Types.ObjectId[] | null> {
+  if (role === 'admin') return null;
+  const teacherId = await getTeacherIdByUserId(userId);
+  if (!teacherId) return [];
+  const classes = await Class.find({ teacherIds: teacherId }).select('_id').lean().exec();
+  return classes.map((c) => c._id as mongoose.Types.ObjectId);
+}

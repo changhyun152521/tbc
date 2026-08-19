@@ -13,7 +13,7 @@ interface PeriodSectionProps {
     periodIndex: number,
     teacherId: string,
     records: { studentId: string; attendance: AttendanceHomeworkValue; homework: AttendanceHomeworkValue; note?: string; parentNote?: string }[],
-    options?: { memo?: string; homeworkDescription?: string; homeworkDueDate?: string | null }
+    options?: { memo?: string; homeworkDescription?: string; homeworkDueDate?: string | null; reviewVideoUrl?: string }
   ) => void;
   onDelete: (periodIndex: number) => void;
   /** 상단 일괄 저장 시 트리거. 변경되면 이 교시에 변경이 있으면 저장 수행 (지정 시 교시별 저장 버튼 숨김) */
@@ -98,6 +98,7 @@ export default function PeriodSection({
   const [memo, setMemo] = useState(memoInitial);
   const [homeworkDescription, setHomeworkDescription] = useState(homeworkDescInitial);
   const [homeworkDueDate, setHomeworkDueDate] = useState(dueDateInitial);
+  const [reviewVideoUrl, setReviewVideoUrl] = useState(period.reviewVideoUrl ?? '');
 
   useEffect(() => {
     setSelectedTeacherId(teacherId(period));
@@ -111,6 +112,7 @@ export default function PeriodSection({
             : new Date(period.homeworkDueDate).toISOString().slice(0, 10))
         : ''
     );
+    setReviewVideoUrl(period.reviewVideoUrl ?? '');
   }, [period]); // classStudents 제외: 부모 리렌더 시 새 배열 참조로 인해 초기화되면 사용자가 누른 O/X·COMMENT가 덮어씌워지는 문제 방지
 
   useEffect(() => {
@@ -120,6 +122,7 @@ export default function PeriodSection({
       memo !== (period.memo ?? '') ||
       homeworkDescription !== (period.homeworkDescription ?? '') ||
       homeworkDueDate !== periodDueStr ||
+      reviewVideoUrl !== (period.reviewVideoUrl ?? '') ||
       !recordsEqual(records, merged);
     if (!isChanged) return;
     onWillSave?.(periodIndex);
@@ -177,6 +180,7 @@ export default function PeriodSection({
       memo: memo.trim() || undefined,
       homeworkDescription: homeworkDescription.trim() || undefined,
       homeworkDueDate: homeworkDueDate.trim() || null,
+      reviewVideoUrl: reviewVideoUrl.trim(),
     });
   };
 
@@ -196,6 +200,7 @@ export default function PeriodSection({
     memo !== (period.memo ?? '') ||
     homeworkDescription !== (period.homeworkDescription ?? '') ||
     homeworkDueDate !== periodDueStr ||
+    reviewVideoUrl !== (period.reviewVideoUrl ?? '') ||
     !recordsEqual(records, merged);
 
   useEffect(() => {
@@ -266,6 +271,16 @@ export default function PeriodSection({
               />
             </div>
           </div>
+        </div>
+        <div>
+          <label className="block text-slate-600 text-sm font-semibold mb-1.5">복습 영상 (유튜브)</label>
+          <input
+            type="url"
+            value={reviewVideoUrl}
+            onChange={(e) => setReviewVideoUrl(e.target.value)}
+            placeholder="https://www.youtube.com/watch?v=..."
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none"
+          />
         </div>
         <div className="flex flex-nowrap items-center justify-end gap-2 mb-3 lg:mb-2">
           <button

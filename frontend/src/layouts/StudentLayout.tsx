@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { StudentClassProvider, useStudentClass } from '../contexts/StudentClassContext';
 import ScrollToTop from '../components/ScrollToTop';
 import ClassSelect from '../pages/ClassSelect';
+import StudentPopups from '../components/student/StudentPopups';
 import { apiClient } from '../api/client';
 
 const NAV_ITEMS = [
@@ -58,17 +59,22 @@ function StudentLayoutContent() {
   const location = useLocation();
   const { selectedClassName, isLoading, needsClassSelection, classes, setShowClassSelect } = useStudentClass();
   const [isAdminAccess, setIsAdminAccess] = useState(false);
+  const [accessReady, setAccessReady] = useState(role !== 'student');
   const title = role === 'parent' ? '학부모' : '학생';
   const hasMultipleClasses = classes.length >= 2;
 
   useEffect(() => {
-    if (role !== 'student') return;
+    if (role !== 'student') {
+      setAccessReady(true);
+      return;
+    }
     apiClient
       .get<{ success: boolean; data?: { isAdminAccess?: boolean } }>('/me')
       .then((res) => {
         if (res.data.success && res.data.data?.isAdminAccess) setIsAdminAccess(true);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setAccessReady(true));
   }, [role]);
 
   /** 로그아웃 옆 표시: 학생은 이름만, 관리 접속은 이름 관리ID, 학부모는 이름 학부모 */
@@ -167,6 +173,9 @@ function StudentLayoutContent() {
           </header>
 
           <main className="flex-1 p-4 sm:p-6 lg:p-8">
+            {accessReady && !location.pathname.includes('/videos/') && (
+              <StudentPopups isAdminAccess={isAdminAccess} />
+            )}
             <motion.div
               key={location.pathname}
               initial={{ opacity: 0 }}

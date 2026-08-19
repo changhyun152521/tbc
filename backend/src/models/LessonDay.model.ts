@@ -13,6 +13,7 @@ export interface IStudentRecord {
 }
 
 export interface IPeriod {
+  _id?: mongoose.Types.ObjectId;
   teacherId: mongoose.Types.ObjectId;
   /** 진도 (수업 내용 메모) */
   memo?: string;
@@ -20,6 +21,10 @@ export interface IPeriod {
   homeworkDescription?: string;
   /** 과제 마감기한 */
   homeworkDueDate?: Date;
+  /** 복습 영상 원본 URL */
+  reviewVideoUrl?: string;
+  /** 추출된 YouTube videoId */
+  reviewVideoId?: string;
   records: IStudentRecord[];
 }
 
@@ -48,6 +53,8 @@ const periodSchema = new Schema<IPeriod>(
     memo: { type: String, default: '' },
     homeworkDescription: { type: String, default: '' },
     homeworkDueDate: { type: Date, required: false },
+    reviewVideoUrl: { type: String, default: '', trim: true },
+    reviewVideoId: { type: String, default: '', trim: true },
     records: { type: [studentRecordSchema], default: [] },
   },
   { _id: true }
