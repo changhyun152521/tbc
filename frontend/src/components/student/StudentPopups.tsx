@@ -43,6 +43,13 @@ function progressLabel(maxPercent: number): string {
   return `진행률 ${Math.round(maxPercent)}%`;
 }
 
+function sortPendingVideos(list: PendingVideo[]): PendingVideo[] {
+  return [...list].sort((a, b) => {
+    if (a.date !== b.date) return b.date.localeCompare(a.date);
+    return a.period - b.period;
+  });
+}
+
 export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolean }) {
   const { role } = useAuth();
   const navigate = useNavigate();
@@ -82,7 +89,7 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
       .then((res) => {
         if (cancelled) return;
         const list = res.data.success && Array.isArray(res.data.data) ? res.data.data : [];
-        setPending(list);
+        setPending(sortPendingVideos(list));
         if (list.length === 0) setStage('done');
       })
       .catch(() => {

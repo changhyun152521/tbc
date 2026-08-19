@@ -240,7 +240,7 @@ export async function listPendingForStudent(studentId: string) {
     .filter((i) => i.maxPercent < COMPLETE_PERCENT)
     .sort((a, b) => {
       if (a.date !== b.date) return b.date.localeCompare(a.date);
-      return b.period - a.period;
+      return a.period - b.period;
     });
 }
 

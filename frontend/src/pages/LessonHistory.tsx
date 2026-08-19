@@ -279,28 +279,6 @@ export default function LessonHistory() {
                   </p>
                 </div>
 
-                {l.hasReviewVideo && l.lessonDayId && l.periodId && (
-                  <>
-                    <div className="h-[1px] bg-slate-50" />
-                    {canWatchReviewVideo ? (
-                      <Link
-                        to={`/student/videos/${l.lessonDayId}/${l.periodId}`}
-                        className="block w-full text-center py-2.5 bg-slate-900 text-white rounded-xl text-sm font-semibold"
-                      >
-                        복습 영상 보기
-                      </Link>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setVideoBlockedOpen(true)}
-                        className="block w-full text-center py-2.5 bg-slate-900 text-white rounded-xl text-sm font-semibold"
-                      >
-                        복습 영상 보기
-                      </button>
-                    )}
-                  </>
-                )}
-
                 {(() => {
                   if (isAdminAccess) {
                     const hasStudent = (l.note ?? '').trim() !== '';
@@ -366,6 +344,28 @@ export default function LessonHistory() {
                     </p>
                   </div>
                 </div>
+
+                {l.hasReviewVideo && l.lessonDayId && l.periodId && (
+                  <>
+                    <div className="h-[1px] bg-slate-50" />
+                    {canWatchReviewVideo ? (
+                      <Link
+                        to={`/student/videos/${l.lessonDayId}/${l.periodId}`}
+                        className="block w-full text-center py-2.5 bg-slate-900 text-white rounded-xl text-sm font-semibold"
+                      >
+                        복습 영상 보기
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setVideoBlockedOpen(true)}
+                        className="block w-full text-center py-2.5 bg-slate-900 text-white rounded-xl text-sm font-semibold"
+                      >
+                        복습 영상 보기
+                      </button>
+                    )}
+                  </>
+                )}
               </div>
             </section>
           ))
