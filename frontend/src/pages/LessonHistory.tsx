@@ -351,7 +351,7 @@ export default function LessonHistory() {
                     {canWatchReviewVideo ? (
                       <Link
                         to={`/student/videos/${l.lessonDayId}/${l.periodId}`}
-                        className="block w-full text-center py-2.5 bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-sm font-medium hover:bg-slate-200/70 transition-colors"
+                        className="block w-full text-center py-2.5 bg-sky-50 text-sky-700 border border-sky-100 rounded-xl text-sm font-medium hover:bg-sky-100 transition-colors"
                       >
                         복습 영상 보기
                       </Link>
@@ -359,7 +359,7 @@ export default function LessonHistory() {
                       <button
                         type="button"
                         onClick={() => setVideoBlockedOpen(true)}
-                        className="block w-full text-center py-2.5 bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-sm font-medium hover:bg-slate-200/70 transition-colors"
+                        className="block w-full text-center py-2.5 bg-sky-50 text-sky-700 border border-sky-100 rounded-xl text-sm font-medium hover:bg-sky-100 transition-colors"
                       >
                         복습 영상 보기
                       </button>
