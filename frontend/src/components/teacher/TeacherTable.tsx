@@ -52,14 +52,13 @@ export default function TeacherTable({
             <th className="p-4 whitespace-nowrap">이름</th>
             <th className="p-4 whitespace-nowrap">로그인 ID</th>
             <th className="p-4 whitespace-nowrap">전화번호</th>
-            <th className="p-4 whitespace-nowrap">담당 반 개수</th>
             <th className="p-4 text-center whitespace-nowrap">관리</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 text-[14px]">
           {list.length === 0 ? (
             <tr>
-              <td colSpan={6} className="p-8 text-center text-slate-500">
+              <td colSpan={5} className="p-8 text-center text-slate-500">
                 등록된 강사가 없습니다.
               </td>
             </tr>
@@ -77,9 +76,6 @@ export default function TeacherTable({
                 <td className="p-4 font-medium text-slate-950 whitespace-nowrap">{row.name}</td>
                 <td className="p-4 whitespace-nowrap">{getLoginId(row)}</td>
                 <td className="p-4 font-number whitespace-nowrap">{getPhone(row)}</td>
-                <td className="p-4 text-slate-500 whitespace-nowrap">
-                  {row.classCount != null ? `${row.classCount}개 반 담당` : '-'}
-                </td>
                 <td className="p-4 text-center whitespace-nowrap">
                   <button
                     type="button"
