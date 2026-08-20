@@ -333,6 +333,34 @@ export default function StudentDashboard() {
                           };
                         });
                       }}
+                      onDeleted={() => {
+                        const key = commentReplyKey(c);
+                        setData((prev) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            recentComments: prev.recentComments.map((item) =>
+                              commentReplyKey(item) === key
+                                ? role === 'parent'
+                                  ? {
+                                      ...item,
+                                      parentReply: '',
+                                      parentReplyCreatedAt: undefined,
+                                      parentReplyUpdatedAt: undefined,
+                                      parentReplyLikedTeacherNames: [],
+                                    }
+                                  : {
+                                      ...item,
+                                      studentReply: '',
+                                      studentReplyCreatedAt: undefined,
+                                      studentReplyUpdatedAt: undefined,
+                                      studentReplyLikedTeacherNames: [],
+                                    }
+                                : item
+                            ),
+                          };
+                        });
+                      }}
                     />
                     {i !== recentComments.length - 1 && <div className="mt-4 h-[1px] bg-slate-50 w-full" />}
                   </div>

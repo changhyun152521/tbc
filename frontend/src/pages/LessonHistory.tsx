@@ -357,6 +357,29 @@ export default function LessonHistory() {
                                 )
                               );
                             }}
+                            onDeleted={() => {
+                              setList((prev) =>
+                                prev.map((item) =>
+                                  item.lessonDayId === l.lessonDayId && item.periodId === l.periodId
+                                    ? role === 'parent'
+                                      ? {
+                                          ...item,
+                                          parentReply: '',
+                                          parentReplyCreatedAt: undefined,
+                                          parentReplyUpdatedAt: undefined,
+                                          parentReplyLikedTeacherNames: [],
+                                        }
+                                      : {
+                                          ...item,
+                                          studentReply: '',
+                                          studentReplyCreatedAt: undefined,
+                                          studentReplyUpdatedAt: undefined,
+                                          studentReplyLikedTeacherNames: [],
+                                        }
+                                    : item
+                                )
+                              );
+                            }}
                           />
                         )}
                       </div>

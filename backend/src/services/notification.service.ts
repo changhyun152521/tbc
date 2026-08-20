@@ -289,6 +289,7 @@ export async function notifyReplyLike(params: {
   periodId: string;
   periodNumber: number;
   date: string;
+  studentId: string;
   studentName: string;
   teacherName: string;
   replyPreview: string;
@@ -306,6 +307,7 @@ export async function notifyReplyLike(params: {
       periodId: params.periodId,
       periodNumber: params.periodNumber,
       date: params.date,
+      studentId: params.studentId,
       studentName: params.studentName,
       channel: params.channel,
       replyPreview: clipText(params.replyPreview),
@@ -313,6 +315,36 @@ export async function notifyReplyLike(params: {
     },
     excludeUserId: params.actorUserId ?? null,
   });
+}
+
+/** 답글 삭제 시 관련 알림(답글 도착·좋아요) 정리 */
+export async function deleteNotificationsForReply(params: {
+  lessonDayId: string;
+  periodId: string;
+  studentId: string;
+  channel: 'student' | 'parent';
+  recipientUserId?: string | null;
+}) {
+  const replyType: NotificationType = params.channel === 'student' ? 'student_reply' : 'parent_reply';
+  await Notification.deleteMany({
+    $or: [
+      {
+        type: replyType,
+        'payload.lessonDayId': params.lessonDayId,
+        'payload.periodId': params.periodId,
+        'payload.studentId': params.studentId,
+      },
+      {
+        type: 'reply_like',
+        'payload.lessonDayId': params.lessonDayId,
+        'payload.periodId': params.periodId,
+        'payload.channel': params.channel,
+        ...(params.recipientUserId && mongoose.Types.ObjectId.isValid(params.recipientUserId)
+          ? { recipientUserId: new mongoose.Types.ObjectId(params.recipientUserId) }
+          : { 'payload.studentId': params.studentId }),
+      },
+    ],
+  }).exec();
 }
 
 type ReplyInboxChannel = 'student' | 'parent';
@@ -526,6 +558,7 @@ export async function toggleReplyLike(params: {
         periodId: params.periodId,
         periodNumber: period.periodNumber ?? 1,
         date: lesson.date instanceof Date ? lesson.date.toISOString().slice(0, 10) : String(lesson.date).slice(0, 10),
+        studentId: params.studentId,
         studentName: student?.name ?? '-',
         teacherName: teacher.name,
         replyPreview: replyBody,

@@ -6,7 +6,7 @@ import type { IPeriod, IStudentRecord } from '../../models/LessonDay.model';
 import { Test } from '../../models/Test.model';
 import { Teacher } from '../../models/Teacher.model';
 import { periodDisplayNumber, sortPeriods } from '../admin/lessonDay.utils';
-import { notifyReply } from '../notification.service';
+import { notifyReply, deleteNotificationsForReply } from '../notification.service';
 
 const RECENT_LIMIT = 10;
 
@@ -70,23 +70,49 @@ export async function saveStudentReply(
   const hadStudentReply = ((record.studentReply ?? '').trim() !== '') || Boolean(record.studentReplyCreatedAt);
   const hadParentReply = ((record.parentReply ?? '').trim() !== '') || Boolean(record.parentReplyCreatedAt);
   const shouldNotify = channel === 'student' ? !hadStudentReply && trimmed !== '' : !hadParentReply && trimmed !== '';
+  const isDeleting = trimmed === '';
+
   if (channel === 'student') {
-    record.studentReply = trimmed;
-    if (!record.studentReplyCreatedAt && trimmed) {
-      record.studentReplyCreatedAt = record.studentReplyUpdatedAt ?? now;
+    if (isDeleting) {
+      record.studentReply = '';
+      record.studentReplyCreatedAt = undefined;
+      record.studentReplyUpdatedAt = undefined;
+      record.studentReplyLikedTeacherIds = [];
+    } else {
+      record.studentReply = trimmed;
+      if (!record.studentReplyCreatedAt) {
+        record.studentReplyCreatedAt = record.studentReplyUpdatedAt ?? now;
+      }
+      record.studentReplyUpdatedAt = now;
     }
-    record.studentReplyUpdatedAt = trimmed ? now : undefined;
+  } else if (isDeleting) {
+    record.parentReply = '';
+    record.parentReplyCreatedAt = undefined;
+    record.parentReplyUpdatedAt = undefined;
+    record.parentReplyLikedTeacherIds = [];
   } else {
     record.parentReply = trimmed;
-    if (!record.parentReplyCreatedAt && trimmed) {
+    if (!record.parentReplyCreatedAt) {
       record.parentReplyCreatedAt = record.parentReplyUpdatedAt ?? now;
     }
-    record.parentReplyUpdatedAt = trimmed ? now : undefined;
+    record.parentReplyUpdatedAt = now;
   }
   lessonDay.periods = periods as typeof lessonDay.periods;
+  lessonDay.markModified('periods');
   await lessonDay.save();
 
-  if (shouldNotify) {
+  if (isDeleting) {
+    const student = await Student.findById(studentId).select('userId parentUserId').lean().exec();
+    const recipientUserId =
+      channel === 'student' ? student?.userId?.toString() ?? null : student?.parentUserId?.toString() ?? null;
+    await deleteNotificationsForReply({
+      lessonDayId,
+      periodId,
+      studentId,
+      channel,
+      recipientUserId,
+    });
+  } else if (shouldNotify) {
     const [student, classDoc] = await Promise.all([
       Student.findById(studentId).select('name').lean().exec(),
       Class.findById(lessonDay.classId).select('name').lean().exec(),

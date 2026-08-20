@@ -10,7 +10,8 @@ interface CommentReplySectionProps {
   likedTeacherNames?: string[];
   teacherComment?: string;
   apiPrefix: 'student' | 'parent';
-  onSaved: (body: string, savedAt: string, createdAt?: string) => void;
+  onSaved: (body: string, savedAt?: string, createdAt?: string) => void;
+  onDeleted?: () => void;
 }
 
 export default function CommentReplySection({
@@ -23,10 +24,12 @@ export default function CommentReplySection({
   teacherComment,
   apiPrefix,
   onSaved,
+  onDeleted,
 }: CommentReplySectionProps) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
 
   const replyText = (savedReply ?? '').trim();
@@ -36,6 +39,7 @@ export default function CommentReplySection({
     (likedTeacherNames ?? []).length > 0
       ? `${(likedTeacherNames ?? []).map((name) => `${name} 선생님`).join(', ')}이 좋아요`
       : '';
+  const busy = saving || deleting;
 
   const openModal = () => {
     setDraft(savedReply ?? '');
@@ -44,7 +48,7 @@ export default function CommentReplySection({
   };
 
   const closeModal = () => {
-    if (saving) return;
+    if (busy) return;
     setOpen(false);
     setError('');
   };
@@ -64,6 +68,21 @@ export default function CommentReplySection({
     }
   };
 
+  const handleDelete = async () => {
+    if (!window.confirm('답글을 삭제할까요? 좋아요와 관련 알림도 함께 정리됩니다.')) return;
+    setDeleting(true);
+    setError('');
+    try {
+      await apiClient.post(`/${apiPrefix}/lessons/${lessonDayId}/${periodId}/reply`, { body: '' });
+      onDeleted?.();
+      setOpen(false);
+    } catch {
+      setError('답글을 삭제할 수 없습니다.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <>
       <div className="mt-2.5 pl-3 border-l-2 border-slate-200">
@@ -74,16 +93,25 @@ export default function CommentReplySection({
               {isEdited && <span className="text-[10px] text-slate-300">· 수정됨</span>}
             </div>
             <p className="text-[13px] text-slate-600 leading-relaxed whitespace-pre-wrap">{replyText}</p>
-            {likeLabel && (
-              <p className="mt-1 text-[11px] text-rose-400/80">{likeLabel}</p>
-            )}
-            <button
-              type="button"
-              onClick={openModal}
-              className="mt-1.5 text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors"
-            >
-              수정하기
-            </button>
+            {likeLabel && <p className="mt-1 text-[11px] text-rose-400/80">{likeLabel}</p>}
+            <div className="mt-1.5 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={openModal}
+                disabled={busy}
+                className="text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
+              >
+                수정하기
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDelete()}
+                disabled={busy}
+                className="text-[11px] font-medium text-slate-400 hover:text-rose-500 transition-colors disabled:opacity-50"
+              >
+                {deleting ? '삭제 중...' : '삭제하기'}
+              </button>
+            </div>
           </>
         ) : (
           <button
@@ -132,7 +160,7 @@ export default function CommentReplySection({
               <button
                 type="button"
                 onClick={closeModal}
-                disabled={saving}
+                disabled={busy}
                 className="flex-1 py-2.5 border border-slate-100 rounded-xl text-[13px] text-slate-500 hover:bg-slate-50 disabled:opacity-50"
               >
                 취소
@@ -140,7 +168,7 @@ export default function CommentReplySection({
               <button
                 type="button"
                 onClick={() => void handleSave()}
-                disabled={saving}
+                disabled={busy || !draft.trim()}
                 className="flex-1 py-2.5 bg-slate-700 text-white rounded-xl text-[13px] font-medium hover:bg-slate-800 disabled:opacity-50"
               >
                 {saving ? '저장 중...' : '저장'}
