@@ -45,21 +45,21 @@ export default function CommentReplySection({
   const replyText = (savedReply ?? '').trim();
   const hasReply = replyText !== '';
   const isEdited = Boolean(savedReplyCreatedAt && savedReplyUpdatedAt && savedReplyCreatedAt !== savedReplyUpdatedAt);
+
   const likedNames = likedTeacherNames ?? [];
   const hasLike = likedNames.length > 0;
   const busy = saving || deleting;
+
   const likeTipText =
     likedNames.length === 1
       ? `${likedNames[0]} 선생님이 답글에 좋아요를 눌렀습니다.`
-      : `${likedNames.map((name) => `${name} 선생님`).join(', ')}이 답글에 좋아요를 눌렀습니다.`;
+      : `${likedNames[0]} 선생님 외 ${likedNames.length - 1}명이 답글에 좋아요를 눌렀습니다.`;
 
   useEffect(() => {
     if (!likeTipOpen) return;
     const onPointerDown = (event: MouseEvent | TouchEvent) => {
       const target = event.target as Node | null;
-      if (likeTipRef.current && target && !likeTipRef.current.contains(target)) {
-        setLikeTipOpen(false);
-      }
+      if (likeTipRef.current && target && !likeTipRef.current.contains(target)) setLikeTipOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setLikeTipOpen(false);
@@ -119,12 +119,22 @@ export default function CommentReplySection({
 
   return (
     <>
-      <div className="mt-2.5 pl-3 border-l-2 border-slate-200">
-        {hasReply ? (
-          <p className="text-[13px] text-slate-600 leading-relaxed">
+      {!hasReply ? (
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={openModal}
+            className="text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            답글 남기기
+          </button>
+        </div>
+      ) : (
+        <div className="mt-2.5 pl-3 border-l-2 border-slate-200">
+          <div className="text-[13px] text-slate-600 leading-relaxed whitespace-pre-wrap">
             <span className="font-medium text-slate-400">답글</span>
             <span className="mx-1.5 text-slate-300">·</span>
-            <span className="whitespace-pre-wrap">{replyText}</span>
+            <span>{replyText}</span>
             {isEdited && <span className="ml-1 text-[10px] text-slate-300">수정됨</span>}
             {hasLike && (
               <span ref={likeTipRef} className="relative inline-flex align-middle ml-1.5">
@@ -144,11 +154,14 @@ export default function CommentReplySection({
                 )}
               </span>
             )}
+          </div>
+
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
             <button
               type="button"
               onClick={openModal}
               disabled={busy}
-              className="ml-2 text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
+              className="text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
             >
               수정
             </button>
@@ -156,21 +169,13 @@ export default function CommentReplySection({
               type="button"
               onClick={() => void handleDelete()}
               disabled={busy}
-              className="ml-1.5 text-[11px] font-medium text-slate-400 hover:text-rose-500 transition-colors disabled:opacity-50"
+              className="text-[11px] font-medium text-slate-400 hover:text-rose-500 transition-colors disabled:opacity-50"
             >
               {deleting ? '삭제 중...' : '삭제'}
             </button>
-          </p>
-        ) : (
-          <button
-            type="button"
-            onClick={openModal}
-            className="text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors"
-          >
-            답글 남기기
-          </button>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
 
       {open && (
         <div
