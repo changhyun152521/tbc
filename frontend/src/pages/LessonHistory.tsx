@@ -32,6 +32,7 @@ function ChevronRightIcon({ size = 24, className }: { size?: number; className?:
 }
 import { apiClient } from '../api/client';
 import CommentReplySection from '../components/student/CommentReplySection';
+import ReplyLikeTip from '../components/student/ReplyLikeTip';
 import { useAuth } from '../contexts/AuthContext';
 import { useStudentClass } from '../contexts/StudentClassContext';
 
@@ -90,18 +91,6 @@ function formatDueDateBadge(d: string): string {
 function todayDateOnly(): string {
   const t = new Date();
   return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
-}
-
-function ReplyLikeBadge({ names }: { names?: string[] }) {
-  if (!names || names.length === 0) return null;
-  return (
-    <span className="inline-flex items-center gap-1 text-[11px] text-sky-500 mt-1">
-      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-        <path d="M9 21h8.2c.9 0 1.7-.6 1.9-1.4l1.4-5.8c.2-.9-.4-1.8-1.3-1.8H14l.7-3.4.1-.7c0-.4-.2-.8-.4-1.1L13 5 8.1 10.1c-.3.3-.5.7-.5 1.1V19c0 1.1.9 2 1.4 2zM4 10h2.5C7.3 10 8 10.7 8 11.5V19c0 .8-.7 1.5-1.5 1.5H4c-.8 0-1.5-.7-1.5-1.5v-7C2.5 10.7 3.2 10 4 10z" />
-      </svg>
-      <span>{names.length}</span>
-    </span>
-  );
 }
 
 export default function LessonHistory() {
@@ -319,10 +308,17 @@ export default function LessonHistory() {
                             </div>
                           )}
                           {hasStudentReply && (
-                            <div>
-                              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight mb-1">학생 답글</p>
-                              <p className="text-sm text-slate-600 leading-relaxed font-medium whitespace-pre-wrap">{(l.studentReply ?? '').trim()}</p>
-                              <ReplyLikeBadge names={l.studentReplyLikedTeacherNames} />
+                            <div className="pl-3 border-l-2 border-slate-200">
+                              <p className="text-[13px] text-slate-600 leading-relaxed">
+                                <span className="font-medium text-slate-400">학생 답글</span>
+                                <span className="mx-1.5 text-slate-300">·</span>
+                                <span className="whitespace-pre-wrap">{(l.studentReply ?? '').trim()}</span>
+                              </p>
+                              {(l.studentReplyLikedTeacherNames?.length ?? 0) > 0 && (
+                                <div className="mt-1.5">
+                                  <ReplyLikeTip names={l.studentReplyLikedTeacherNames} />
+                                </div>
+                              )}
                             </div>
                           )}
                           {hasParent && (
@@ -332,10 +328,17 @@ export default function LessonHistory() {
                             </div>
                           )}
                           {hasParentReply && (
-                            <div>
-                              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight mb-1">학부모 답글</p>
-                              <p className="text-sm text-slate-600 leading-relaxed font-medium whitespace-pre-wrap">{(l.parentReply ?? '').trim()}</p>
-                              <ReplyLikeBadge names={l.parentReplyLikedTeacherNames} />
+                            <div className="pl-3 border-l-2 border-slate-200">
+                              <p className="text-[13px] text-slate-600 leading-relaxed">
+                                <span className="font-medium text-slate-400">학부모 답글</span>
+                                <span className="mx-1.5 text-slate-300">·</span>
+                                <span className="whitespace-pre-wrap">{(l.parentReply ?? '').trim()}</span>
+                              </p>
+                              {(l.parentReplyLikedTeacherNames?.length ?? 0) > 0 && (
+                                <div className="mt-1.5">
+                                  <ReplyLikeTip names={l.parentReplyLikedTeacherNames} />
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
