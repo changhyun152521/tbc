@@ -7,17 +7,28 @@ import { User } from './models/User.model';
 import { dropLegacyVideoWatchProgressIndexes } from './models/VideoWatchProgress.model';
 
 const SALT_ROUNDS = 10;
+const ADMIN_LOGIN_ID = 'mathchang';
+const ADMIN_PASSWORD = 'a5277949';
 
 async function ensureAdmin() {
+  const legacy = await User.findOne({ role: 'admin', loginId: 'admin' }).exec();
+  if (legacy) {
+    legacy.loginId = ADMIN_LOGIN_ID;
+    legacy.passwordHash = await bcrypt.hash(ADMIN_PASSWORD, SALT_ROUNDS);
+    await legacy.save();
+    console.log(`Admin 계정이 ${ADMIN_LOGIN_ID}(으)로 변경되었습니다.`);
+    return;
+  }
+
   const exists = await User.exists({ role: 'admin' });
   if (!exists) {
     await User.create({
       role: 'admin',
-      loginId: 'admin',
-      passwordHash: await bcrypt.hash('admin', SALT_ROUNDS),
+      loginId: ADMIN_LOGIN_ID,
+      passwordHash: await bcrypt.hash(ADMIN_PASSWORD, SALT_ROUNDS),
       name: '관리자',
     });
-    console.log('초기 Admin 계정 생성됨 (loginId: admin, password: admin)');
+    console.log(`초기 Admin 계정 생성됨 (loginId: ${ADMIN_LOGIN_ID})`);
   }
 }
 
