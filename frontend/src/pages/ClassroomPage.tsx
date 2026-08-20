@@ -6,7 +6,7 @@ import type { ClassDetail, ClassStudentItem } from '../types/class';
 import type { LessonDayDetail, AttendanceHomeworkValue, PeriodItem, ReviewVideoItem } from '../types/lesson';
 import DateNavigator from '../components/lesson/DateNavigator';
 import PeriodSection from '../components/lesson/PeriodSection';
-import PeriodChipBar, { type PeriodChipItem } from '../components/lesson/PeriodChipBar';
+import PeriodListTable, { type PeriodRowItem } from '../components/lesson/PeriodListTable';
 import ReviewVideoRegisterModal from '../components/lesson/ReviewVideoRegisterModal';
 
 function todayString(): string {
@@ -36,33 +36,47 @@ function findPeriodIndexByNumber(periods: PeriodItem[], n: number): number {
   return periods.findIndex((p, i) => periodNum(p, i + 1) === n);
 }
 
-function buildChipItems(
+function reviewLabelForPeriod(p: PeriodItem | null, status: PeriodRowItem['status']): string {
+  if (status === 'empty' || !p) return '—';
+  if (status === 'other') {
+    return p.hasReviewVideos ? `${p.reviewVideoCount ?? 0}개` : '없음';
+  }
+  const vids = (p.reviewVideos ?? []).filter((v) => (v.url ?? '').trim() || (v.videoId ?? '').trim());
+  if (vids.length > 0) return `${vids.length}개`;
+  if ((p.reviewVideoUrl ?? '').trim()) return '1개';
+  return '없음';
+}
+
+function buildPeriodRows(
   periods: PeriodItem[],
   slotCount: number,
   myTeacherId: string | null,
   minSlotCount: number
-): PeriodChipItem[] {
-  const chips: PeriodChipItem[] = [];
+): PeriodRowItem[] {
+  const rows: PeriodRowItem[] = [];
   for (let n = 1; n <= slotCount; n++) {
     const idx = findPeriodIndexByNumber(periods, n);
     if (idx < 0) {
-      chips.push({
+      rows.push({
         periodNumber: n,
         status: 'empty',
         removable: n === slotCount && slotCount > minSlotCount,
+        reviewLabel: '—',
       });
       continue;
     }
     const p = periods[idx];
     const isMine = p.isMine === true || (myTeacherId != null && teacherIdOf(p) === myTeacherId);
-    chips.push({
+    const status = isMine ? 'mine' : 'other';
+    rows.push({
       periodNumber: n,
-      status: isMine ? 'mine' : 'other',
+      status,
       teacherName: teacherNameOf(p),
       periodIndex: idx,
+      reviewLabel: reviewLabelForPeriod(p, status),
     });
   }
-  return chips;
+  return rows;
 }
 
 function minRegisteredSlot(periods: PeriodItem[]): number {
@@ -114,13 +128,13 @@ export default function ClassroomPage() {
 
   const minSlotCount = useMemo(() => minRegisteredSlot(periods), [periods]);
 
-  const chips = useMemo(
-    () => buildChipItems(periods, slotCount, myTeacherId, minSlotCount),
+  const periodRows = useMemo(
+    () => buildPeriodRows(periods, slotCount, myTeacherId, minSlotCount),
     [periods, slotCount, myTeacherId, minSlotCount]
   );
 
-  const selectedChip = chips.find((c) => c.periodNumber === selectedPeriodNumber) ?? null;
-  const selectedPeriodIndex = selectedChip?.periodIndex ?? -1;
+  const selectedRow = periodRows.find((r) => r.periodNumber === selectedPeriodNumber) ?? null;
+  const selectedPeriodIndex = selectedRow?.periodIndex ?? -1;
   const selectedPeriod = selectedPeriodIndex >= 0 ? periods[selectedPeriodIndex] : null;
 
   const fetchClass = useCallback(async () => {
@@ -335,7 +349,7 @@ export default function ClassroomPage() {
     }
   };
 
-  const emptySlotNumbers = chips.filter((c) => c.status === 'empty').map((c) => c.periodNumber);
+  const emptySlotNumbers = periodRows.filter((r) => r.status === 'empty').map((r) => r.periodNumber);
   const isOwnSelected =
     selectedPeriod != null &&
     (selectedPeriod.isMine === true || (myTeacherId != null && teacherIdOf(selectedPeriod) === myTeacherId));
@@ -435,8 +449,8 @@ export default function ClassroomPage() {
           <>
             <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">교시</p>
-              <PeriodChipBar
-                chips={chips}
+              <PeriodListTable
+                rows={periodRows}
                 selectedPeriodNumber={selectedPeriodNumber}
                 onSelect={setSelectedPeriodNumber}
                 onRemoveEmptySlot={handleRemoveEmptySlot}
@@ -446,11 +460,9 @@ export default function ClassroomPage() {
             </div>
             {selectedPeriodNumber == null ? (
               <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center">
-                <p className="text-slate-700 font-medium">교시를 선택해 주세요</p>
+                <p className="text-slate-700 font-medium">표에서 교시를 선택해 주세요</p>
                 <p className="text-sm text-slate-500 mt-2">
-                  목록에서 교시를 선택해 수업을 등록하거나 내용을 확인하세요.
-                  <br />
-                  내 교시(파랑) · 다른 강사(진한 회색) · 비어있음(흰색)으로 구분됩니다.
+                  행을 클릭해 수업을 등록하거나 내용을 확인하세요.
                 </p>
               </div>
             ) : selectedPeriod && selectedPeriodIndex >= 0 ? (
@@ -499,7 +511,7 @@ export default function ClassroomPage() {
                 onDelete={handleDeletePeriod}
               />
               </>
-            ) : selectedChip?.status === 'empty' ? (
+            ) : selectedRow?.status === 'empty' ? (
               <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center">
                 <p className="text-slate-800 font-semibold">{selectedPeriodNumber}교시 · 비어있음</p>
                 <p className="text-sm text-slate-500 mt-2">이 교시에 내 수업을 등록할 수 있습니다.</p>
