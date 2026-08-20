@@ -9,7 +9,8 @@ interface StudentTableProps {
   onToggleSelectAll: (checked: boolean) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
-  showLastAccess?: boolean;
+  showStudentLastAccess?: boolean;
+  showParentLastAccess?: boolean;
 }
 
 export default function StudentTable({
@@ -19,7 +20,8 @@ export default function StudentTable({
   onToggleSelectAll,
   onEdit,
   onDelete,
-  showLastAccess = false,
+  showStudentLastAccess = false,
+  showParentLastAccess = false,
 }: StudentTableProps) {
   const allSelected = list.length > 0 && list.every((s) => selectedIds.has(s._id));
   const someSelected = list.some((s) => selectedIds.has(s._id));
@@ -29,6 +31,9 @@ export default function StudentTable({
     const el = selectAllRef.current;
     if (el) el.indeterminate = someSelected && !allSelected;
   }, [someSelected, allSelected]);
+
+  const accessColumnCount = (showStudentLastAccess ? 1 : 0) + (showParentLastAccess ? 1 : 0);
+  const colSpan = 9 + accessColumnCount;
 
   return (
     <div className="overflow-x-auto scrollbar-table">
@@ -51,19 +56,15 @@ export default function StudentTable({
             <th className="p-3 min-w-[98px] whitespace-nowrap">학부모 전화번호</th>
             <th className="p-3 min-w-[112px] whitespace-nowrap">관리 접속 ID</th>
             <th className="p-3 min-w-[88px] whitespace-nowrap">소속 반</th>
-            {showLastAccess && (
-              <>
-                <th className="p-3 min-w-[96px] whitespace-nowrap">학생 접속</th>
-                <th className="p-3 min-w-[96px] whitespace-nowrap">학부모 접속</th>
-              </>
-            )}
+            {showStudentLastAccess && <th className="p-3 min-w-[96px] whitespace-nowrap">학생 접속</th>}
+            {showParentLastAccess && <th className="p-3 min-w-[96px] whitespace-nowrap">학부모 접속</th>}
             <th className="p-3 min-w-[84px] text-center whitespace-nowrap">관리</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 text-[14px]">
           {list.length === 0 ? (
             <tr>
-              <td colSpan={showLastAccess ? 11 : 9} className="p-8 text-center text-slate-500">
+              <td colSpan={colSpan} className="p-8 text-center text-slate-500">
                 등록된 학생이 없습니다.
               </td>
             </tr>
@@ -85,15 +86,15 @@ export default function StudentTable({
                 <td className="p-3 font-number whitespace-nowrap">{row.parentPhone}</td>
                 <td className="p-3 text-slate-600 font-medium whitespace-nowrap">{row.adminAccessLoginId ?? '-'}</td>
                 <td className="p-3 text-slate-500 whitespace-nowrap">{row.classCount != null ? `${row.classCount}개 반 소속` : '-'}</td>
-                {showLastAccess && (
-                  <>
-                    <td className="p-3 text-slate-500 whitespace-nowrap" title={row.lastAccessAt ?? undefined}>
-                      {formatLastAccess(row.lastAccessAt)}
-                    </td>
-                    <td className="p-3 text-slate-500 whitespace-nowrap" title={row.parentLastAccessAt ?? undefined}>
-                      {formatLastAccess(row.parentLastAccessAt)}
-                    </td>
-                  </>
+                {showStudentLastAccess && (
+                  <td className="p-3 text-slate-500 whitespace-nowrap" title={row.lastAccessAt ?? undefined}>
+                    {formatLastAccess(row.lastAccessAt)}
+                  </td>
+                )}
+                {showParentLastAccess && (
+                  <td className="p-3 text-slate-500 whitespace-nowrap" title={row.parentLastAccessAt ?? undefined}>
+                    {formatLastAccess(row.parentLastAccessAt)}
+                  </td>
                 )}
                 <td className="p-3 text-center whitespace-nowrap shrink-0">
                   <button

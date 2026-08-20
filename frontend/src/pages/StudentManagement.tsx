@@ -22,7 +22,8 @@ interface ListResponse {
 
 export default function StudentManagement() {
   const { role } = useAuth();
-  const showLastAccess = role === 'admin';
+  const showStudentLastAccess = role === 'admin';
+  const showParentLastAccess = role === 'admin' || role === 'teacher';
   const [list, setList] = useState<StudentListItem[]>([]);
   const [, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -241,7 +242,8 @@ export default function StudentManagement() {
               onToggleSelectAll={handleToggleSelectAll}
               onEdit={openEdit}
               onDelete={openDelete}
-              showLastAccess={showLastAccess}
+              showStudentLastAccess={showStudentLastAccess}
+              showParentLastAccess={showParentLastAccess}
             />
           )}
         </div>

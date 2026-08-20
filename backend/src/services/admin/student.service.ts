@@ -40,8 +40,10 @@ export interface ListStudentsQuery {
   search?: string; // 이름, 학교, 학생 전화번호, 학부모 전화번호 통합 검색
   page?: number;
   limit?: number;
-  /** 관리자만 true — 학생·학부모 계정 최근 접속 시각 포함 */
+  /** 관리자만 true — 학생 본인 계정 최근 접속 시각 포함 */
   includeLastAccess?: boolean;
+  /** 관리자·강사 true — 학부모 계정 최근 접속 시각 포함 */
+  includeParentLastAccess?: boolean;
 }
 
 export interface ListStudentsResult {
@@ -195,14 +197,26 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
   );
 
   let enrichedList = withClassCountAndAdminId;
-  if (query.includeLastAccess) {
-    const userIds = enrichedList.flatMap((row) => [row.userId, row.parentUserId].filter(Boolean) as mongoose.Types.ObjectId[]);
-    const users = await User.find({ _id: { $in: userIds } }).select('_id lastAccessAt').lean().exec();
+  if (query.includeLastAccess || query.includeParentLastAccess) {
+    const userIds = enrichedList.flatMap((row) => {
+      const ids: mongoose.Types.ObjectId[] = [];
+      if (query.includeLastAccess && row.userId) ids.push(row.userId);
+      if (query.includeParentLastAccess && row.parentUserId) ids.push(row.parentUserId);
+      return ids;
+    });
+    const users =
+      userIds.length > 0
+        ? await User.find({ _id: { $in: userIds } }).select('_id lastAccessAt').lean().exec()
+        : [];
     const accessByUserId = new Map(users.map((u) => [u._id.toString(), u.lastAccessAt ?? null]));
     enrichedList = enrichedList.map((row) => ({
       ...row,
-      lastAccessAt: row.userId ? accessByUserId.get(String(row.userId)) ?? null : null,
-      parentLastAccessAt: row.parentUserId ? accessByUserId.get(String(row.parentUserId)) ?? null : null,
+      ...(query.includeLastAccess
+        ? { lastAccessAt: row.userId ? accessByUserId.get(String(row.userId)) ?? null : null }
+        : {}),
+      ...(query.includeParentLastAccess
+        ? { parentLastAccessAt: row.parentUserId ? accessByUserId.get(String(row.parentUserId)) ?? null : null }
+        : {}),
     }));
   }
 

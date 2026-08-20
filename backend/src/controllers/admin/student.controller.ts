@@ -51,6 +51,7 @@ export async function createStudent(req: Request, res: Response<ApiResponse>): P
 export async function listStudents(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
     const { name, grade, classId, search, page, limit } = req.query;
+    const role = req.user?.role;
     const result = await studentService.listStudents({
       name: name as string,
       grade: grade as string,
@@ -58,7 +59,8 @@ export async function listStudents(req: Request, res: Response<ApiResponse>): Pr
       search: search as string,
       page: page != null ? parseInt(String(page), 10) : undefined,
       limit: limit != null ? parseInt(String(limit), 10) : undefined,
-      includeLastAccess: req.user?.role === 'admin',
+      includeLastAccess: role === 'admin',
+      includeParentLastAccess: role === 'admin' || role === 'teacher',
     });
     res.status(200).json({ success: true, data: result });
   } catch (err) {
