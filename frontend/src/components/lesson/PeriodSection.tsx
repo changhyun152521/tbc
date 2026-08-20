@@ -23,7 +23,17 @@ interface PeriodSectionProps {
   onSave: (
     periodIndex: number,
     teacherId: string,
-    records: { studentId: string; attendance: AttendanceHomeworkValue; homework: AttendanceHomeworkValue; note?: string; parentNote?: string }[],
+    records: {
+      studentId: string;
+      attendance: AttendanceHomeworkValue;
+      homework: AttendanceHomeworkValue;
+      note?: string;
+      parentNote?: string;
+      studentReply?: string;
+      studentReplyUpdatedAt?: string;
+      parentReply?: string;
+      parentReplyUpdatedAt?: string;
+    }[],
     options?: { memo?: string; homeworkDescription?: string; homeworkDueDate?: string | null; reviewVideoUrl?: string; reviewVideos?: ReviewVideoItem[] }
   ) => void;
   onDelete: (periodIndex: number) => void;
@@ -66,7 +76,15 @@ function mergeRecords(
           attendance: normalizeAttendanceHomework(existing.attendance),
           homework: normalizeAttendanceHomework(existing.homework),
         }
-      : { studentId: s, attendance: '' as const, homework: '' as const, note: '', parentNote: '' };
+      : {
+          studentId: s,
+          attendance: '' as const,
+          homework: '' as const,
+          note: '',
+          parentNote: '',
+          studentReply: '',
+          parentReply: '',
+        };
   });
 }
 
@@ -84,6 +102,8 @@ function recordsEqual(current: StudentRecord[], initial: StudentRecord[]): boole
     if ((current[i].homework || '') !== (initial[i].homework || '')) return false;
     if ((current[i].note ?? '') !== (initial[i].note ?? '')) return false;
     if ((current[i].parentNote ?? '') !== (initial[i].parentNote ?? '')) return false;
+    if ((current[i].studentReply ?? '') !== (initial[i].studentReply ?? '')) return false;
+    if ((current[i].parentReply ?? '') !== (initial[i].parentReply ?? '')) return false;
   }
   return true;
 }
@@ -209,6 +229,10 @@ export default function PeriodSection({
         homework: normalizeAttendanceHomework(r.homework),
         note: r.note ?? '',
         parentNote: r.parentNote ?? '',
+        studentReply: r.studentReply ?? '',
+        studentReplyUpdatedAt: r.studentReplyUpdatedAt,
+        parentReply: r.parentReply ?? '',
+        parentReplyUpdatedAt: r.parentReplyUpdatedAt,
       };
     });
     onSave(periodIndex, selectedTeacherId, payload, {

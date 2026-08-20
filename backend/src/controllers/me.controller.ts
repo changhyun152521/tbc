@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import * as meService from '../services/me.service';
+import * as notificationService from '../services/notification.service';
 import { ApiResponse } from '../types/api';
 
 export async function getMe(req: Request, res: Response<ApiResponse>): Promise<void> {
@@ -89,6 +90,77 @@ export async function updatePhone(req: Request, res: Response<ApiResponse>): Pro
     res.status(200).json({ success: true, message: '전화번호가 변경되었습니다.' });
   } catch (err) {
     const message = err instanceof Error ? err.message : '전화번호 변경에 실패했습니다.';
+    res.status(500).json({ success: false, message });
+  }
+}
+
+export async function listNotifications(req: Request, res: Response<ApiResponse>): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: '인증이 필요합니다.' });
+      return;
+    }
+    const limit = Number(req.query.limit ?? 20);
+    const rawTypes = typeof req.query.types === 'string' ? req.query.types : '';
+    const types = rawTypes
+      .split(',')
+      .map((v) => v.trim())
+      .filter((v): v is 'lesson_update' | 'test_created' | 'student_reply' | 'parent_reply' =>
+        ['lesson_update', 'test_created', 'student_reply', 'parent_reply'].includes(v)
+      );
+    const data = await notificationService.listNotificationsForUser(req.user.id, {
+      limit,
+      types: types.length > 0 ? types : undefined,
+    });
+    res.status(200).json({ success: true, data });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '알림 조회에 실패했습니다.';
+    res.status(500).json({ success: false, message });
+  }
+}
+
+export async function getUnreadNotificationCount(req: Request, res: Response<ApiResponse>): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: '인증이 필요합니다.' });
+      return;
+    }
+    const count = await notificationService.getUnreadCount(req.user.id);
+    res.status(200).json({ success: true, data: { count } });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '미확인 알림 수 조회에 실패했습니다.';
+    res.status(500).json({ success: false, message });
+  }
+}
+
+export async function markNotificationRead(req: Request, res: Response<ApiResponse>): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: '인증이 필요합니다.' });
+      return;
+    }
+    const ok = await notificationService.markNotificationRead(req.user.id, req.params.id);
+    if (!ok) {
+      res.status(404).json({ success: false, message: '알림을 찾을 수 없습니다.' });
+      return;
+    }
+    res.status(200).json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '알림 읽음 처리에 실패했습니다.';
+    res.status(500).json({ success: false, message });
+  }
+}
+
+export async function markAllNotificationsRead(req: Request, res: Response<ApiResponse>): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: '인증이 필요합니다.' });
+      return;
+    }
+    const count = await notificationService.markAllNotificationsRead(req.user.id);
+    res.status(200).json({ success: true, data: { count } });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '전체 읽음 처리에 실패했습니다.';
     res.status(500).json({ success: false, message });
   }
 }

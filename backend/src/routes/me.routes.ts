@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { body } from 'express-validator';
+import { body, param } from 'express-validator';
 import { authenticate } from '../middlewares/auth.middleware';
 import * as meController from '../controllers/me.controller';
 
@@ -8,6 +8,14 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/', meController.getMe);
+router.get('/notifications', meController.listNotifications);
+router.get('/notifications/unread-count', meController.getUnreadNotificationCount);
+router.post(
+  '/notifications/:id/read',
+  [param('id').isMongoId().withMessage('올바른 알림 ID가 아닙니다.')],
+  meController.markNotificationRead
+);
+router.post('/notifications/read-all', meController.markAllNotificationsRead);
 
 router.put(
   '/password',

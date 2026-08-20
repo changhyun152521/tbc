@@ -112,3 +112,30 @@ export async function getMonthlyStatistics(req: Request, res: Response<ApiRespon
     res.status(500).json({ success: false, message });
   }
 }
+
+export async function saveReply(req: Request, res: Response<ApiResponse>): Promise<void> {
+  try {
+    const info = await studentDataService.getStudentIdAndAccessType(getUserId(req));
+    if (!info) {
+      res.status(404).json({ success: false, message: '학생 정보를 찾을 수 없습니다.' });
+      return;
+    }
+    const body = typeof req.body.body === 'string' ? req.body.body : '';
+    const result = await studentDataService.saveStudentReply(
+      info.studentId,
+      req.params.lessonDayId,
+      req.params.periodId,
+      'student',
+      body,
+      getUserId(req)
+    );
+    if (!result.ok) {
+      res.status(400).json({ success: false, message: result.message ?? '답글 저장에 실패했습니다.' });
+      return;
+    }
+    res.status(200).json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '답글 저장에 실패했습니다.';
+    res.status(500).json({ success: false, message });
+  }
+}

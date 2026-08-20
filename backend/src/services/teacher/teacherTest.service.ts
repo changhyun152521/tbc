@@ -1,7 +1,9 @@
 import mongoose from 'mongoose';
 import { Test } from '../../models/Test.model';
 import { ITest } from '../../models/Test.model';
+import { Class } from '../../models/Class.model';
 import { canAccessClass } from './teacherClass.service';
+import { notifyTestCreated } from '../notification.service';
 
 export type TestType = 'weeklyTest' | 'realTest';
 
@@ -43,6 +45,16 @@ export async function createTest(
     bigUnit: input.bigUnit,
     smallUnit: input.smallUnit,
     source: input.source,
+  });
+  const classDoc = await Class.findById(input.classId).select('name').lean().exec();
+  await notifyTestCreated({
+    actorUserId: userId,
+    classId: input.classId,
+    className: classDoc?.name ?? '',
+    testId: test._id.toString(),
+    testType: input.testType,
+    date: input.date instanceof Date ? input.date.toISOString().slice(0, 10) : String(input.date).slice(0, 10),
+    subject: input.subject,
   });
   return test;
 }

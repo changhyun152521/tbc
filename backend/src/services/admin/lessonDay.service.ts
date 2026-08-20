@@ -2,9 +2,11 @@ import mongoose from 'mongoose';
 import { LessonDay } from '../../models/LessonDay.model';
 import type { ILessonDay, IPeriod, IStudentRecord, IReviewVideo } from '../../models/LessonDay.model';
 import { Class } from '../../models/Class.model';
+import { Student } from '../../models/Student.model';
 import { VideoWatchProgress } from '../../models/VideoWatchProgress.model';
 import { extractYoutubeVideoId } from '../../utils/youtube';
 import { nextPeriodNumber, periodNumberTaken, sortPeriods } from './lessonDay.utils';
+import { notifyLessonUpdate, notifyTeacherComment } from '../notification.service';
 
 export interface ListLessonDaysFilter {
   dateFrom?: string;
@@ -206,8 +208,19 @@ export async function updatePeriod(
     homeworkDueDate?: string | Date | null;
     reviewVideoUrl?: string;
     reviewVideos?: { url: string; title?: string; order: number }[];
-    records?: { studentId: string; attendance: 'O' | 'X' | ''; homework: 'O' | 'X' | ''; note?: string; parentNote?: string }[];
-  }
+    records?: {
+      studentId: string;
+      attendance: 'O' | 'X' | '';
+      homework: 'O' | 'X' | '';
+      note?: string;
+      parentNote?: string;
+      studentReply?: string;
+      studentReplyUpdatedAt?: string | Date | null;
+      parentReply?: string;
+      parentReplyUpdatedAt?: string | Date | null;
+    }[];
+  },
+  actorUserId?: string | null
 ): Promise<ILessonDay | null> {
   const lesson = await LessonDay.findById(lessonDayId).exec();
   if (!lesson) return null;
@@ -215,6 +228,19 @@ export async function updatePeriod(
   if (periodIndex < 0 || periodIndex >= lesson.periods.length) return null;
 
   const period = lesson.periods[periodIndex];
+  const oldMemo = (period.memo ?? '').trim();
+  const oldHomeworkDescription = (period.homeworkDescription ?? '').trim();
+  const oldRecords = new Map(
+    (period.records ?? []).map((r) => [
+      r.studentId.toString(),
+      {
+        note: (r.note ?? '').trim(),
+        parentNote: (r.parentNote ?? '').trim(),
+        studentReply: (r.studentReply ?? '').trim(),
+        parentReply: (r.parentReply ?? '').trim(),
+      },
+    ])
+  );
   if (payload.teacherId != null) period.teacherId = new mongoose.Types.ObjectId(payload.teacherId);
   if (payload.periodNumber != null && payload.periodNumber >= 1) {
     if (periodNumberTaken(lesson.periods as IPeriod[], payload.periodNumber, periodIndex)) {
@@ -285,9 +311,88 @@ export async function updatePeriod(
       homework: r.homework === 'O' || r.homework === 'X' ? r.homework : '',
       note: r.note ?? '',
       parentNote: r.parentNote ?? '',
+      studentReply: r.studentReply ?? '',
+      studentReplyUpdatedAt: r.studentReplyUpdatedAt ? new Date(r.studentReplyUpdatedAt) : undefined,
+      parentReply: r.parentReply ?? '',
+      parentReplyUpdatedAt: r.parentReplyUpdatedAt ? new Date(r.parentReplyUpdatedAt) : undefined,
     }));
   }
   lesson.periods = sortPeriods(lesson.periods as IPeriod[]) as typeof lesson.periods;
   await lesson.save();
+  const classDoc = await Class.findById(lesson.classId).select('name').lean().exec();
+  const className = classDoc?.name ?? '';
+  const periodId = period._id?.toString() ?? '';
+  const periodNumber = period.periodNumber ?? periodIndex + 1;
+  const lessonDate = lesson.date instanceof Date ? lesson.date.toISOString().slice(0, 10) : String(lesson.date).slice(0, 10);
+  const newMemo = (period.memo ?? '').trim();
+  const newHomeworkDescription = (period.homeworkDescription ?? '').trim();
+  await notifyLessonUpdate({
+    actorUserId,
+    classId: lesson.classId.toString(),
+    className,
+    lessonDayId,
+    periodId,
+    periodNumber,
+    date: lessonDate,
+    hasMemoChange: newMemo !== oldMemo && newMemo !== '',
+    hasHomeworkChange: newHomeworkDescription !== oldHomeworkDescription && newHomeworkDescription !== '',
+  });
+  if (payload.records != null && period.records.length > 0) {
+    const changedStudentIds = new Set<string>();
+    for (const rec of period.records) {
+      const sid = rec.studentId.toString();
+      const prev = oldRecords.get(sid) ?? { note: '', parentNote: '', studentReply: '', parentReply: '' };
+      if ((rec.note ?? '').trim() !== prev.note || (rec.parentNote ?? '').trim() !== prev.parentNote) {
+        changedStudentIds.add(sid);
+      }
+    }
+    if (changedStudentIds.size > 0) {
+      const students = await Student.find({ _id: { $in: [...changedStudentIds].map((id) => new mongoose.Types.ObjectId(id)) } })
+        .select('name userId parentUserId')
+        .lean()
+        .exec();
+      const byId = new Map(students.map((s) => [s._id.toString(), s]));
+      for (const rec of period.records) {
+        const sid = rec.studentId.toString();
+        const prev = oldRecords.get(sid) ?? { note: '', parentNote: '', studentReply: '', parentReply: '' };
+        const student = byId.get(sid);
+        if (!student) continue;
+        const note = (rec.note ?? '').trim();
+        const parentNote = (rec.parentNote ?? '').trim();
+        if (note !== prev.note && note) {
+          await notifyTeacherComment({
+            actorUserId,
+            studentUserId: student.userId?.toString() ?? '',
+            parentUserId: student.parentUserId?.toString() ?? '',
+            classId: lesson.classId.toString(),
+            className,
+            lessonDayId,
+            periodId,
+            periodNumber,
+            date: lessonDate,
+            studentName: student.name,
+            body: note,
+            channel: 'student',
+          });
+        }
+        if (parentNote !== prev.parentNote && parentNote) {
+          await notifyTeacherComment({
+            actorUserId,
+            studentUserId: student.userId?.toString() ?? '',
+            parentUserId: student.parentUserId?.toString() ?? '',
+            classId: lesson.classId.toString(),
+            className,
+            lessonDayId,
+            periodId,
+            periodNumber,
+            date: lessonDate,
+            studentName: student.name,
+            body: parentNote,
+            channel: 'parent',
+          });
+        }
+      }
+    }
+  }
   return getLessonDayById(lessonDayId);
 }

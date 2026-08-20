@@ -154,3 +154,30 @@ export async function dismissAnnouncement(req: Request, res: Response<ApiRespons
     res.status(500).json({ success: false, message });
   }
 }
+
+export async function saveReply(req: Request, res: Response<ApiResponse>): Promise<void> {
+  try {
+    const studentId = await getChildStudentIdByParentUserId(getUserId(req));
+    if (!studentId) {
+      res.status(404).json({ success: false, message: '연결된 자녀 정보를 찾을 수 없습니다.' });
+      return;
+    }
+    const body = typeof req.body.body === 'string' ? req.body.body : '';
+    const result = await studentDataService.saveStudentReply(
+      studentId,
+      req.params.lessonDayId,
+      req.params.periodId,
+      'parent',
+      body,
+      getUserId(req)
+    );
+    if (!result.ok) {
+      res.status(400).json({ success: false, message: result.message ?? '답글 저장에 실패했습니다.' });
+      return;
+    }
+    res.status(200).json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '답글 저장에 실패했습니다.';
+    res.status(500).json({ success: false, message });
+  }
+}

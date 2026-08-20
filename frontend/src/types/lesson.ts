@@ -16,6 +16,12 @@ export interface StudentRecord {
   note?: string;
   /** 학부모 코멘트 (학부모 메인에 노출) */
   parentNote?: string;
+  /** 학생 계정 답글 */
+  studentReply?: string;
+  studentReplyUpdatedAt?: string;
+  /** 학부모 계정 답글 */
+  parentReply?: string;
+  parentReplyUpdatedAt?: string;
 }
 
 export interface ReviewVideoItem {

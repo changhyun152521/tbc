@@ -280,7 +280,7 @@ export async function updatePeriod(req: Request, res: Response<ApiResponse>): Pr
       reviewVideos: reviewVideos ?? undefined,
       reviewVideoUrl: reviewVideos ? undefined : reviewVideoUrl,
       records,
-    });
+    }, userId);
     if (!doc) {
       res.status(404).json({ success: false, message: '수업 또는 교시를 찾을 수 없습니다.' });
       return;
@@ -344,7 +344,7 @@ export async function updatePeriodReviewVideos(req: Request, res: Response<ApiRe
     const { reviewVideos } = req.body;
     const doc = await lessonDayService.updatePeriod(req.params.id, periodIndex, {
       reviewVideos: reviewVideos ?? [],
-    });
+    }, userId);
     if (!doc) {
       res.status(404).json({ success: false, message: '수업 또는 교시를 찾을 수 없습니다.' });
       return;

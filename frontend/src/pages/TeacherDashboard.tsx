@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { LayoutDashboard, Home, Users, UserSquare2, BookOpen, FileText, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Home, Users } from 'lucide-react';
 import { apiClient } from '../api/client';
+import ReplyInboxSection from '../components/notifications/ReplyInboxSection';
 
 interface TeacherDashboardData {
   classCount: number;
@@ -119,14 +120,6 @@ export default function TeacherDashboard() {
     };
   }, []);
 
-  const quickMenus = [
-    { to: '/admin/students', label: '학생 관리', icon: Users },
-    { to: '/admin/teachers', label: '강사 관리', icon: UserSquare2 },
-    { to: '/admin/classes', label: '반 관리', icon: Home },
-    { to: '/admin/lessons', label: '수업 관리', icon: BookOpen },
-    { to: '/admin/tests', label: '시험 관리', icon: FileText },
-  ];
-
   const stats = [
     { label: '담당 반', value: data?.classCount ?? 0, icon: Home },
     { label: '담당 학생', value: data?.studentCount ?? 0, icon: Users },
@@ -179,31 +172,7 @@ export default function TeacherDashboard() {
         </div>
 
         <div className="mb-8 sm:mb-10">
-          <h3 className="text-[12px] sm:text-[14px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-1">
-            Quick Menu
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-            {quickMenus.map((menu) => {
-              const Icon = menu.icon;
-              return (
-                <Link
-                  key={menu.to}
-                  to={menu.to}
-                  className="group bg-white p-4 sm:p-6 rounded-[24px] border border-slate-100 shadow-sm flex flex-col items-start transition-all hover:border-indigo-300 hover:bg-indigo-50/50"
-                >
-                  <div className="p-2.5 sm:p-3 bg-slate-50 rounded-xl text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-500 mb-3 sm:mb-4">
-                    <Icon size={20} strokeWidth={2} />
-                  </div>
-                  <div className="w-full flex justify-between items-center">
-                    <span className="text-[14px] sm:text-[16px] font-bold text-slate-700 group-hover:text-indigo-600">
-                      {menu.label}
-                    </span>
-                    <ChevronRight size={16} className="text-slate-300 group-hover:text-indigo-400" />
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+          <ReplyInboxSection />
         </div>
 
         <div className="mb-8">

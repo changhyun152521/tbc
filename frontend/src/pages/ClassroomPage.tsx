@@ -293,7 +293,17 @@ export default function ClassroomPage() {
   const handleSavePeriod = async (
     periodIndex: number,
     teacherId: string,
-    records: { studentId: string; attendance: AttendanceHomeworkValue; homework: AttendanceHomeworkValue; note?: string; parentNote?: string }[],
+    records: {
+      studentId: string;
+      attendance: AttendanceHomeworkValue;
+      homework: AttendanceHomeworkValue;
+      note?: string;
+      parentNote?: string;
+      studentReply?: string;
+      studentReplyUpdatedAt?: string;
+      parentReply?: string;
+      parentReplyUpdatedAt?: string;
+    }[],
     options?: { memo?: string; homeworkDescription?: string; homeworkDueDate?: string | null; reviewVideoUrl?: string; reviewVideos?: ReviewVideoItem[] }
   ) => {
     if (!lessonDay?._id) return;

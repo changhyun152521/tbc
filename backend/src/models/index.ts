@@ -6,4 +6,5 @@ export { Lesson, type ILesson } from './Lesson.model';
 export { Test, type ITest, type TestType, type IScoreEntry } from './Test.model';
 export { Announcement, type IAnnouncement } from './Announcement.model';
 export { AnnouncementDismissal, type IAnnouncementDismissal } from './AnnouncementDismissal.model';
+export { Notification, type INotification, type NotificationType } from './Notification.model';
 export { VideoWatchProgress, type IVideoWatchProgress } from './VideoWatchProgress.model';

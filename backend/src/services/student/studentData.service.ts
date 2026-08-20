@@ -5,6 +5,7 @@ import { LessonDay } from '../../models/LessonDay.model';
 import type { IPeriod, IStudentRecord } from '../../models/LessonDay.model';
 import { Test } from '../../models/Test.model';
 import { periodDisplayNumber, sortPeriods } from '../admin/lessonDay.utils';
+import { notifyReply } from '../notification.service';
 
 const RECENT_LIMIT = 10;
 
@@ -44,6 +45,58 @@ export async function getStudentClasses(studentId: string): Promise<{ _id: mongo
   return classes.map((c) => ({ _id: c._id as mongoose.Types.ObjectId, name: c.name }));
 }
 
+export async function saveStudentReply(
+  studentId: string,
+  lessonDayId: string,
+  periodId: string,
+  channel: 'student' | 'parent',
+  body: string,
+  actorUserId?: string | null
+): Promise<{ ok: boolean; message?: string }> {
+  if (!mongoose.Types.ObjectId.isValid(studentId) || !mongoose.Types.ObjectId.isValid(lessonDayId) || !mongoose.Types.ObjectId.isValid(periodId)) {
+    return { ok: false, message: '올바른 요청이 아닙니다.' };
+  }
+  const lessonDay = await LessonDay.findById(lessonDayId).exec();
+  if (!lessonDay) return { ok: false, message: '수업을 찾을 수 없습니다.' };
+  const periods = sortPeriods(lessonDay.periods as IPeriod[]);
+  const period = periods.find((p) => p._id?.toString() === periodId);
+  if (!period) return { ok: false, message: '교시를 찾을 수 없습니다.' };
+  const record = (period.records ?? []).find((r) => r.studentId?.toString() === studentId);
+  if (!record) return { ok: false, message: '학생 기록을 찾을 수 없습니다.' };
+
+  const trimmed = body.trim();
+  if (channel === 'student') {
+    record.studentReply = trimmed;
+    record.studentReplyUpdatedAt = trimmed ? new Date() : undefined;
+  } else {
+    record.parentReply = trimmed;
+    record.parentReplyUpdatedAt = trimmed ? new Date() : undefined;
+  }
+  lessonDay.periods = periods as typeof lessonDay.periods;
+  await lessonDay.save();
+
+  if (trimmed) {
+    const [student, classDoc] = await Promise.all([
+      Student.findById(studentId).select('name').lean().exec(),
+      Class.findById(lessonDay.classId).select('name').lean().exec(),
+    ]);
+    await notifyReply({
+      actorUserId,
+      classId: lessonDay.classId.toString(),
+      className: classDoc?.name ?? '',
+      lessonDayId,
+      periodId,
+      periodNumber: period.periodNumber ?? periods.findIndex((p) => p._id?.toString() === periodId) + 1,
+      date: lessonDay.date instanceof Date ? lessonDay.date.toISOString().slice(0, 10) : String(lessonDay.date).slice(0, 10),
+      studentId,
+      studentName: student?.name ?? '-',
+      body: trimmed,
+      channel,
+    });
+  }
+  return { ok: true };
+}
+
 /** period.teacherId가 populate된 경우 name 추출 */
 function getTeacherName(period: IPeriod & { teacherId?: mongoose.Types.ObjectId | { name?: string } }): string {
   const t = period.teacherId;
@@ -58,9 +111,9 @@ function getTeacherName(period: IPeriod & { teacherId?: mongoose.Types.ObjectId 
 function flattenLessonDaysForStudent(
   lessonDays: { _id: mongoose.Types.ObjectId; date: Date; periods: (IPeriod & { teacherId?: mongoose.Types.ObjectId | { name?: string } })[] }[],
   studentId: string
-): { _id: string; date: Date; period: string; progress: string; homework: string; homeworkDone: boolean; attendanceStatus: string; homeworkDescription?: string; homeworkDueDate?: string; teacherName?: string; note?: string; parentNote?: string; lessonDayId: string; periodId: string; hasReviewVideo: boolean }[] {
+): { _id: string; date: Date; period: string; progress: string; homework: string; homeworkDone: boolean; attendanceStatus: string; homeworkDescription?: string; homeworkDueDate?: string; teacherName?: string; note?: string; parentNote?: string; studentReply?: string; studentReplyUpdatedAt?: string; parentReply?: string; parentReplyUpdatedAt?: string; lessonDayId: string; periodId: string; hasReviewVideo: boolean }[] {
   const sid = studentId;
-  const result: { _id: string; date: Date; period: string; progress: string; homework: string; homeworkDone: boolean; attendanceStatus: string; homeworkDescription?: string; homeworkDueDate?: string; teacherName?: string; note?: string; parentNote?: string; lessonDayId: string; periodId: string; hasReviewVideo: boolean }[] = [];
+  const result: { _id: string; date: Date; period: string; progress: string; homework: string; homeworkDone: boolean; attendanceStatus: string; homeworkDescription?: string; homeworkDueDate?: string; teacherName?: string; note?: string; parentNote?: string; studentReply?: string; studentReplyUpdatedAt?: string; parentReply?: string; parentReplyUpdatedAt?: string; lessonDayId: string; periodId: string; hasReviewVideo: boolean }[] = [];
   for (const day of lessonDays) {
     const periods = sortPeriods((day.periods || []) as (IPeriod & { teacherId?: mongoose.Types.ObjectId | { name?: string }; _id?: mongoose.Types.ObjectId })[]);
     periods.forEach((period, idx) => {
@@ -75,6 +128,8 @@ function flattenLessonDaysForStudent(
         : undefined;
       const noteStr = (record?.note ?? '').trim() || undefined;
       const parentNoteStr = (record?.parentNote ?? '').trim() || undefined;
+      const studentReplyStr = (record?.studentReply ?? '').trim() || undefined;
+      const parentReplyStr = (record?.parentReply ?? '').trim() || undefined;
       const periodId = period._id ? period._id.toString() : `${day._id}-${idx}`;
       result.push({
         _id: `${day._id}-${idx}`,
@@ -89,6 +144,10 @@ function flattenLessonDaysForStudent(
         teacherName: getTeacherName(period) || undefined,
         note: noteStr,
         parentNote: parentNoteStr,
+        studentReply: studentReplyStr,
+        studentReplyUpdatedAt: record?.studentReplyUpdatedAt ? new Date(record.studentReplyUpdatedAt).toISOString() : undefined,
+        parentReply: parentReplyStr,
+        parentReplyUpdatedAt: record?.parentReplyUpdatedAt ? new Date(record.parentReplyUpdatedAt).toISOString() : undefined,
         lessonDayId: day._id.toString(),
         periodId,
         hasReviewVideo: Boolean(((period as { reviewVideos?: { videoId?: string }[] }).reviewVideos ?? []).some((v) => (v.videoId ?? '').trim()) || (period.reviewVideoId ?? '').trim()),

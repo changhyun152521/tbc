@@ -52,6 +52,10 @@ interface LessonItem {
   note?: string;
   /** 학부모 코멘트 (학부모 계정에서 표시) */
   parentNote?: string;
+  studentReply?: string;
+  studentReplyUpdatedAt?: string;
+  parentReply?: string;
+  parentReplyUpdatedAt?: string;
 }
 
 function toDateOnly(d: string): string {
@@ -83,6 +87,10 @@ function todayDateOnly(): string {
   return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
 }
 
+function lessonReplyKey(item: LessonItem): string {
+  return `${item.lessonDayId ?? item._id}:${item.periodId ?? item.period}`;
+}
+
 export default function LessonHistory() {
   const { role } = useAuth();
   const { selectedClassId } = useStudentClass();
@@ -93,6 +101,8 @@ export default function LessonHistory() {
   const [videoBlockedOpen, setVideoBlockedOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [savingReplyKey, setSavingReplyKey] = useState<string | null>(null);
 
   const canWatchReviewVideo = role === 'student' && !isAdminAccess;
   const videoBlockedMessage =
@@ -118,15 +128,26 @@ export default function LessonHistory() {
         .then((res) => {
           if (res.data.success && res.data.data) {
             const d = res.data.data;
-            setList(Array.isArray(d.lessons) ? d.lessons : []);
+            const lessons = Array.isArray(d.lessons) ? d.lessons : [];
+            setList(lessons);
+            setReplyDrafts(
+              Object.fromEntries(
+                lessons.map((lesson) => [
+                  lessonReplyKey(lesson),
+                  role === 'parent' ? (lesson.parentReply ?? '') : (lesson.studentReply ?? ''),
+                ])
+              )
+            );
             setIsAdminAccess(Boolean(d.isAdminAccess));
           } else {
             setList([]);
+            setReplyDrafts({});
           }
         })
         .catch(() => {
           setError('진도/과제를 불러올 수 없습니다.');
           setList([]);
+          setReplyDrafts({});
         })
         .finally(() => setLoading(false));
     },
@@ -155,22 +176,33 @@ export default function LessonHistory() {
           setAvailableDates(dates);
           const latestDay = dates[dates.length - 1] ?? toDateOnly(lessons[0].date);
           setSelectedDate(latestDay);
-          setList(lessons.filter((l) => toDateOnly(l.date) === latestDay));
+          const filtered = lessons.filter((l) => toDateOnly(l.date) === latestDay);
+          setList(filtered);
+          setReplyDrafts(
+            Object.fromEntries(
+              filtered.map((lesson) => [
+                lessonReplyKey(lesson),
+                role === 'parent' ? (lesson.parentReply ?? '') : (lesson.studentReply ?? ''),
+              ])
+            )
+          );
         } else {
           setIsAdminAccess(Boolean(d?.isAdminAccess));
           setAvailableDates([]);
           setSelectedDate(today);
           setList([]);
+          setReplyDrafts({});
         }
       })
       .catch(() => {
         setError('진도/과제를 불러올 수 없습니다.');
         setAvailableDates([]);
         setList([]);
+        setReplyDrafts({});
         setSelectedDate(todayDateOnly());
       })
       .finally(() => setLoading(false));
-  }, [apiPrefix, selectedClassId]);
+  }, [apiPrefix, role, selectedClassId]);
 
   useEffect(() => {
     fetchLatestThenSetDate();
@@ -180,6 +212,29 @@ export default function LessonHistory() {
     if (!next) return;
     setSelectedDate(next);
     fetchForDate(next);
+  };
+
+  const handleSaveReply = async (lesson: LessonItem) => {
+    if (!lesson.lessonDayId || !lesson.periodId) return;
+    const key = lessonReplyKey(lesson);
+    setSavingReplyKey(key);
+    try {
+      const body = replyDrafts[key] ?? '';
+      await apiClient.post(`/${apiPrefix}/lessons/${lesson.lessonDayId}/${lesson.periodId}/reply`, { body });
+      setList((prev) =>
+        prev.map((item) =>
+          lessonReplyKey(item) === key
+            ? role === 'parent'
+              ? { ...item, parentReply: body, parentReplyUpdatedAt: new Date().toISOString() }
+              : { ...item, studentReply: body, studentReplyUpdatedAt: new Date().toISOString() }
+            : item
+        )
+      );
+    } catch {
+      setError('답글을 저장할 수 없습니다.');
+    } finally {
+      setSavingReplyKey(null);
+    }
   };
 
   const sortedPeriods = [...list].sort((a, b) => Number(a.period) - Number(b.period));
@@ -283,7 +338,9 @@ export default function LessonHistory() {
                   if (isAdminAccess) {
                     const hasStudent = (l.note ?? '').trim() !== '';
                     const hasParent = (l.parentNote ?? '').trim() !== '';
-                    if (!hasStudent && !hasParent) return null;
+                    const hasStudentReply = (l.studentReply ?? '').trim() !== '';
+                    const hasParentReply = (l.parentReply ?? '').trim() !== '';
+                    if (!hasStudent && !hasParent && !hasStudentReply && !hasParentReply) return null;
                     return (
                       <>
                         <div className="h-[1px] bg-slate-50" />
@@ -294,10 +351,22 @@ export default function LessonHistory() {
                               <p className="text-sm text-slate-600 leading-relaxed font-medium whitespace-pre-wrap">{(l.note ?? '').trim()}</p>
                             </div>
                           )}
+                          {hasStudentReply && (
+                            <div>
+                              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight mb-1">학생 답글</p>
+                              <p className="text-sm text-slate-600 leading-relaxed font-medium whitespace-pre-wrap">{(l.studentReply ?? '').trim()}</p>
+                            </div>
+                          )}
                           {hasParent && (
                             <div>
                               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight mb-1">학부모 코멘트</p>
                               <p className="text-sm text-slate-600 leading-relaxed font-medium whitespace-pre-wrap">{(l.parentNote ?? '').trim()}</p>
+                            </div>
+                          )}
+                          {hasParentReply && (
+                            <div>
+                              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight mb-1">학부모 답글</p>
+                              <p className="text-sm text-slate-600 leading-relaxed font-medium whitespace-pre-wrap">{(l.parentReply ?? '').trim()}</p>
                             </div>
                           )}
                         </div>
@@ -316,6 +385,39 @@ export default function LessonHistory() {
                     </>
                   ) : null;
                 })()}
+
+                {!isAdminAccess && (
+                  <>
+                    <div className="h-[1px] bg-slate-50" />
+                    <div>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight mb-1">
+                        {role === 'parent' ? '학부모 답글' : '내 답글'}
+                      </p>
+                      <textarea
+                        value={replyDrafts[lessonReplyKey(l)] ?? ''}
+                        onChange={(e) =>
+                          setReplyDrafts((prev) => ({
+                            ...prev,
+                            [lessonReplyKey(l)]: e.target.value,
+                          }))
+                        }
+                        rows={3}
+                        placeholder={role === 'parent' ? '학부모 답글을 남겨 주세요' : '궁금한 점이나 전달할 내용을 남겨 주세요'}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none resize-y"
+                      />
+                      <div className="mt-2 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => void handleSaveReply(l)}
+                          disabled={savingReplyKey === lessonReplyKey(l)}
+                          className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-semibold disabled:opacity-50"
+                        >
+                          {savingReplyKey === lessonReplyKey(l) ? '저장 중...' : '답글 저장'}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {/* 출결/과제 상태: 홈 스타일 */}
                 <div className="grid grid-cols-2 gap-3 pt-2">

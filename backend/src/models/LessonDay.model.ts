@@ -10,6 +10,12 @@ export interface IStudentRecord {
   note?: string;
   /** 학부모 코멘트 (학부모 메인에 노출) */
   parentNote?: string;
+  /** 학생 계정 답글 */
+  studentReply?: string;
+  studentReplyUpdatedAt?: Date;
+  /** 학부모 계정 답글 */
+  parentReply?: string;
+  parentReplyUpdatedAt?: Date;
 }
 
 export interface IReviewVideo {
@@ -57,6 +63,10 @@ const studentRecordSchema = new Schema<IStudentRecord>(
     homework: { type: String, enum: ['O', 'X', ''], default: '' },
     note: { type: String, default: '' },
     parentNote: { type: String, default: '' },
+    studentReply: { type: String, default: '' },
+    studentReplyUpdatedAt: { type: Date, required: false },
+    parentReply: { type: String, default: '' },
+    parentReplyUpdatedAt: { type: Date, required: false },
   },
   { _id: false }
 );

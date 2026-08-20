@@ -6,6 +6,8 @@ interface RowItem {
   homework: AttendanceHomeworkValue;
   note?: string;
   parentNote?: string;
+  studentReply?: string;
+  parentReply?: string;
 }
 
 interface AttendanceHomeworkTableProps {
@@ -114,32 +116,42 @@ export default function AttendanceHomeworkTable({
                 />
               </td>
               <td className="p-2 sm:p-3 min-w-[140px] sm:min-w-[200px]">
-                {onNoteChange ? (
-                  <input
-                    type="text"
-                    value={row.note ?? ''}
-                    onChange={(e) => onNoteChange(studentIdStr(row), e.target.value)}
-                    disabled={disabled}
-                    placeholder="학생용"
-                    className="w-full min-w-0 sm:min-w-[180px] bg-slate-50 border border-slate-100 rounded-lg text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 text-slate-900 placeholder:text-slate-400 focus:border-slate-300 focus:ring-1 focus:ring-slate-300 outline-none disabled:bg-slate-100"
-                  />
-                ) : (
-                  <span className="text-slate-500 text-xs sm:text-sm">{(row.note ?? '') || '-'}</span>
-                )}
+                <div className="space-y-1.5">
+                  {onNoteChange ? (
+                    <input
+                      type="text"
+                      value={row.note ?? ''}
+                      onChange={(e) => onNoteChange(studentIdStr(row), e.target.value)}
+                      disabled={disabled}
+                      placeholder="학생용"
+                      className="w-full min-w-0 sm:min-w-[180px] bg-slate-50 border border-slate-100 rounded-lg text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 text-slate-900 placeholder:text-slate-400 focus:border-slate-300 focus:ring-1 focus:ring-slate-300 outline-none disabled:bg-slate-100"
+                    />
+                  ) : (
+                    <span className="text-slate-500 text-xs sm:text-sm">{(row.note ?? '') || '-'}</span>
+                  )}
+                  <p className="text-[11px] text-slate-400 break-words">
+                    답글: {(row.studentReply ?? '').trim() || '-'}
+                  </p>
+                </div>
               </td>
               <td className="p-2 sm:p-3 min-w-[140px] sm:min-w-[200px]">
-                {onParentNoteChange ? (
-                  <input
-                    type="text"
-                    value={row.parentNote ?? ''}
-                    onChange={(e) => onParentNoteChange(studentIdStr(row), e.target.value)}
-                    disabled={disabled}
-                    placeholder="학부모용"
-                    className="w-full min-w-0 sm:min-w-[180px] bg-slate-50 border border-slate-100 rounded-lg text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 text-slate-900 placeholder:text-slate-400 focus:border-slate-300 focus:ring-1 focus:ring-slate-300 outline-none disabled:bg-slate-100"
-                  />
-                ) : (
-                  <span className="text-slate-500 text-xs sm:text-sm">{(row.parentNote ?? '') || '-'}</span>
-                )}
+                <div className="space-y-1.5">
+                  {onParentNoteChange ? (
+                    <input
+                      type="text"
+                      value={row.parentNote ?? ''}
+                      onChange={(e) => onParentNoteChange(studentIdStr(row), e.target.value)}
+                      disabled={disabled}
+                      placeholder="학부모용"
+                      className="w-full min-w-0 sm:min-w-[180px] bg-slate-50 border border-slate-100 rounded-lg text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 text-slate-900 placeholder:text-slate-400 focus:border-slate-300 focus:ring-1 focus:ring-slate-300 outline-none disabled:bg-slate-100"
+                    />
+                  ) : (
+                    <span className="text-slate-500 text-xs sm:text-sm">{(row.parentNote ?? '') || '-'}</span>
+                  )}
+                  <p className="text-[11px] text-slate-400 break-words">
+                    답글: {(row.parentReply ?? '').trim() || '-'}
+                  </p>
+                </div>
               </td>
             </tr>
           ))}

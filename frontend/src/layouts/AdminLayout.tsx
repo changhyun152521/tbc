@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import ScrollToTop from '../components/ScrollToTop';
 import { apiClient } from '../api/client';
+import NotificationBell from '../components/notifications/NotificationBell';
 
 const ADMIN_NAV = [
   { to: '/admin/dashboard', label: '대시보드' },
@@ -156,6 +157,7 @@ export default function AdminLayout() {
             <span className="text-slate-700 font-medium">{pageTitle}</span>
           </div>
           <div className="flex items-center gap-2 min-w-0">
+            <NotificationBell />
             <span className="text-sm text-slate-700 font-medium truncate max-w-[120px] sm:max-w-none">{name ?? '-'}</span>
             <button
               type="button"

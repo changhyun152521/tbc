@@ -7,6 +7,7 @@ import ScrollToTop from '../components/ScrollToTop';
 import ClassSelect from '../pages/ClassSelect';
 import StudentPopups from '../components/student/StudentPopups';
 import { apiClient } from '../api/client';
+import NotificationBell from '../components/notifications/NotificationBell';
 
 const NAV_ITEMS = [
   { to: '/student/dashboard', label: '홈', icon: HomeIcon },
@@ -156,6 +157,7 @@ function StudentLayoutContent() {
               )}
             </div>
             <div className="flex items-center gap-2">
+              <NotificationBell />
               <span className="text-sm text-slate-600 truncate max-w-[120px] lg:max-w-[200px]">
                 {displayName}
               </span>

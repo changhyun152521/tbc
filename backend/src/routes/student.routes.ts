@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { param, query } from 'express-validator';
+import { body, param, query } from 'express-validator';
 import { authenticate, requireRoles } from '../middlewares/auth.middleware';
 import * as studentController from '../controllers/student.controller';
 import * as announcementController from '../controllers/admin/announcement.controller';
@@ -46,6 +46,16 @@ router.get(
 
 // 테스트 현황
 router.get('/tests', studentController.getTests);
+
+router.post(
+  '/lessons/:lessonDayId/:periodId/reply',
+  [
+    param('lessonDayId').isMongoId().withMessage('올바른 수업 ID가 아닙니다.'),
+    param('periodId').isMongoId().withMessage('올바른 교시 ID가 아닙니다.'),
+    body('body').isString().withMessage('답글 내용을 입력해 주세요.'),
+  ],
+  studentController.saveReply
+);
 
 // 월별 통계 (쿼리: year, month 필수)
 router.get(
