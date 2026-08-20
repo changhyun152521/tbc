@@ -97,6 +97,26 @@ export async function saveStudentReply(
   return { ok: true };
 }
 
+const MULTI_TEACHER_BRAND_LABEL = '더브코';
+
+/** 학생/학부모 홈 로고 아래 강사명. 3명 이상이면 등록자(첫 강사) × 더브코 */
+function displayTeacherNamesForUser(classDoc: { teacherIds?: unknown[] } | null): string[] {
+  const names: string[] = [];
+  if (!classDoc?.teacherIds || !Array.isArray(classDoc.teacherIds)) return names;
+  const seen = new Set<string>();
+  for (const t of classDoc.teacherIds) {
+    const name = typeof t === 'object' && t !== null && 'name' in t ? (t as { name: string }).name : '';
+    if (name && !seen.has(name)) {
+      seen.add(name);
+      names.push(name);
+    }
+  }
+  if (names.length >= 3) {
+    return [names[0], MULTI_TEACHER_BRAND_LABEL];
+  }
+  return names;
+}
+
 /** period.teacherId가 populate된 경우 name 추출 */
 function getTeacherName(period: IPeriod & { teacherId?: mongoose.Types.ObjectId | { name?: string } }): string {
   const t = period.teacherId;
@@ -205,17 +225,7 @@ export async function getDashboard(studentId: string, classIdParam?: string | nu
     Test.find({ classId }).sort({ date: -1 }).limit(RECENT_LIMIT).lean().exec(),
   ]);
 
-  const teacherNames: string[] = [];
-  if (classDoc?.teacherIds && Array.isArray(classDoc.teacherIds)) {
-    const seen = new Set<string>();
-    for (const t of classDoc.teacherIds) {
-      const name = typeof t === 'object' && t !== null && 'name' in t ? (t as { name: string }).name : '';
-      if (name && !seen.has(name)) {
-        seen.add(name);
-        teacherNames.push(name);
-      }
-    }
-  }
+  const teacherNames = displayTeacherNamesForUser(classDoc);
 
   const recentLessonsFlat = flattenLessonDaysForStudent(lessonDaysRecent, studentId);
   const recentLessons = recentLessonsFlat.slice(0, RECENT_LIMIT);
