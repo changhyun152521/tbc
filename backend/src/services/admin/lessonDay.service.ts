@@ -3,6 +3,7 @@ import { LessonDay } from '../../models/LessonDay.model';
 import type { ILessonDay, IPeriod, IStudentRecord, IReviewVideo } from '../../models/LessonDay.model';
 import { Class } from '../../models/Class.model';
 import { Student } from '../../models/Student.model';
+import { Teacher } from '../../models/Teacher.model';
 import { VideoWatchProgress } from '../../models/VideoWatchProgress.model';
 import { extractYoutubeVideoId } from '../../utils/youtube';
 import { nextPeriodNumber, periodNumberTaken, sortPeriods } from './lessonDay.utils';
@@ -326,6 +327,10 @@ export async function updatePeriod(
   const lessonDate = lesson.date instanceof Date ? lesson.date.toISOString().slice(0, 10) : String(lesson.date).slice(0, 10);
   const newMemo = (period.memo ?? '').trim();
   const newHomeworkDescription = (period.homeworkDescription ?? '').trim();
+  const teacherDoc =
+    period.teacherId && mongoose.Types.ObjectId.isValid(period.teacherId.toString())
+      ? await Teacher.findById(period.teacherId).select('name').lean().exec()
+      : null;
   await notifyLessonUpdate({
     actorUserId,
     classId: lesson.classId.toString(),
@@ -334,6 +339,7 @@ export async function updatePeriod(
     periodId,
     periodNumber,
     date: lessonDate,
+    teacherName: teacherDoc?.name ?? '',
     hasMemoChange: newMemo !== oldMemo && newMemo !== '',
     hasHomeworkChange: newHomeworkDescription !== oldHomeworkDescription && newHomeworkDescription !== '',
   });

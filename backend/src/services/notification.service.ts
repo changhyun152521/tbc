@@ -177,6 +177,7 @@ export async function notifyLessonUpdate(params: {
   periodId: string;
   periodNumber: number;
   date: string;
+  teacherName?: string;
   hasMemoChange: boolean;
   hasHomeworkChange: boolean;
 }) {
@@ -188,10 +189,13 @@ export async function notifyLessonUpdate(params: {
       : params.hasMemoChange
         ? '진도 업데이트'
         : '과제 업데이트';
+  const teacherLabel = params.teacherName?.trim()
+    ? ` · ${params.teacherName.trim()} 선생님`
+    : '';
   await createForRecipients(recipientUserIds, {
     type: 'lesson_update',
     title: label,
-    body: `${params.className} · ${params.date} · ${params.periodNumber}교시`,
+    body: `${params.className} · ${params.date} · ${params.periodNumber}교시${teacherLabel}`,
     payload: {
       classId: params.classId,
       className: params.className,
@@ -199,6 +203,7 @@ export async function notifyLessonUpdate(params: {
       periodId: params.periodId,
       periodNumber: params.periodNumber,
       date: params.date,
+      teacherName: params.teacherName ?? '',
     },
   });
 }
