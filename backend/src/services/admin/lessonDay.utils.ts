@@ -36,7 +36,14 @@ export function periodNumberTaken(periods: IPeriod[], periodNumber: number, excl
   });
 }
 
-/** 강사 조회: 타인 교시의 reviewVideos·레거시 영상 필드 제거 */
+function countReviewVideos(p: IPeriod): number {
+  const videos = (p.reviewVideos ?? []) as { url?: string; videoId?: string }[];
+  const filled = videos.filter((v) => (v.url ?? '').trim() || (v.videoId ?? '').trim());
+  if (filled.length > 0) return filled.length;
+  return (p.reviewVideoUrl ?? '').trim() ? 1 : 0;
+}
+
+/** 강사 조회: 타인 교시의 reviewVideos·레거시 영상 필드 제거, 등록 여부만 노출 */
 export function sanitizeLessonDayDocForTeacher(
   doc: Record<string, unknown>,
   myTeacherId: string
@@ -52,6 +59,9 @@ export function sanitizeLessonDayDocForTeacher(
     plain.isMine = isMine;
     plain.canEditReviewVideos = isMine;
     if (!isMine) {
+      const count = countReviewVideos(p);
+      plain.reviewVideoCount = count;
+      plain.hasReviewVideos = count > 0;
       delete plain.reviewVideos;
       delete plain.reviewVideoUrl;
       delete plain.reviewVideoId;

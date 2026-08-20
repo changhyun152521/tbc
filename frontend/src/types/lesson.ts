@@ -34,6 +34,9 @@ export interface PeriodItem {
   isMine?: boolean;
   /** 강사 조회 API: 복습영상 편집 가능 여부 */
   canEditReviewVideos?: boolean;
+  /** 강사 조회 API: 타인 교시 복습영상 개수 (링크 미포함) */
+  reviewVideoCount?: number;
+  hasReviewVideos?: boolean;
   /** 진도 (수업 내용 메모) */
   memo?: string;
   /** 과제 내용 (자유 입력) */

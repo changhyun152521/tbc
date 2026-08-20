@@ -36,12 +36,21 @@ function findPeriodIndexByNumber(periods: PeriodItem[], n: number): number {
   return periods.findIndex((p, i) => periodNum(p, i + 1) === n);
 }
 
-function buildChipItems(periods: PeriodItem[], slotCount: number, myTeacherId: string | null): PeriodChipItem[] {
+function buildChipItems(
+  periods: PeriodItem[],
+  slotCount: number,
+  myTeacherId: string | null,
+  minSlotCount: number
+): PeriodChipItem[] {
   const chips: PeriodChipItem[] = [];
   for (let n = 1; n <= slotCount; n++) {
     const idx = findPeriodIndexByNumber(periods, n);
     if (idx < 0) {
-      chips.push({ periodNumber: n, status: 'empty' });
+      chips.push({
+        periodNumber: n,
+        status: 'empty',
+        removable: n === slotCount && slotCount > minSlotCount,
+      });
       continue;
     }
     const p = periods[idx];
@@ -54,6 +63,11 @@ function buildChipItems(periods: PeriodItem[], slotCount: number, myTeacherId: s
     });
   }
   return chips;
+}
+
+function minRegisteredSlot(periods: PeriodItem[]): number {
+  if (periods.length === 0) return 0;
+  return Math.max(...periods.map((p, i) => periodNum(p, i + 1)));
 }
 
 function buildInitialVideos(p: PeriodItem): ReviewVideoItem[] {
@@ -85,7 +99,7 @@ export default function ClassroomPage() {
   const [teacherOptions, setTeacherOptions] = useState<{ _id: string; name: string }[]>([]);
 
   const [myTeacherId, setMyTeacherId] = useState<string | null>(null);
-  const [slotCount, setSlotCount] = useState(3);
+  const [slotCount, setSlotCount] = useState(0);
   const [selectedPeriodNumber, setSelectedPeriodNumber] = useState<number | null>(null);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [reviewModalPeriodIndex, setReviewModalPeriodIndex] = useState<number | null>(null);
@@ -97,9 +111,11 @@ export default function ClassroomPage() {
     ? sortStudentsByName(classInfo.studentIds)
     : [];
 
+  const minSlotCount = useMemo(() => minRegisteredSlot(periods), [periods]);
+
   const chips = useMemo(
-    () => buildChipItems(periods, slotCount, myTeacherId),
-    [periods, slotCount, myTeacherId]
+    () => buildChipItems(periods, slotCount, myTeacherId, minSlotCount),
+    [periods, slotCount, myTeacherId, minSlotCount]
   );
 
   const selectedChip = chips.find((c) => c.periodNumber === selectedPeriodNumber) ?? null;
@@ -147,7 +163,8 @@ export default function ClassroomPage() {
 
   useEffect(() => {
     setPeriodHasChanges({});
-  }, [date, lessonDay?._id]);
+    if (isTeacher) setSelectedPeriodNumber(null);
+  }, [date, lessonDay?._id, isTeacher]);
 
   useEffect(() => {
     if (!isTeacher) {
@@ -171,18 +188,10 @@ export default function ClassroomPage() {
   }, [isTeacher]);
 
   useEffect(() => {
-    if (!isTeacher || periods.length === 0) return;
-    const maxNum = Math.max(...periods.map((p, i) => periodNum(p, i + 1)), 1);
-    setSlotCount((prev) => Math.max(prev, maxNum));
-  }, [isTeacher, periods, lessonDay?._id]);
-
-  useEffect(() => {
     if (!isTeacher) return;
-    if (selectedPeriodNumber != null && chips.some((c) => c.periodNumber === selectedPeriodNumber)) return;
-    const mine = chips.find((c) => c.status === 'mine');
-    const first = chips.find((c) => c.status !== 'empty');
-    setSelectedPeriodNumber(mine?.periodNumber ?? first?.periodNumber ?? 1);
-  }, [isTeacher, chips, selectedPeriodNumber, lessonDay?._id, date]);
+    const min = minRegisteredSlot(periods);
+    setSlotCount((prev) => Math.max(prev, min));
+  }, [isTeacher, periods, lessonDay?._id]);
 
   const ensureLessonDay = async (): Promise<string | null> => {
     if (!classId) return null;
@@ -224,15 +233,25 @@ export default function ClassroomPage() {
     }
   };
 
-  const handleTeacherAddAt = async (periodNumber: number) => {
-    const chip = chips.find((c) => c.periodNumber === periodNumber);
-    if (chip?.status === 'empty') {
-      if (!window.confirm(`${periodNumber}교시에 내 교시를 등록하시겠습니까?`)) return;
-      await ensureLessonDayThenAddPeriod(periodNumber);
-      return;
-    }
-    setSelectedPeriodNumber(periodNumber);
+  const handleTeacherRegisterAt = async (periodNumber: number) => {
+    if (!window.confirm(`${periodNumber}교시에 내 교시를 등록하시겠습니까?`)) return;
+    await ensureLessonDayThenAddPeriod(periodNumber);
   };
+
+  const handleRemoveEmptySlot = (periodNumber: number) => {
+    if (periodNumber !== slotCount || slotCount <= minSlotCount) return;
+    setSlotCount((c) => c - 1);
+    if (selectedPeriodNumber === periodNumber) setSelectedPeriodNumber(null);
+  };
+
+  const handleShrinkSlots = () => {
+    if (slotCount <= minSlotCount) return;
+    const last = chips[chips.length - 1];
+    if (last?.status !== 'empty') return;
+    handleRemoveEmptySlot(last.periodNumber);
+  };
+
+  const canShrinkSlots = slotCount > minSlotCount && chips[chips.length - 1]?.status === 'empty';
 
   const handleSavePeriod = async (
     periodIndex: number,
@@ -413,20 +432,39 @@ export default function ClassroomPage() {
                 chips={chips}
                 selectedPeriodNumber={selectedPeriodNumber}
                 onSelect={setSelectedPeriodNumber}
-                onAddAt={handleTeacherAddAt}
+                onRemoveEmptySlot={handleRemoveEmptySlot}
                 onExtendSlots={() => setSlotCount((c) => c + 1)}
                 adding={addingPeriod}
               />
             </div>
-            <button
-              type="button"
-              disabled={addingPeriod}
-              onClick={() => setSlotCount((c) => c + 1)}
-              className="w-full py-2.5 border border-dashed border-slate-300 rounded-xl text-sm font-semibold text-slate-600 hover:bg-white hover:border-slate-400 disabled:opacity-50"
-            >
-              + 교시 추가
-            </button>
-            {selectedPeriod && selectedPeriodIndex >= 0 ? (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={addingPeriod}
+                onClick={() => setSlotCount((c) => c + 1)}
+                className="flex-1 py-2.5 border border-dashed border-slate-300 rounded-xl text-sm font-semibold text-slate-600 hover:bg-white hover:border-slate-400 disabled:opacity-50"
+              >
+                + 교시 추가
+              </button>
+              <button
+                type="button"
+                disabled={addingPeriod || !canShrinkSlots}
+                onClick={handleShrinkSlots}
+                className="flex-1 py-2.5 border border-dashed border-slate-300 rounded-xl text-sm font-semibold text-slate-600 hover:bg-white hover:border-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                − 교시 줄이기
+              </button>
+            </div>
+            {selectedPeriodNumber == null ? (
+              <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center">
+                <p className="text-slate-700 font-medium">교시 칩을 선택해 주세요</p>
+                <p className="text-sm text-slate-500 mt-2">
+                  비어있는 칩을 선택하면 해당 교시에 내 수업을 등록할 수 있습니다.
+                  <br />
+                  다른 강사 교시(주황색)는 읽기 전용으로 참고할 수 있습니다.
+                </p>
+              </div>
+            ) : selectedPeriod && selectedPeriodIndex >= 0 ? (
               <>
                 {isOwnSelected && emptySlotNumbers.length > 0 && (
                   <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
@@ -472,11 +510,18 @@ export default function ClassroomPage() {
                 onDelete={handleDeletePeriod}
               />
               </>
-            ) : selectedPeriodNumber != null ? (
-              <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-slate-500">
-                {chips.find((c) => c.periodNumber === selectedPeriodNumber)?.status === 'empty'
-                  ? `${selectedPeriodNumber}교시는 비어 있습니다. 칩을 눌러 등록하세요.`
-                  : '교시를 선택하세요.'}
+            ) : selectedChip?.status === 'empty' ? (
+              <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center">
+                <p className="text-slate-800 font-semibold">{selectedPeriodNumber}교시 · 비어있음</p>
+                <p className="text-sm text-slate-500 mt-2">이 교시에 내 수업을 등록할 수 있습니다.</p>
+                <button
+                  type="button"
+                  disabled={addingPeriod}
+                  onClick={() => void handleTeacherRegisterAt(selectedPeriodNumber)}
+                  className="mt-5 px-6 py-2.5 bg-slate-950 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 disabled:opacity-50"
+                >
+                  {addingPeriod ? '등록 중...' : '내 교시 등록'}
+                </button>
               </div>
             ) : null}
           </>

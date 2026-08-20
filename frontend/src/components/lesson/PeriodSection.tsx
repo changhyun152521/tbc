@@ -363,7 +363,20 @@ export default function PeriodSection({
             )}
           </div>
           {!canEditReviewVideos ? (
-            <p className="text-xs text-slate-400 py-2">다른 강사 교시의 복습 영상은 볼 수 없습니다.</p>
+            <div
+              className={`py-3 px-4 rounded-xl border-2 text-sm font-semibold ${
+                period.hasReviewVideos
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                  : 'bg-slate-50 border-slate-200 text-slate-600'
+              }`}
+            >
+              {period.hasReviewVideos
+                ? `복습영상 등록됨 · ${period.reviewVideoCount ?? 0}개`
+                : '복습영상 미등록'}
+              <p className="text-xs font-normal text-slate-500 mt-1.5">
+                다른 강사 교시의 영상 링크는 볼 수 없습니다.
+              </p>
+            </div>
           ) : useReviewVideoModal ? (
             <p className="text-xs text-slate-500 py-2">
               {reviewVideos.length > 0
