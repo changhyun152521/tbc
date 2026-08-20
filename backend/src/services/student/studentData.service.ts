@@ -4,6 +4,7 @@ import { Class } from '../../models/Class.model';
 import { LessonDay } from '../../models/LessonDay.model';
 import type { IPeriod, IStudentRecord } from '../../models/LessonDay.model';
 import { Test } from '../../models/Test.model';
+import { Teacher } from '../../models/Teacher.model';
 import { periodDisplayNumber, sortPeriods } from '../admin/lessonDay.utils';
 import { notifyReply } from '../notification.service';
 
@@ -84,6 +85,7 @@ export async function saveStudentReply(
       actorUserId,
       classId: lessonDay.classId.toString(),
       className: classDoc?.name ?? '',
+      teacherId: period.teacherId?.toString() ?? null,
       lessonDayId,
       periodId,
       periodNumber: period.periodNumber ?? periods.findIndex((p) => p._id?.toString() === periodId) + 1,
@@ -100,12 +102,15 @@ export async function saveStudentReply(
 const MULTI_TEACHER_BRAND_LABEL = '더브코';
 
 /** 학생/학부모 홈 로고 아래 강사명. 3명 이상이면 등록자(첫 강사) × 더브코 */
-function displayTeacherNamesForUser(classDoc: { teacherIds?: unknown[] } | null): string[] {
+function displayTeacherNamesForUser(
+  classDoc: { teacherIds?: mongoose.Types.ObjectId[] | string[] } | null,
+  teacherNameById: Map<string, string>
+): string[] {
   const names: string[] = [];
   if (!classDoc?.teacherIds || !Array.isArray(classDoc.teacherIds)) return names;
   const seen = new Set<string>();
-  for (const t of classDoc.teacherIds) {
-    const name = typeof t === 'object' && t !== null && 'name' in t ? (t as { name: string }).name : '';
+  for (const teacherId of classDoc.teacherIds) {
+    const name = teacherNameById.get(teacherId.toString()) ?? '';
     if (name && !seen.has(name)) {
       seen.add(name);
       names.push(name);
@@ -219,13 +224,18 @@ export async function getDashboard(studentId: string, classIdParam?: string | nu
   sevenDaysAgo.setHours(0, 0, 0, 0);
 
   const [classDoc, lessonDaysRecent, lessonDaysAll, recentTests] = await Promise.all([
-    Class.findById(classId).select('name description teacherIds').populate('teacherIds', 'name').lean().exec(),
+    Class.findById(classId).select('name description teacherIds').lean().exec(),
     LessonDay.find({ classId }).populate('periods.teacherId', 'name').sort({ date: -1 }).limit(RECENT_LIMIT * 2).lean().exec(),
     LessonDay.find({ classId }).populate('periods.teacherId', 'name').sort({ date: -1 }).lean().exec(),
     Test.find({ classId }).sort({ date: -1 }).limit(RECENT_LIMIT).lean().exec(),
   ]);
 
-  const teacherNames = displayTeacherNamesForUser(classDoc);
+  const classTeacherIds = ((classDoc?.teacherIds ?? []) as mongoose.Types.ObjectId[]).map((id) => id.toString());
+  const teachers = classTeacherIds.length
+    ? await Teacher.find({ _id: { $in: classTeacherIds.map((id) => new mongoose.Types.ObjectId(id)) } }).select('name').lean().exec()
+    : [];
+  const teacherNameById = new Map(teachers.map((teacher) => [teacher._id.toString(), teacher.name]));
+  const teacherNames = displayTeacherNamesForUser(classDoc, teacherNameById);
 
   const recentLessonsFlat = flattenLessonDaysForStudent(lessonDaysRecent, studentId);
   const recentLessons = recentLessonsFlat.slice(0, RECENT_LIMIT);

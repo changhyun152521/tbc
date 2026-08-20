@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { Notification } from '../models/Notification.model';
 import type { NotificationType } from '../models/Notification.model';
 import { Class } from '../models/Class.model';
+import { LessonDay } from '../models/LessonDay.model';
 import { Student } from '../models/Student.model';
 import { Teacher } from '../models/Teacher.model';
 import { User } from '../models/User.model';
@@ -47,6 +48,32 @@ async function getClassRecipientUserIds(classId: string): Promise<string[]> {
   ]);
 }
 
+async function getReplyRecipientUserIds(classId: string, teacherId?: string | null): Promise<string[]> {
+  if (!mongoose.Types.ObjectId.isValid(classId)) return [];
+  const classDoc = await Class.findById(classId).select('studentIds').lean().exec();
+  if (!classDoc) return [];
+
+  const studentIds = ((classDoc.studentIds ?? []) as mongoose.Types.ObjectId[]).map((id) => id.toString());
+  const [targetTeacher, students, admins] = await Promise.all([
+    teacherId && mongoose.Types.ObjectId.isValid(teacherId)
+      ? Teacher.findById(teacherId).select('userId').lean().exec()
+      : null,
+    studentIds.length > 0
+      ? Student.find({ _id: { $in: studentIds.map((id) => new mongoose.Types.ObjectId(id)) } })
+          .select('userId parentUserId')
+          .lean()
+          .exec()
+      : [],
+    User.find({ role: 'admin' }).select('_id').lean().exec(),
+  ]);
+
+  return uniqStrings([
+    targetTeacher?.userId?.toString() ?? '',
+    ...students.flatMap((s) => [s.userId?.toString() ?? '', s.parentUserId?.toString() ?? '']),
+    ...admins.map((u) => u._id.toString()),
+  ]);
+}
+
 async function createForRecipients(
   recipientUserIds: string[],
   input: {
@@ -69,6 +96,65 @@ async function createForRecipients(
       readAt: null,
     }))
   );
+}
+
+type NotificationRow = {
+  _id: mongoose.Types.ObjectId;
+  type: NotificationType;
+  title: string;
+  body: string;
+  payload?: Record<string, unknown>;
+  readAt?: Date | null;
+  createdAt: Date;
+};
+
+async function filterReplyNotificationsForTeacher(userId: string, rows: NotificationRow[]): Promise<NotificationRow[]> {
+  if (!mongoose.Types.ObjectId.isValid(userId) || rows.length === 0) return rows;
+  const teacher = await Teacher.findOne({ userId: new mongoose.Types.ObjectId(userId) }).select('_id').lean().exec();
+  if (!teacher) return rows;
+
+  const replyRows = rows.filter((row) => row.type === 'student_reply' || row.type === 'parent_reply');
+  const lessonDayIds = uniqStrings(
+    replyRows.map((row) => {
+      const lessonDayId = row.payload?.lessonDayId;
+      return typeof lessonDayId === 'string' ? lessonDayId : '';
+    })
+  ).filter((id) => mongoose.Types.ObjectId.isValid(id));
+
+  if (lessonDayIds.length === 0) return rows;
+
+  const lessonDays = await LessonDay.find({ _id: { $in: lessonDayIds.map((id) => new mongoose.Types.ObjectId(id)) } })
+    .select('periods')
+    .lean()
+    .exec();
+
+  const ownsPeriod = new Set<string>();
+  for (const day of lessonDays) {
+    for (const period of day.periods ?? []) {
+      if (period.teacherId?.toString() !== teacher._id.toString() || !period._id) continue;
+      ownsPeriod.add(`${day._id.toString()}:${period._id.toString()}`);
+    }
+  }
+
+  return rows.filter((row) => {
+    if (row.type !== 'student_reply' && row.type !== 'parent_reply') return true;
+    const lessonDayId = typeof row.payload?.lessonDayId === 'string' ? row.payload.lessonDayId : '';
+    const periodId = typeof row.payload?.periodId === 'string' ? row.payload.periodId : '';
+    if (!lessonDayId || !periodId) return false;
+    return ownsPeriod.has(`${lessonDayId}:${periodId}`);
+  });
+}
+
+function toNotificationDto(row: NotificationRow) {
+  return {
+    _id: row._id.toString(),
+    type: row.type,
+    title: row.title,
+    body: row.body,
+    payload: (row.payload ?? {}) as Record<string, unknown>,
+    readAt: row.readAt ? row.readAt.toISOString() : null,
+    createdAt: row.createdAt.toISOString(),
+  };
 }
 
 export async function notifyLessonUpdate(params: {
@@ -137,6 +223,7 @@ export async function notifyReply(params: {
   actorUserId?: string | null;
   classId: string;
   className: string;
+  teacherId?: string | null;
   lessonDayId: string;
   periodId: string;
   periodNumber: number;
@@ -146,7 +233,7 @@ export async function notifyReply(params: {
   body: string;
   channel: 'student' | 'parent';
 }) {
-  const recipientUserIds = await getClassRecipientUserIds(params.classId);
+  const recipientUserIds = await getReplyRecipientUserIds(params.classId, params.teacherId ?? null);
   const title = params.channel === 'student' ? '학생 답글' : '학부모 답글';
   await createForRecipients(recipientUserIds, {
     type: params.channel === 'student' ? 'student_reply' : 'parent_reply',
@@ -212,24 +299,23 @@ export async function listNotificationsForUser(
   const q: Record<string, unknown> = { recipientUserId: new mongoose.Types.ObjectId(userId) };
   if (options.types && options.types.length > 0) q.type = { $in: options.types };
   const limit = Math.min(Math.max(options.limit ?? 20, 1), 100);
-  const rows = await Notification.find(q).sort({ createdAt: -1 }).limit(limit).lean().exec();
-  return rows.map((row) => ({
-    _id: row._id.toString(),
-    type: row.type,
-    title: row.title,
-    body: row.body,
-    payload: (row.payload ?? {}) as Record<string, unknown>,
-    readAt: row.readAt ? row.readAt.toISOString() : null,
-    createdAt: row.createdAt.toISOString(),
-  }));
+  const rows = await Notification.find(q).sort({ createdAt: -1 }).limit(limit * 3).lean().exec();
+  const filteredRows = await filterReplyNotificationsForTeacher(userId, rows as NotificationRow[]);
+  return filteredRows.slice(0, limit).map(toNotificationDto);
 }
 
 export async function getUnreadCount(userId: string) {
   if (!mongoose.Types.ObjectId.isValid(userId)) return 0;
-  return Notification.countDocuments({
+  const rows = await Notification.find({
     recipientUserId: new mongoose.Types.ObjectId(userId),
     readAt: null,
-  }).exec();
+  })
+    .sort({ createdAt: -1 })
+    .limit(300)
+    .lean()
+    .exec();
+  const filteredRows = await filterReplyNotificationsForTeacher(userId, rows as NotificationRow[]);
+  return filteredRows.length;
 }
 
 export async function markNotificationRead(userId: string, notificationId: string) {
