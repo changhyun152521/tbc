@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { apiClient } from '../../api/client';
 
 interface CommentReplySectionProps {
@@ -14,10 +14,10 @@ interface CommentReplySectionProps {
   onDeleted?: () => void;
 }
 
-function HeartIcon({ className }: { className?: string }) {
+function ThumbsUpIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M12 21s-6.7-4.35-9.33-7.4C.6 11.2 1.1 7.7 3.7 6.1c1.7-1.05 3.9-.7 5.3.7L12 9.1l3-2.3c1.4-1.4 3.6-1.75 5.3-.7 2.6 1.6 3.1 5.1.03 7.5C18.7 16.65 12 21 12 21z" />
+      <path d="M9 21h8.2c.9 0 1.7-.6 1.9-1.4l1.4-5.8c.2-.9-.4-1.8-1.3-1.8H14l.7-3.4.1-.7c0-.4-.2-.8-.4-1.1L13 5 8.1 10.1c-.3.3-.5.7-.5 1.1V19c0 1.1.9 2 1.4 2zM4 10h2.5C7.3 10 8 10.7 8 11.5V19c0 .8-.7 1.5-1.5 1.5H4c-.8 0-1.5-.7-1.5-1.5v-7C2.5 10.7 3.2 10 4 10z" />
     </svg>
   );
 }
@@ -39,16 +39,45 @@ export default function CommentReplySection({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
+  const [likeTipOpen, setLikeTipOpen] = useState(false);
+  const likeTipRef = useRef<HTMLSpanElement | null>(null);
 
   const replyText = (savedReply ?? '').trim();
   const hasReply = replyText !== '';
   const isEdited = Boolean(savedReplyCreatedAt && savedReplyUpdatedAt && savedReplyCreatedAt !== savedReplyUpdatedAt);
-  const hasLike = (likedTeacherNames ?? []).length > 0;
+  const likedNames = likedTeacherNames ?? [];
+  const hasLike = likedNames.length > 0;
   const busy = saving || deleting;
+  const likeTipText =
+    likedNames.length === 1
+      ? `${likedNames[0]} 선생님이 답글에 좋아요를 눌렀습니다.`
+      : `${likedNames.map((name) => `${name} 선생님`).join(', ')}이 답글에 좋아요를 눌렀습니다.`;
+
+  useEffect(() => {
+    if (!likeTipOpen) return;
+    const onPointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (likeTipRef.current && target && !likeTipRef.current.contains(target)) {
+        setLikeTipOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setLikeTipOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('touchstart', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('touchstart', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [likeTipOpen]);
 
   const openModal = () => {
     setDraft(savedReply ?? '');
     setError('');
+    setLikeTipOpen(false);
     setOpen(true);
   };
 
@@ -98,8 +127,21 @@ export default function CommentReplySection({
             <span className="whitespace-pre-wrap">{replyText}</span>
             {isEdited && <span className="ml-1 text-[10px] text-slate-300">수정됨</span>}
             {hasLike && (
-              <span className="inline-flex align-middle ml-1.5 text-rose-400" title="좋아요">
-                <HeartIcon className="w-3.5 h-3.5" />
+              <span ref={likeTipRef} className="relative inline-flex align-middle ml-1.5">
+                <button
+                  type="button"
+                  onClick={() => setLikeTipOpen((prev) => !prev)}
+                  className="text-sky-500 hover:text-sky-600 transition-colors"
+                  aria-label="좋아요 정보 보기"
+                >
+                  <ThumbsUpIcon className="w-3.5 h-3.5" />
+                </button>
+                {likeTipOpen && (
+                  <span className="absolute left-1/2 -translate-x-1/2 bottom-[calc(100%+6px)] z-20 w-max max-w-[220px] rounded-lg bg-slate-800 px-2.5 py-1.5 text-[11px] leading-snug text-white shadow-lg">
+                    {likeTipText}
+                    <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
+                  </span>
+                )}
               </span>
             )}
             <button
