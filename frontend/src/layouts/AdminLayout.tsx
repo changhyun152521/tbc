@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import ScrollToTop from '../components/ScrollToTop';
 import { apiClient } from '../api/client';
 import NotificationBell from '../components/notifications/NotificationBell';
+import TeacherAnnouncementPopups from '../components/teacher/TeacherAnnouncementPopups';
 
 const ADMIN_NAV = [
   { to: '/admin/dashboard', label: '대시보드' },
@@ -13,6 +14,7 @@ const ADMIN_NAV = [
   { to: '/admin/classes', label: '반 관리' },
   { to: '/admin/lessons', label: '수업 관리' },
   { to: '/admin/tests', label: '시험 관리' },
+  { to: '/admin/teacher-announcements', label: '강사 공지', adminOnly: true },
   { to: '/admin/profile', label: '내 정보' },
 ] as const;
 
@@ -22,6 +24,7 @@ function getPageTitle(pathname: string): string {
   if (pathname.includes('/admin/classes')) return '반 관리';
   if (pathname.includes('/admin/lessons')) return '수업 관리';
   if (pathname.includes('/admin/tests')) return '시험 관리';
+  if (pathname.includes('/admin/teacher-announcements')) return '강사 공지';
   if (pathname.includes('/admin/profile')) return '내 정보';
   return '대시보드';
 }
@@ -32,6 +35,7 @@ export default function AdminLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pageTitle = getPageTitle(location.pathname);
   const roleLabel = role === 'teacher' ? '강사' : '관리자';
+  const navItems = ADMIN_NAV.filter((item) => !('adminOnly' in item && item.adminOnly) || role === 'admin');
 
   useEffect(() => {
     if (role !== 'admin' && role !== 'teacher') return;
@@ -52,6 +56,7 @@ export default function AdminLayout() {
   return (
     <>
       <ScrollToTop />
+      {role === 'teacher' && <TeacherAnnouncementPopups />}
       <div className="min-h-screen flex bg-transparent">
       {/* 데스크탑: 좌측 고정 사이드바 */}
       <aside className="hidden lg:flex w-56 bg-slate-800 text-white flex-col shrink-0 fixed left-0 top-0 bottom-0 z-30">
@@ -66,7 +71,7 @@ export default function AdminLayout() {
           <p className="text-slate-400 text-sm mt-2">{roleLabel}</p>
         </div>
         <nav className="p-2 flex-1">
-          {ADMIN_NAV.map(({ to, label }) => (
+          {navItems.map(({ to, label }) => (
             <Link
               key={to}
               to={to}
@@ -122,7 +127,7 @@ export default function AdminLayout() {
                 </button>
               </div>
               <nav className="p-2 flex-1">
-                {ADMIN_NAV.map(({ to, label }) => (
+                {navItems.map(({ to, label }) => (
                   <Link
                     key={to}
                     to={to}

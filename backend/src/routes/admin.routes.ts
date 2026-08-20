@@ -6,6 +6,7 @@ import * as teacherController from '../controllers/admin/teacher.controller';
 import * as classController from '../controllers/admin/class.controller';
 import * as lessonDayController from '../controllers/admin/lessonDay.controller';
 import * as announcementController from '../controllers/admin/announcement.controller';
+import * as teacherAnnouncementController from '../controllers/admin/teacherAnnouncement.controller';
 import * as reviewVideoController from '../controllers/student/reviewVideo.controller';
 import * as teacherDashboardController from '../controllers/admin/teacherDashboard.controller';
 
@@ -13,6 +14,9 @@ const router = Router();
 
 router.use(authenticate);
 router.use(requireRoles(['admin', 'teacher']));
+
+const adminOnly = requireRoles(['admin']);
+const teacherOnly = requireRoles(['teacher']);
 
 const mongoId = () => param('id').isMongoId().withMessage('올바른 ID가 아닙니다.');
 
@@ -140,6 +144,42 @@ router.delete(
   '/announcements/:id',
   [param('id').isMongoId().withMessage('올바른 ID가 아닙니다.')],
   announcementController.remove
+);
+
+// Teacher announcements (관리자 → 강사 전용)
+router.get(
+  '/teacher-announcements/active',
+  teacherOnly,
+  teacherAnnouncementController.listActiveForTeacher
+);
+router.post(
+  '/teacher-announcements/:id/dismiss',
+  teacherOnly,
+  [param('id').isMongoId().withMessage('올바른 ID가 아닙니다.')],
+  teacherAnnouncementController.dismiss
+);
+router.get('/teacher-announcements', adminOnly, teacherAnnouncementController.list);
+router.post(
+  '/teacher-announcements',
+  adminOnly,
+  [
+    body('title').trim().notEmpty().withMessage('제목은 필수입니다.'),
+    body('startsAt').notEmpty().withMessage('시작일은 필수입니다.'),
+    body('endsAt').notEmpty().withMessage('종료일은 필수입니다.'),
+  ],
+  teacherAnnouncementController.create
+);
+router.put(
+  '/teacher-announcements/:id',
+  adminOnly,
+  [param('id').isMongoId().withMessage('올바른 ID가 아닙니다.')],
+  teacherAnnouncementController.update
+);
+router.delete(
+  '/teacher-announcements/:id',
+  adminOnly,
+  [param('id').isMongoId().withMessage('올바른 ID가 아닙니다.')],
+  teacherAnnouncementController.remove
 );
 
 router.get(

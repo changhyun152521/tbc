@@ -102,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionStorage.removeItem(STORAGE_KEY_NAME);
     sessionStorage.removeItem(STORAGE_KEY_MUST_CHANGE);
     sessionStorage.removeItem('tbc_student_popups_shown');
+    sessionStorage.removeItem('tbc_teacher_popups_shown');
     setToken(null);
     setRole(null);
     setName(null);
@@ -147,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         const { token: newToken, user } = res.data.data;
         sessionStorage.removeItem('tbc_student_popups_shown');
+        sessionStorage.removeItem('tbc_teacher_popups_shown');
         persist(newToken, user.role, user.name, remember, user.mustChangePassword === true);
       } catch (err: unknown) {
         if (axios.isAxiosError(err) && err.response?.data?.message) {
