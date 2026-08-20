@@ -77,7 +77,7 @@ export default function TeacherAnnouncementPopups() {
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50">
       <div className="bg-white rounded-2xl shadow-lg max-w-md w-full p-6 max-h-[80vh] overflow-y-auto">
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">강사 공지</p>
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">관리자 전용</p>
         <h2 className="text-lg font-bold text-slate-950 mb-3">{current.title}</h2>
         <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed mb-6">{current.body}</p>
         <div className="flex flex-col sm:flex-row gap-2">
