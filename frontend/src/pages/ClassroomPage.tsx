@@ -244,15 +244,6 @@ export default function ClassroomPage() {
     if (selectedPeriodNumber === periodNumber) setSelectedPeriodNumber(null);
   };
 
-  const handleShrinkSlots = () => {
-    if (slotCount <= minSlotCount) return;
-    const last = chips[chips.length - 1];
-    if (last?.status !== 'empty') return;
-    handleRemoveEmptySlot(last.periodNumber);
-  };
-
-  const canShrinkSlots = slotCount > minSlotCount && chips[chips.length - 1]?.status === 'empty';
-
   const handleSavePeriod = async (
     periodIndex: number,
     teacherId: string,
@@ -437,31 +428,13 @@ export default function ClassroomPage() {
                 adding={addingPeriod}
               />
             </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={addingPeriod}
-                onClick={() => setSlotCount((c) => c + 1)}
-                className="flex-1 py-2.5 border border-dashed border-slate-300 rounded-xl text-sm font-semibold text-slate-600 hover:bg-white hover:border-slate-400 disabled:opacity-50"
-              >
-                + 교시 추가
-              </button>
-              <button
-                type="button"
-                disabled={addingPeriod || !canShrinkSlots}
-                onClick={handleShrinkSlots}
-                className="flex-1 py-2.5 border border-dashed border-slate-300 rounded-xl text-sm font-semibold text-slate-600 hover:bg-white hover:border-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                − 교시 줄이기
-              </button>
-            </div>
             {selectedPeriodNumber == null ? (
               <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center">
                 <p className="text-slate-700 font-medium">교시 칩을 선택해 주세요</p>
                 <p className="text-sm text-slate-500 mt-2">
                   비어있는 칩을 선택하면 해당 교시에 내 수업을 등록할 수 있습니다.
                   <br />
-                  다른 강사 교시(주황색)는 읽기 전용으로 참고할 수 있습니다.
+                  다른 강사 교시(주황) · 내 교시(파랑) · 비어있음(회색)으로 구분됩니다.
                 </p>
               </div>
             ) : selectedPeriod && selectedPeriodIndex >= 0 ? (

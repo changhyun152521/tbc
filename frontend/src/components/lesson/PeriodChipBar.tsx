@@ -18,6 +18,33 @@ interface PeriodChipBarProps {
   adding?: boolean;
 }
 
+const CHIP_BASE =
+  'px-3 py-2.5 rounded-xl border-2 text-sm font-bold transition-colors shadow-sm text-left';
+
+function chipLabel(chip: PeriodChipItem): string {
+  if (chip.status === 'empty') return `${chip.periodNumber}교시 · 비어있음`;
+  return `${chip.periodNumber}교시 · ${chip.teacherName ?? ''}`;
+}
+
+function chipClasses(status: PeriodChipStatus, selected: boolean): string {
+  if (status === 'empty') {
+    return selected
+      ? `${CHIP_BASE} border-slate-400 bg-slate-200 text-slate-800 ring-2 ring-slate-300`
+      : `${CHIP_BASE} border-dashed border-slate-300 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:border-slate-400`;
+  }
+  if (status === 'other') {
+    return selected
+      ? `${CHIP_BASE} border-amber-500 bg-amber-500 text-white ring-2 ring-amber-300`
+      : `${CHIP_BASE} border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100`;
+  }
+  return selected
+    ? `${CHIP_BASE} border-sky-600 bg-sky-600 text-white ring-2 ring-sky-300`
+    : `${CHIP_BASE} border-sky-500 bg-sky-50 text-sky-900 hover:bg-sky-100`;
+}
+
+const ACTION_BTN =
+  'shrink-0 w-11 h-11 flex items-center justify-center rounded-xl border-2 border-slate-300 bg-white text-slate-600 text-lg font-semibold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white';
+
 export default function PeriodChipBar({
   chips,
   selectedPeriodNumber,
@@ -26,88 +53,46 @@ export default function PeriodChipBar({
   onExtendSlots,
   adding = false,
 }: PeriodChipBarProps) {
+  const lastChip = chips[chips.length - 1];
+  const canShrink =
+    lastChip?.status === 'empty' && lastChip.removable === true && onRemoveEmptySlot != null;
+
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        {chips.map((chip) => {
-          const selected = selectedPeriodNumber === chip.periodNumber;
-          if (chip.status === 'empty') {
-            return (
-              <div key={chip.periodNumber} className="relative inline-flex">
-                <button
-                  type="button"
-                  disabled={adding}
-                  onClick={() => onSelect(chip.periodNumber)}
-                  className={`px-3 py-2 rounded-xl border text-sm font-medium transition-colors ${
-                    selected
-                      ? 'border-slate-400 bg-slate-100 text-slate-800 ring-2 ring-slate-300'
-                      : 'border-dashed border-slate-300 text-slate-500 hover:border-slate-400 hover:bg-slate-50'
-                  }`}
-                >
-                  {chip.periodNumber}교시 · 비어있음
-                </button>
-                {chip.removable && onRemoveEmptySlot && (
-                  <button
-                    type="button"
-                    disabled={adding}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRemoveEmptySlot(chip.periodNumber);
-                    }}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-slate-600 text-white text-xs leading-none hover:bg-slate-800 disabled:opacity-50"
-                    title="빈 교시 칸 제거"
-                    aria-label={`${chip.periodNumber}교시 빈 칸 제거`}
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            );
-          }
-          if (chip.status === 'other') {
-            return (
-              <button
-                key={chip.periodNumber}
-                type="button"
-                onClick={() => onSelect(chip.periodNumber)}
-                className={`px-3 py-2.5 rounded-xl border-2 text-sm font-bold transition-colors shadow-sm ${
-                  selected
-                    ? 'border-amber-500 bg-amber-500 text-white ring-2 ring-amber-300'
-                    : 'border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100'
-                }`}
-              >
-                <span className="block text-[10px] font-semibold uppercase tracking-wide opacity-80">
-                  다른 강사
-                </span>
-                {chip.periodNumber}교시 · {chip.teacherName}
-              </button>
-            );
-          }
-          return (
-            <button
-              key={chip.periodNumber}
-              type="button"
-              onClick={() => onSelect(chip.periodNumber)}
-              className={`px-3 py-2 rounded-xl border text-sm font-semibold transition-colors ${
-                selected
-                  ? 'border-slate-900 bg-slate-900 text-white ring-2 ring-slate-400'
-                  : 'border-slate-800 bg-white text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              {chip.periodNumber}교시 · {chip.teacherName} (나)
-            </button>
-          );
-        })}
-        <button
-          type="button"
-          disabled={adding}
-          onClick={onExtendSlots}
-          className="px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-600 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50"
-          title="교시 칸 추가"
-        >
-          +
-        </button>
-      </div>
+    <div className="flex flex-wrap items-center gap-2">
+      {chips.map((chip) => {
+        const selected = selectedPeriodNumber === chip.periodNumber;
+        return (
+          <button
+            key={chip.periodNumber}
+            type="button"
+            disabled={adding && chip.status === 'empty'}
+            onClick={() => onSelect(chip.periodNumber)}
+            className={chipClasses(chip.status, selected)}
+          >
+            {chipLabel(chip)}
+          </button>
+        );
+      })}
+      <button
+        type="button"
+        disabled={adding}
+        onClick={onExtendSlots}
+        className={ACTION_BTN}
+        title="교시 칸 추가"
+        aria-label="교시 칸 추가"
+      >
+        +
+      </button>
+      <button
+        type="button"
+        disabled={adding || !canShrink}
+        onClick={() => canShrink && onRemoveEmptySlot!(lastChip!.periodNumber)}
+        className={ACTION_BTN}
+        title="빈 교시 칸 제거"
+        aria-label="빈 교시 칸 제거"
+      >
+        ×
+      </button>
     </div>
   );
 }
