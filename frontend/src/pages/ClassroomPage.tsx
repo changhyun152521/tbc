@@ -96,6 +96,7 @@ export default function ClassroomPage() {
   const [savingAll, setSavingAll] = useState(false);
   const [periodHasChanges, setPeriodHasChanges] = useState<Record<number, boolean>>({});
   const pendingSaveCountRef = useRef(0);
+  const slotBaselineRef = useRef<{ date: string; lessonId: string | null; min: number } | null>(null);
   const [teacherOptions, setTeacherOptions] = useState<{ _id: string; name: string }[]>([]);
 
   const [myTeacherId, setMyTeacherId] = useState<string | null>(null);
@@ -188,10 +189,25 @@ export default function ClassroomPage() {
   }, [isTeacher]);
 
   useEffect(() => {
-    if (!isTeacher) return;
+    if (!isTeacher || loadingLesson) return;
+    const lessonId = lessonDay?._id ?? null;
     const min = minRegisteredSlot(periods);
-    setSlotCount((prev) => Math.max(prev, min));
-  }, [isTeacher, periods, lessonDay?._id]);
+    const baseline = slotBaselineRef.current;
+
+    if (!baseline || baseline.date !== date || baseline.lessonId !== lessonId) {
+      slotBaselineRef.current = { date, lessonId, min };
+      setSlotCount(min);
+      return;
+    }
+
+    if (min > baseline.min) {
+      slotBaselineRef.current = { ...baseline, min };
+      setSlotCount((prev) => Math.max(prev, min));
+    } else if (min < baseline.min) {
+      slotBaselineRef.current = { ...baseline, min };
+      setSlotCount(min);
+    }
+  }, [isTeacher, date, lessonDay?._id, periods, loadingLesson]);
 
   const ensureLessonDay = async (): Promise<string | null> => {
     if (!classId) return null;
