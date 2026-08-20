@@ -107,20 +107,18 @@ export default function ClassTable({
                     </Link>
                     <button
                       type="button"
+                      onClick={() => onEdit(row._id)}
+                      className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50 whitespace-nowrap"
+                    >
+                      수정
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => openDeleteConfirm(row._id, row.name)}
                       className="px-4 py-2 border border-red-200 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-50 whitespace-nowrap"
                     >
                       삭제
                     </button>
-                    {!readOnly && (
-                      <button
-                        type="button"
-                        onClick={() => onEdit(row._id)}
-                        className="text-slate-400 hover:text-slate-950 whitespace-nowrap"
-                      >
-                        수정
-                      </button>
-                    )}
                   </div>
                 </td>
               </tr>
