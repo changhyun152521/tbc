@@ -8,6 +8,8 @@ export interface StudentListItem {
   /** 관리자가 해당 학생 화면으로 접속할 때 사용하는 로그인 ID (비밀번호: admin) */
   adminAccessLoginId?: string | null;
   classCount?: number;
+  /** 관리자 목록에서만 내려옴 — 학생 본인 계정 최근 접속 */
+  lastAccessAt?: string | null;
 }
 
 export interface StudentFormValues {

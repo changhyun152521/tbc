@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { jwtConfig } from '../config';
 import { ApiResponse, JwtPayload } from '../types/api';
 import { UserRole } from '../models/User.model';
+import { touchLastAccessIfNeeded } from '../services/lastAccess.service';
 
 /**
  * JWT 검증 후 request.user에 사용자 정보 주입.
@@ -19,6 +20,7 @@ export function authenticate(req: Request, res: Response<ApiResponse>, next: Nex
   try {
     const decoded = jwt.verify(token, jwtConfig.secret) as JwtPayload;
     req.user = { id: decoded.sub, role: decoded.role };
+    touchLastAccessIfNeeded(decoded.sub);
     next();
   } catch {
     res.status(401).json({ success: false, message: '유효하지 않거나 만료된 토큰입니다.' });

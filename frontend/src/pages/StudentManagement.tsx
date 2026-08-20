@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '../api/client';
+import { useAuth } from '../contexts/AuthContext';
 import type { StudentListItem, StudentFormValues } from '../types/student';
 import StudentSearchFilter from '../components/student/StudentSearchFilter';
 import StudentTable from '../components/student/StudentTable';
@@ -20,6 +21,8 @@ interface ListResponse {
 }
 
 export default function StudentManagement() {
+  const { role } = useAuth();
+  const showLastAccess = role === 'admin';
   const [list, setList] = useState<StudentListItem[]>([]);
   const [, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -238,6 +241,7 @@ export default function StudentManagement() {
               onToggleSelectAll={handleToggleSelectAll}
               onEdit={openEdit}
               onDelete={openDelete}
+              showLastAccess={showLastAccess}
             />
           )}
         </div>

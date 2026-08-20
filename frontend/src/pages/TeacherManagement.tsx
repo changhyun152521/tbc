@@ -23,6 +23,7 @@ function getPhone(row: TeacherListItem): string {
 export default function TeacherManagement() {
   const { role } = useAuth();
   const isTeacher = role === 'teacher';
+  const showLastAccess = role === 'admin';
   const [list, setList] = useState<TeacherListItem[]>([]);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -262,6 +263,7 @@ export default function TeacherManagement() {
               onToggleSelectAll={handleToggleSelectAll}
               onEdit={openEdit}
               onDelete={openDelete}
+              showLastAccess={showLastAccess}
             />
           )}
         </div>

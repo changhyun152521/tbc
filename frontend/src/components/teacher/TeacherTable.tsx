@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { TeacherListItem } from '../../types/teacher';
+import { formatLastAccess } from '../../utils/formatLastAccess';
 
 function getLoginId(row: TeacherListItem): string {
   return row.loginId ?? (row.userId as { loginId?: string } | undefined)?.loginId ?? '-';
@@ -16,6 +17,7 @@ interface TeacherTableProps {
   onToggleSelectAll: (checked: boolean) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  showLastAccess?: boolean;
 }
 
 export default function TeacherTable({
@@ -25,6 +27,7 @@ export default function TeacherTable({
   onToggleSelectAll,
   onEdit,
   onDelete,
+  showLastAccess = false,
 }: TeacherTableProps) {
   const allSelected = list.length > 0 && list.every((t) => selectedIds.has(t._id));
   const someSelected = list.some((t) => selectedIds.has(t._id));
@@ -52,13 +55,14 @@ export default function TeacherTable({
             <th className="p-4 whitespace-nowrap">이름</th>
             <th className="p-4 whitespace-nowrap">로그인 ID</th>
             <th className="p-4 whitespace-nowrap">전화번호</th>
+            {showLastAccess && <th className="p-4 whitespace-nowrap">최근 접속</th>}
             <th className="p-4 text-center whitespace-nowrap">관리</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 text-[14px]">
           {list.length === 0 ? (
             <tr>
-              <td colSpan={5} className="p-8 text-center text-slate-500">
+              <td colSpan={showLastAccess ? 6 : 5} className="p-8 text-center text-slate-500">
                 등록된 강사가 없습니다.
               </td>
             </tr>
@@ -76,6 +80,11 @@ export default function TeacherTable({
                 <td className="p-4 font-medium text-slate-950 whitespace-nowrap">{row.name}</td>
                 <td className="p-4 whitespace-nowrap">{getLoginId(row)}</td>
                 <td className="p-4 font-number whitespace-nowrap">{getPhone(row)}</td>
+                {showLastAccess && (
+                  <td className="p-4 text-slate-500 whitespace-nowrap" title={row.lastAccessAt ?? undefined}>
+                    {formatLastAccess(row.lastAccessAt)}
+                  </td>
+                )}
                 <td className="p-4 text-center whitespace-nowrap">
                   <button
                     type="button"

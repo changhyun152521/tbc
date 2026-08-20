@@ -10,6 +10,8 @@ export interface IUser extends Document {
   phone?: string;
   /** true이면 로그인 후 비밀번호 변경 페이지로 유도 */
   mustChangePassword?: boolean;
+  /** 마지막 앱 접속 시각 (관리자 접속용 계정 제외) */
+  lastAccessAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -26,6 +28,7 @@ const userSchema = new Schema<IUser>(
     name: { type: String, required: true, trim: true },
     phone: { type: String, trim: true, default: '' },
     mustChangePassword: { type: Boolean, default: false },
+    lastAccessAt: { type: Date, required: false },
   },
   { timestamps: true }
 );

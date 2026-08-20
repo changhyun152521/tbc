@@ -58,6 +58,7 @@ export async function listStudents(req: Request, res: Response<ApiResponse>): Pr
       search: search as string,
       page: page != null ? parseInt(String(page), 10) : undefined,
       limit: limit != null ? parseInt(String(limit), 10) : undefined,
+      includeLastAccess: req.user?.role === 'admin',
     });
     res.status(200).json({ success: true, data: result });
   } catch (err) {

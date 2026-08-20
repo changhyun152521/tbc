@@ -40,10 +40,12 @@ export interface ListStudentsQuery {
   search?: string; // 이름, 학교, 학생 전화번호, 학부모 전화번호 통합 검색
   page?: number;
   limit?: number;
+  /** 관리자만 true — 학생 본인 계정 최근 접속 시각 포함 */
+  includeLastAccess?: boolean;
 }
 
 export interface ListStudentsResult {
-  list: (IStudent & { classCount: number })[];
+  list: (IStudent & { classCount: number; lastAccessAt?: Date | null })[];
   total: number;
   page: number;
   limit: number;
@@ -166,7 +168,11 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
     Student.countDocuments(filter).exec(),
   ]);
 
-  type LeanStudentWithPopulatedAdmin = Record<string, unknown> & { _id: mongoose.Types.ObjectId; adminAccessUserId?: { loginId: string } | null };
+  type LeanStudentWithPopulatedAdmin = Record<string, unknown> & {
+    _id: mongoose.Types.ObjectId;
+    userId?: mongoose.Types.ObjectId;
+    adminAccessUserId?: { loginId: string } | null;
+  };
   const withClassCountAndAdminId = await Promise.all(
     list.map(async (s) => {
       const doc = s as unknown as LeanStudentWithPopulatedAdmin;
@@ -187,8 +193,21 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
     })
   );
 
+  let enrichedList = withClassCountAndAdminId;
+  if (query.includeLastAccess) {
+    const userIds = enrichedList
+      .map((row) => row.userId)
+      .filter((id): id is mongoose.Types.ObjectId => Boolean(id));
+    const users = await User.find({ _id: { $in: userIds } }).select('_id lastAccessAt').lean().exec();
+    const accessByUserId = new Map(users.map((u) => [u._id.toString(), u.lastAccessAt ?? null]));
+    enrichedList = enrichedList.map((row) => ({
+      ...row,
+      lastAccessAt: row.userId ? accessByUserId.get(String(row.userId)) ?? null : null,
+    }));
+  }
+
   return {
-    list: withClassCountAndAdminId as unknown as (IStudent & { classCount: number; adminAccessLoginId: string | null })[],
+    list: enrichedList as unknown as (IStudent & { classCount: number; adminAccessLoginId: string | null; lastAccessAt?: Date | null })[],
     total,
     page,
     limit,

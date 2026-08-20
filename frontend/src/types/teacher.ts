@@ -6,6 +6,8 @@ export interface TeacherListItem {
   phone?: string;
   classCount?: number;
   description?: string;
+  /** 관리자 목록에서만 내려옴 */
+  lastAccessAt?: string | null;
 }
 
 export interface TeacherFormValues {

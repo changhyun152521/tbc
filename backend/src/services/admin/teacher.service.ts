@@ -51,8 +51,9 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-export async function listTeachers(search?: string) {
+export async function listTeachers(search?: string, includeLastAccess = false) {
   let list: Array<Record<string, unknown>>;
+  const userFields = includeLastAccess ? 'loginId name phone lastAccessAt' : 'loginId name phone';
   if (search?.trim()) {
     const regex = new RegExp(escapeRegex(search.trim()), 'i');
     const users = await User.find({
@@ -64,13 +65,13 @@ export async function listTeachers(search?: string) {
       .exec();
     const userIds = users.map((u) => u._id);
     list = await Teacher.find({ userId: { $in: userIds } })
-      .populate('userId', 'loginId name phone')
+      .populate('userId', userFields)
       .sort({ createdAt: -1 })
       .lean()
       .exec();
   } else {
     list = await Teacher.find()
-      .populate('userId', 'loginId name phone')
+      .populate('userId', userFields)
       .sort({ createdAt: -1 })
       .lean()
       .exec();
@@ -87,6 +88,17 @@ export async function listTeachers(search?: string) {
   return list.map((t) => ({
     ...t,
     classCount: countByTeacher.get((t._id as mongoose.Types.ObjectId).toString()) ?? 0,
+    ...(includeLastAccess
+      ? {
+          lastAccessAt:
+            t.userId &&
+            typeof t.userId === 'object' &&
+            'lastAccessAt' in t.userId &&
+            (t.userId as { lastAccessAt?: Date | null }).lastAccessAt
+              ? (t.userId as { lastAccessAt?: Date | null }).lastAccessAt
+              : null,
+        }
+      : {}),
   }));
 }
 

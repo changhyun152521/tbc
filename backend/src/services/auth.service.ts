@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { User } from '../models/User.model';
 import { jwtConfig } from '../config';
 import { JwtPayload } from '../types/api';
+import { touchLastAccess } from './lastAccess.service';
 
 export interface LoginResult {
   token: string;
@@ -20,6 +21,8 @@ export async function login(loginId: string, password: string): Promise<LoginRes
 
   const match = await bcrypt.compare(password, user.passwordHash);
   if (!match) return null;
+
+  await touchLastAccess(user._id.toString());
 
   const payload: JwtPayload = { sub: user._id.toString(), role: user.role };
   const token = jwt.sign(

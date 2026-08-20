@@ -40,7 +40,7 @@ export async function createTeacher(req: Request, res: Response<ApiResponse>): P
 export async function listTeachers(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
     const search = (req.query.search as string) ?? '';
-    const list = await teacherService.listTeachers(search);
+    const list = await teacherService.listTeachers(search, req.user?.role === 'admin');
     res.status(200).json({ success: true, data: list });
   } catch (err) {
     const message = err instanceof Error ? err.message : '강사 목록 조회에 실패했습니다.';
