@@ -446,11 +446,11 @@ export default function ClassroomPage() {
             </div>
             {selectedPeriodNumber == null ? (
               <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center">
-                <p className="text-slate-700 font-medium">교시 칩을 선택해 주세요</p>
+                <p className="text-slate-700 font-medium">교시를 선택해 주세요</p>
                 <p className="text-sm text-slate-500 mt-2">
-                  비어있는 칩을 선택하면 해당 교시에 내 수업을 등록할 수 있습니다.
+                  목록에서 교시를 선택해 수업을 등록하거나 내용을 확인하세요.
                   <br />
-                  다른 강사 교시(주황) · 내 교시(파랑) · 비어있음(회색)으로 구분됩니다.
+                  내 교시(파랑) · 다른 강사(진한 회색) · 비어있음(흰색)으로 구분됩니다.
                 </p>
               </div>
             ) : selectedPeriod && selectedPeriodIndex >= 0 ? (
