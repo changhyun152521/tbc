@@ -14,10 +14,12 @@ export interface IStudentRecord {
   studentReply?: string;
   studentReplyCreatedAt?: Date;
   studentReplyUpdatedAt?: Date;
+  studentReplyLikedTeacherIds?: mongoose.Types.ObjectId[];
   /** 학부모 계정 답글 */
   parentReply?: string;
   parentReplyCreatedAt?: Date;
   parentReplyUpdatedAt?: Date;
+  parentReplyLikedTeacherIds?: mongoose.Types.ObjectId[];
 }
 
 export interface IReviewVideo {
@@ -68,9 +70,11 @@ const studentRecordSchema = new Schema<IStudentRecord>(
     studentReply: { type: String, default: '' },
     studentReplyCreatedAt: { type: Date, required: false },
     studentReplyUpdatedAt: { type: Date, required: false },
+    studentReplyLikedTeacherIds: [{ type: Schema.Types.ObjectId, ref: 'Teacher' }],
     parentReply: { type: String, default: '' },
     parentReplyCreatedAt: { type: Date, required: false },
     parentReplyUpdatedAt: { type: Date, required: false },
+    parentReplyLikedTeacherIds: [{ type: Schema.Types.ObjectId, ref: 'Teacher' }],
   },
   { _id: false }
 );

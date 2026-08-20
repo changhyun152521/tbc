@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
-export type NotificationType = 'lesson_update' | 'test_created' | 'student_reply' | 'parent_reply';
+export type NotificationType = 'lesson_update' | 'test_created' | 'student_reply' | 'parent_reply' | 'reply_like';
 
 export interface INotification extends Document {
   recipientUserId: mongoose.Types.ObjectId;
@@ -19,7 +19,7 @@ const notificationSchema = new Schema<INotification>(
     type: {
       type: String,
       required: true,
-      enum: ['lesson_update', 'test_created', 'student_reply', 'parent_reply'],
+      enum: ['lesson_update', 'test_created', 'student_reply', 'parent_reply', 'reply_like'],
     },
     title: { type: String, required: true, trim: true },
     body: { type: String, required: true, trim: true, default: '' },

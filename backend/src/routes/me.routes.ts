@@ -10,6 +10,17 @@ router.use(authenticate);
 router.get('/', meController.getMe);
 router.get('/notifications', meController.listNotifications);
 router.get('/notifications/unread-count', meController.getUnreadNotificationCount);
+router.get('/reply-inbox', meController.listReplyInbox);
+router.post(
+  '/reply-inbox/like',
+  [
+    body('lessonDayId').isMongoId().withMessage('올바른 수업 ID가 아닙니다.'),
+    body('periodId').isMongoId().withMessage('올바른 교시 ID가 아닙니다.'),
+    body('studentId').isMongoId().withMessage('올바른 학생 ID가 아닙니다.'),
+    body('channel').isIn(['student', 'parent']).withMessage('올바른 답글 유형이 아닙니다.'),
+  ],
+  meController.toggleReplyLike
+);
 router.post(
   '/notifications/:id/read',
   [param('id').isMongoId().withMessage('올바른 알림 ID가 아닙니다.')],

@@ -1,4 +1,4 @@
-export type NotificationType = 'lesson_update' | 'test_created' | 'student_reply' | 'parent_reply';
+export type NotificationType = 'lesson_update' | 'test_created' | 'student_reply' | 'parent_reply' | 'reply_like';
 
 export interface NotificationItem {
   _id: string;

@@ -106,8 +106,8 @@ export async function listNotifications(req: Request, res: Response<ApiResponse>
     const types = rawTypes
       .split(',')
       .map((v) => v.trim())
-      .filter((v): v is 'lesson_update' | 'test_created' | 'student_reply' | 'parent_reply' =>
-        ['lesson_update', 'test_created', 'student_reply', 'parent_reply'].includes(v)
+      .filter((v): v is 'lesson_update' | 'test_created' | 'student_reply' | 'parent_reply' | 'reply_like' =>
+        ['lesson_update', 'test_created', 'student_reply', 'parent_reply', 'reply_like'].includes(v)
       );
     const data = await notificationService.listNotificationsForUser(req.user.id, {
       limit,
@@ -164,6 +164,51 @@ export async function markAllNotificationsRead(req: Request, res: Response<ApiRe
     res.status(200).json({ success: true, data: { count } });
   } catch (err) {
     const message = err instanceof Error ? err.message : '전체 읽음 처리에 실패했습니다.';
+    res.status(500).json({ success: false, message });
+  }
+}
+
+export async function listReplyInbox(req: Request, res: Response<ApiResponse>): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: '인증이 필요합니다.' });
+      return;
+    }
+    const page = Number(req.query.page ?? 1);
+    const limit = Number(req.query.limit ?? 5);
+    const data = await notificationService.listReplyInboxForUser(req.user.id, req.user.role, { page, limit });
+    res.status(200).json({ success: true, data });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '답글 목록 조회에 실패했습니다.';
+    res.status(500).json({ success: false, message });
+  }
+}
+
+export async function toggleReplyLike(req: Request, res: Response<ApiResponse>): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, message: errors.array()[0].msg });
+      return;
+    }
+    if (!req.user) {
+      res.status(401).json({ success: false, message: '인증이 필요합니다.' });
+      return;
+    }
+    const result = await notificationService.toggleReplyLike({
+      actorUserId: req.user.id,
+      lessonDayId: req.body.lessonDayId,
+      periodId: req.body.periodId,
+      studentId: req.body.studentId,
+      channel: req.body.channel,
+    });
+    if (!result.ok) {
+      res.status(400).json({ success: false, message: result.message ?? '좋아요 처리에 실패했습니다.' });
+      return;
+    }
+    res.status(200).json({ success: true, data: result.data });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '좋아요 처리에 실패했습니다.';
     res.status(500).json({ success: false, message });
   }
 }
