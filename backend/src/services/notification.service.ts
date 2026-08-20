@@ -189,9 +189,7 @@ export async function notifyLessonUpdate(params: {
       : params.hasMemoChange
         ? '진도 업데이트'
         : '과제 업데이트';
-  const teacherLabel = params.teacherName?.trim()
-    ? ` · ${params.teacherName.trim()} 선생님`
-    : '';
+  const teacherLabel = params.teacherName?.trim() ? ` · ${params.teacherName.trim()}T` : '';
   await createForRecipients(recipientUserIds, {
     type: 'lesson_update',
     title: label,
