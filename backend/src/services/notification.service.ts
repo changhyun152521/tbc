@@ -50,26 +50,15 @@ async function getClassRecipientUserIds(classId: string): Promise<string[]> {
 
 async function getReplyRecipientUserIds(classId: string, teacherId?: string | null): Promise<string[]> {
   if (!mongoose.Types.ObjectId.isValid(classId)) return [];
-  const classDoc = await Class.findById(classId).select('studentIds').lean().exec();
-  if (!classDoc) return [];
-
-  const studentIds = ((classDoc.studentIds ?? []) as mongoose.Types.ObjectId[]).map((id) => id.toString());
-  const [targetTeacher, students, admins] = await Promise.all([
+  const [targetTeacher, admins] = await Promise.all([
     teacherId && mongoose.Types.ObjectId.isValid(teacherId)
       ? Teacher.findById(teacherId).select('userId').lean().exec()
       : null,
-    studentIds.length > 0
-      ? Student.find({ _id: { $in: studentIds.map((id) => new mongoose.Types.ObjectId(id)) } })
-          .select('userId parentUserId')
-          .lean()
-          .exec()
-      : [],
     User.find({ role: 'admin' }).select('_id').lean().exec(),
   ]);
 
   return uniqStrings([
     targetTeacher?.userId?.toString() ?? '',
-    ...students.flatMap((s) => [s.userId?.toString() ?? '', s.parentUserId?.toString() ?? '']),
     ...admins.map((u) => u._id.toString()),
   ]);
 }
@@ -291,15 +280,31 @@ export async function notifyTeacherComment(params: {
   });
 }
 
+const USER_BELL_TYPES: NotificationType[] = ['lesson_update', 'test_created'];
+
+function resolveTypesForRole(role: string | undefined, requestedTypes?: NotificationType[]): NotificationType[] | undefined {
+  if (role === 'student' || role === 'parent') {
+    if (requestedTypes && requestedTypes.length > 0) {
+      return requestedTypes.filter((t) => USER_BELL_TYPES.includes(t));
+    }
+    return USER_BELL_TYPES;
+  }
+  if (requestedTypes && requestedTypes.length > 0) {
+    return requestedTypes;
+  }
+  return undefined;
+}
+
 export async function listNotificationsForUser(
   userId: string,
-  options: { limit?: number; page?: number; types?: NotificationType[] } = {}
+  options: { limit?: number; page?: number; types?: NotificationType[]; role?: string } = {}
 ) {
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     return { items: [], total: 0, page: 1, limit: options.limit ?? 20 };
   }
+  const effectiveTypes = resolveTypesForRole(options.role, options.types);
   const q: Record<string, unknown> = { recipientUserId: new mongoose.Types.ObjectId(userId) };
-  if (options.types && options.types.length > 0) q.type = { $in: options.types };
+  if (effectiveTypes && effectiveTypes.length > 0) q.type = { $in: effectiveTypes };
   const page = Math.max(Number(options.page ?? 1), 1);
   const limit = Math.min(Math.max(options.limit ?? 20, 1), 100);
   const rows = await Notification.find(q).sort({ createdAt: -1 }).limit(1000).lean().exec();
@@ -310,12 +315,15 @@ export async function listNotificationsForUser(
   return { items, total, page, limit };
 }
 
-export async function getUnreadCount(userId: string) {
+export async function getUnreadCount(userId: string, role?: string) {
   if (!mongoose.Types.ObjectId.isValid(userId)) return 0;
-  const rows = await Notification.find({
+  const effectiveTypes = resolveTypesForRole(role);
+  const q: Record<string, unknown> = {
     recipientUserId: new mongoose.Types.ObjectId(userId),
     readAt: null,
-  })
+  };
+  if (effectiveTypes && effectiveTypes.length > 0) q.type = { $in: effectiveTypes };
+  const rows = await Notification.find(q)
     .sort({ createdAt: -1 })
     .limit(300)
     .lean()

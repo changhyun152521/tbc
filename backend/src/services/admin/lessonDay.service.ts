@@ -6,7 +6,7 @@ import { Student } from '../../models/Student.model';
 import { VideoWatchProgress } from '../../models/VideoWatchProgress.model';
 import { extractYoutubeVideoId } from '../../utils/youtube';
 import { nextPeriodNumber, periodNumberTaken, sortPeriods } from './lessonDay.utils';
-import { notifyLessonUpdate, notifyTeacherComment } from '../notification.service';
+import { notifyLessonUpdate } from '../notification.service';
 
 export interface ListLessonDaysFilter {
   dateFrom?: string;
@@ -337,62 +337,5 @@ export async function updatePeriod(
     hasMemoChange: newMemo !== oldMemo && newMemo !== '',
     hasHomeworkChange: newHomeworkDescription !== oldHomeworkDescription && newHomeworkDescription !== '',
   });
-  if (payload.records != null && period.records.length > 0) {
-    const changedStudentIds = new Set<string>();
-    for (const rec of period.records) {
-      const sid = rec.studentId.toString();
-      const prev = oldRecords.get(sid) ?? { note: '', parentNote: '', studentReply: '', parentReply: '' };
-      if ((rec.note ?? '').trim() !== prev.note || (rec.parentNote ?? '').trim() !== prev.parentNote) {
-        changedStudentIds.add(sid);
-      }
-    }
-    if (changedStudentIds.size > 0) {
-      const students = await Student.find({ _id: { $in: [...changedStudentIds].map((id) => new mongoose.Types.ObjectId(id)) } })
-        .select('name userId parentUserId')
-        .lean()
-        .exec();
-      const byId = new Map(students.map((s) => [s._id.toString(), s]));
-      for (const rec of period.records) {
-        const sid = rec.studentId.toString();
-        const prev = oldRecords.get(sid) ?? { note: '', parentNote: '', studentReply: '', parentReply: '' };
-        const student = byId.get(sid);
-        if (!student) continue;
-        const note = (rec.note ?? '').trim();
-        const parentNote = (rec.parentNote ?? '').trim();
-        if (note !== prev.note && note) {
-          await notifyTeacherComment({
-            actorUserId,
-            studentUserId: student.userId?.toString() ?? '',
-            parentUserId: student.parentUserId?.toString() ?? '',
-            classId: lesson.classId.toString(),
-            className,
-            lessonDayId,
-            periodId,
-            periodNumber,
-            date: lessonDate,
-            studentName: student.name,
-            body: note,
-            channel: 'student',
-          });
-        }
-        if (parentNote !== prev.parentNote && parentNote) {
-          await notifyTeacherComment({
-            actorUserId,
-            studentUserId: student.userId?.toString() ?? '',
-            parentUserId: student.parentUserId?.toString() ?? '',
-            classId: lesson.classId.toString(),
-            className,
-            lessonDayId,
-            periodId,
-            periodNumber,
-            date: lessonDate,
-            studentName: student.name,
-            body: parentNote,
-            channel: 'parent',
-          });
-        }
-      }
-    }
-  }
   return getLessonDayById(lessonDayId);
 }

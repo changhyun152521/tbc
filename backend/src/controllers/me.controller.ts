@@ -113,6 +113,7 @@ export async function listNotifications(req: Request, res: Response<ApiResponse>
       limit,
       page,
       types: types.length > 0 ? types : undefined,
+      role: req.user.role,
     });
     res.status(200).json({ success: true, data });
   } catch (err) {
@@ -127,7 +128,7 @@ export async function getUnreadNotificationCount(req: Request, res: Response<Api
       res.status(401).json({ success: false, message: '인증이 필요합니다.' });
       return;
     }
-    const count = await notificationService.getUnreadCount(req.user.id);
+    const count = await notificationService.getUnreadCount(req.user.id, req.user.role);
     res.status(200).json({ success: true, data: { count } });
   } catch (err) {
     const message = err instanceof Error ? err.message : '미확인 알림 수 조회에 실패했습니다.';
