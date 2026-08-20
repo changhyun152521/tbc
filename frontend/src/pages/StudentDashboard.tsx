@@ -45,8 +45,10 @@ interface DashboardData {
     /** 관리자 접속 시에만 내려옴 */
     parentNote?: string;
     studentReply?: string;
+    studentReplyCreatedAt?: string;
     studentReplyUpdatedAt?: string;
     parentReply?: string;
+    parentReplyCreatedAt?: string;
     parentReplyUpdatedAt?: string;
   }>;
   /** 관리자 접속 계정으로 로그인 시 true (학생·학부모 코멘트 둘 다 표시) */
@@ -308,9 +310,11 @@ export default function StudentDashboard() {
                       lessonDayId={c.lessonDayId}
                       periodId={c.periodId}
                       savedReply={role === 'parent' ? c.parentReply : c.studentReply}
+                      savedReplyCreatedAt={role === 'parent' ? c.parentReplyCreatedAt : c.studentReplyCreatedAt}
+                      savedReplyUpdatedAt={role === 'parent' ? c.parentReplyUpdatedAt : c.studentReplyUpdatedAt}
                       teacherComment={c.note}
                       apiPrefix={apiPrefix}
-                      onSaved={(body) => {
+                      onSaved={(body, savedAt, createdAt) => {
                         const key = commentReplyKey(c);
                         setData((prev) => {
                           if (!prev) return prev;
@@ -319,8 +323,8 @@ export default function StudentDashboard() {
                             recentComments: prev.recentComments.map((item) =>
                               commentReplyKey(item) === key
                                 ? role === 'parent'
-                                  ? { ...item, parentReply: body, parentReplyUpdatedAt: new Date().toISOString() }
-                                  : { ...item, studentReply: body, studentReplyUpdatedAt: new Date().toISOString() }
+                                  ? { ...item, parentReply: body, parentReplyCreatedAt: createdAt, parentReplyUpdatedAt: savedAt }
+                                  : { ...item, studentReply: body, studentReplyCreatedAt: createdAt, studentReplyUpdatedAt: savedAt }
                                 : item
                             ),
                           };

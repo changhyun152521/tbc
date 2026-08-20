@@ -54,8 +54,10 @@ interface LessonItem {
   /** 학부모 코멘트 (학부모 계정에서 표시) */
   parentNote?: string;
   studentReply?: string;
+  studentReplyCreatedAt?: string;
   studentReplyUpdatedAt?: string;
   parentReply?: string;
+  parentReplyCreatedAt?: string;
   parentReplyUpdatedAt?: string;
 }
 
@@ -337,15 +339,17 @@ export default function LessonHistory() {
                             lessonDayId={l.lessonDayId}
                             periodId={l.periodId}
                             savedReply={role === 'parent' ? l.parentReply : l.studentReply}
+                            savedReplyCreatedAt={role === 'parent' ? l.parentReplyCreatedAt : l.studentReplyCreatedAt}
+                            savedReplyUpdatedAt={role === 'parent' ? l.parentReplyUpdatedAt : l.studentReplyUpdatedAt}
                             teacherComment={commentText}
                             apiPrefix={apiPrefix}
-                            onSaved={(body) => {
+                            onSaved={(body, savedAt, createdAt) => {
                               setList((prev) =>
                                 prev.map((item) =>
                                   item.lessonDayId === l.lessonDayId && item.periodId === l.periodId
                                     ? role === 'parent'
-                                      ? { ...item, parentReply: body, parentReplyUpdatedAt: new Date().toISOString() }
-                                      : { ...item, studentReply: body, studentReplyUpdatedAt: new Date().toISOString() }
+                                      ? { ...item, parentReply: body, parentReplyCreatedAt: createdAt, parentReplyUpdatedAt: savedAt }
+                                      : { ...item, studentReply: body, studentReplyCreatedAt: createdAt, studentReplyUpdatedAt: savedAt }
                                     : item
                                 )
                               );

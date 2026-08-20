@@ -12,9 +12,11 @@ export interface IStudentRecord {
   parentNote?: string;
   /** 학생 계정 답글 */
   studentReply?: string;
+  studentReplyCreatedAt?: Date;
   studentReplyUpdatedAt?: Date;
   /** 학부모 계정 답글 */
   parentReply?: string;
+  parentReplyCreatedAt?: Date;
   parentReplyUpdatedAt?: Date;
 }
 
@@ -64,8 +66,10 @@ const studentRecordSchema = new Schema<IStudentRecord>(
     note: { type: String, default: '' },
     parentNote: { type: String, default: '' },
     studentReply: { type: String, default: '' },
+    studentReplyCreatedAt: { type: Date, required: false },
     studentReplyUpdatedAt: { type: Date, required: false },
     parentReply: { type: String, default: '' },
+    parentReplyCreatedAt: { type: Date, required: false },
     parentReplyUpdatedAt: { type: Date, required: false },
   },
   { _id: false }

@@ -5,15 +5,19 @@ interface CommentReplySectionProps {
   lessonDayId: string;
   periodId: string;
   savedReply?: string;
+  savedReplyCreatedAt?: string;
+  savedReplyUpdatedAt?: string;
   teacherComment?: string;
   apiPrefix: 'student' | 'parent';
-  onSaved: (body: string) => void;
+  onSaved: (body: string, savedAt: string, createdAt?: string) => void;
 }
 
 export default function CommentReplySection({
   lessonDayId,
   periodId,
   savedReply,
+  savedReplyCreatedAt,
+  savedReplyUpdatedAt,
   teacherComment,
   apiPrefix,
   onSaved,
@@ -25,6 +29,7 @@ export default function CommentReplySection({
 
   const replyText = (savedReply ?? '').trim();
   const hasReply = replyText !== '';
+  const isEdited = Boolean(savedReplyCreatedAt && savedReplyUpdatedAt && savedReplyCreatedAt !== savedReplyUpdatedAt);
 
   const openModal = () => {
     setDraft(savedReply ?? '');
@@ -43,7 +48,8 @@ export default function CommentReplySection({
     setError('');
     try {
       await apiClient.post(`/${apiPrefix}/lessons/${lessonDayId}/${periodId}/reply`, { body: draft });
-      onSaved(draft);
+      const savedAt = new Date().toISOString();
+      onSaved(draft, savedAt, savedReplyCreatedAt || savedReplyUpdatedAt || (draft.trim() ? savedAt : undefined));
       setOpen(false);
     } catch {
       setError('답글을 저장할 수 없습니다.');
@@ -60,6 +66,7 @@ export default function CommentReplySection({
             내 답글: {replyText}
           </p>
         )}
+        {hasReply && isEdited && <p className="text-[11px] text-slate-400">수정됨</p>}
         <button
           type="button"
           onClick={openModal}

@@ -66,17 +66,27 @@ export async function saveStudentReply(
   if (!record) return { ok: false, message: '학생 기록을 찾을 수 없습니다.' };
 
   const trimmed = body.trim();
+  const now = new Date();
+  const hadStudentReply = ((record.studentReply ?? '').trim() !== '') || Boolean(record.studentReplyCreatedAt);
+  const hadParentReply = ((record.parentReply ?? '').trim() !== '') || Boolean(record.parentReplyCreatedAt);
+  const shouldNotify = channel === 'student' ? !hadStudentReply && trimmed !== '' : !hadParentReply && trimmed !== '';
   if (channel === 'student') {
     record.studentReply = trimmed;
-    record.studentReplyUpdatedAt = trimmed ? new Date() : undefined;
+    if (!record.studentReplyCreatedAt && trimmed) {
+      record.studentReplyCreatedAt = record.studentReplyUpdatedAt ?? now;
+    }
+    record.studentReplyUpdatedAt = trimmed ? now : undefined;
   } else {
     record.parentReply = trimmed;
-    record.parentReplyUpdatedAt = trimmed ? new Date() : undefined;
+    if (!record.parentReplyCreatedAt && trimmed) {
+      record.parentReplyCreatedAt = record.parentReplyUpdatedAt ?? now;
+    }
+    record.parentReplyUpdatedAt = trimmed ? now : undefined;
   }
   lessonDay.periods = periods as typeof lessonDay.periods;
   await lessonDay.save();
 
-  if (trimmed) {
+  if (shouldNotify) {
     const [student, classDoc] = await Promise.all([
       Student.findById(studentId).select('name').lean().exec(),
       Class.findById(lessonDay.classId).select('name').lean().exec(),
@@ -136,9 +146,9 @@ function getTeacherName(period: IPeriod & { teacherId?: mongoose.Types.ObjectId 
 function flattenLessonDaysForStudent(
   lessonDays: { _id: mongoose.Types.ObjectId; date: Date; periods: (IPeriod & { teacherId?: mongoose.Types.ObjectId | { name?: string } })[] }[],
   studentId: string
-): { _id: string; date: Date; period: string; progress: string; homework: string; homeworkDone: boolean; attendanceStatus: string; homeworkDescription?: string; homeworkDueDate?: string; teacherName?: string; note?: string; parentNote?: string; studentReply?: string; studentReplyUpdatedAt?: string; parentReply?: string; parentReplyUpdatedAt?: string; lessonDayId: string; periodId: string; hasReviewVideo: boolean }[] {
+): { _id: string; date: Date; period: string; progress: string; homework: string; homeworkDone: boolean; attendanceStatus: string; homeworkDescription?: string; homeworkDueDate?: string; teacherName?: string; note?: string; parentNote?: string; studentReply?: string; studentReplyCreatedAt?: string; studentReplyUpdatedAt?: string; parentReply?: string; parentReplyCreatedAt?: string; parentReplyUpdatedAt?: string; lessonDayId: string; periodId: string; hasReviewVideo: boolean }[] {
   const sid = studentId;
-  const result: { _id: string; date: Date; period: string; progress: string; homework: string; homeworkDone: boolean; attendanceStatus: string; homeworkDescription?: string; homeworkDueDate?: string; teacherName?: string; note?: string; parentNote?: string; studentReply?: string; studentReplyUpdatedAt?: string; parentReply?: string; parentReplyUpdatedAt?: string; lessonDayId: string; periodId: string; hasReviewVideo: boolean }[] = [];
+  const result: { _id: string; date: Date; period: string; progress: string; homework: string; homeworkDone: boolean; attendanceStatus: string; homeworkDescription?: string; homeworkDueDate?: string; teacherName?: string; note?: string; parentNote?: string; studentReply?: string; studentReplyCreatedAt?: string; studentReplyUpdatedAt?: string; parentReply?: string; parentReplyCreatedAt?: string; parentReplyUpdatedAt?: string; lessonDayId: string; periodId: string; hasReviewVideo: boolean }[] = [];
   for (const day of lessonDays) {
     const periods = sortPeriods((day.periods || []) as (IPeriod & { teacherId?: mongoose.Types.ObjectId | { name?: string }; _id?: mongoose.Types.ObjectId })[]);
     periods.forEach((period, idx) => {
@@ -170,8 +180,10 @@ function flattenLessonDaysForStudent(
         note: noteStr,
         parentNote: parentNoteStr,
         studentReply: studentReplyStr,
+        studentReplyCreatedAt: record?.studentReplyCreatedAt ? new Date(record.studentReplyCreatedAt).toISOString() : undefined,
         studentReplyUpdatedAt: record?.studentReplyUpdatedAt ? new Date(record.studentReplyUpdatedAt).toISOString() : undefined,
         parentReply: parentReplyStr,
+        parentReplyCreatedAt: record?.parentReplyCreatedAt ? new Date(record.parentReplyCreatedAt).toISOString() : undefined,
         parentReplyUpdatedAt: record?.parentReplyUpdatedAt ? new Date(record.parentReplyUpdatedAt).toISOString() : undefined,
         lessonDayId: day._id.toString(),
         periodId,
@@ -275,8 +287,10 @@ export async function getDashboard(studentId: string, classIdParam?: string | nu
     note: string;
     parentNote?: string;
     studentReply?: string;
+    studentReplyCreatedAt?: string;
     studentReplyUpdatedAt?: string;
     parentReply?: string;
+    parentReplyCreatedAt?: string;
     parentReplyUpdatedAt?: string;
   }[];
   if (viewAs === 'admin_access') {
@@ -291,8 +305,10 @@ export async function getDashboard(studentId: string, classIdParam?: string | nu
         note: (l.note ?? '').trim(),
         parentNote: (l.parentNote ?? '').trim(),
         studentReply: (l.studentReply ?? '').trim(),
+        studentReplyCreatedAt: l.studentReplyCreatedAt,
         studentReplyUpdatedAt: l.studentReplyUpdatedAt,
         parentReply: (l.parentReply ?? '').trim(),
+        parentReplyCreatedAt: l.parentReplyCreatedAt,
         parentReplyUpdatedAt: l.parentReplyUpdatedAt,
       }))
       .slice(0, 5);
@@ -308,8 +324,10 @@ export async function getDashboard(studentId: string, classIdParam?: string | nu
         periodId: l.periodId,
         note: ((l[commentField] ?? '') as string).trim(),
         studentReply: (l.studentReply ?? '').trim(),
+        studentReplyCreatedAt: l.studentReplyCreatedAt,
         studentReplyUpdatedAt: l.studentReplyUpdatedAt,
         parentReply: (l.parentReply ?? '').trim(),
+        parentReplyCreatedAt: l.parentReplyCreatedAt,
         parentReplyUpdatedAt: l.parentReplyUpdatedAt,
       }))
       .slice(0, 5);
