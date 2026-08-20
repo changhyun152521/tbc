@@ -136,12 +136,15 @@ export default function CommentReplySection({
             <span className="mx-1.5 text-slate-300">·</span>
             <span>{replyText}</span>
             {isEdited && <span className="ml-1 text-[10px] text-slate-300">수정됨</span>}
+          </div>
+
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
             {hasLike && (
-              <span ref={likeTipRef} className="relative inline-flex align-middle ml-1.5">
+              <span ref={likeTipRef} className="relative inline-flex">
                 <button
                   type="button"
                   onClick={() => setLikeTipOpen((prev) => !prev)}
-                  className="text-sky-500 hover:text-sky-600 transition-colors"
+                  className="inline-flex items-center text-sky-500 hover:text-sky-600 transition-colors"
                   aria-label="좋아요 정보 보기"
                 >
                   <ThumbsUpIcon className="w-3.5 h-3.5" />
@@ -154,9 +157,6 @@ export default function CommentReplySection({
                 )}
               </span>
             )}
-          </div>
-
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
             <button
               type="button"
               onClick={openModal}
