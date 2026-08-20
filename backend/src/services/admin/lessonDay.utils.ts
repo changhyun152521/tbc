@@ -22,6 +22,13 @@ export function sortPeriods<T extends IPeriod>(periods: T[]): T[] {
   return [...periods].sort((a, b) => (a.periodNumber ?? 0) - (b.periodNumber ?? 0));
 }
 
+/** UI/API 표시용 교시 번호 (periodNumber 우선, 없으면 배열 순서) */
+export function periodDisplayNumber(period: { periodNumber?: number }, arrayIndex: number): number {
+  const n = period.periodNumber;
+  if (n != null && n >= 1) return n;
+  return arrayIndex + 1;
+}
+
 export function nextPeriodNumber(periods: IPeriod[]): number {
   if (periods.length === 0) return 1;
   const nums = periods.map((p) => p.periodNumber ?? 0);

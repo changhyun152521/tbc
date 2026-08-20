@@ -6,6 +6,7 @@ import { Student } from '../../models/Student.model';
 import { Class } from '../../models/Class.model';
 import { Teacher } from '../../models/Teacher.model';
 import * as studentDataService from '../student/studentData.service';
+import { periodDisplayNumber } from '../admin/lessonDay.utils';
 
 const COMPLETE_PERCENT = 90;
 const PENDING_DAYS = 14;
@@ -154,7 +155,7 @@ export async function getReviewVideosForStudent(
     lessonDayId,
     periodId,
     date,
-    period: idx + 1,
+    period: periodDisplayNumber(period, idx),
     videos,
     totalPercent: totals.totalPercent,
     totalDurationSec: totals.totalDuration,
@@ -348,7 +349,7 @@ export async function listPendingForStudent(studentId: string) {
         periodId: pid,
         className: classNameById.get(day.classId.toString()) ?? '',
         date: day.date instanceof Date ? day.date.toISOString().slice(0, 10) : String(day.date).slice(0, 10),
-        period: idx + 1,
+        period: periodDisplayNumber(period, idx),
         teacherName: resolveTeacherName(period, teacherNameById),
         attendance: 'X',
         maxPercent: 0,
@@ -444,7 +445,7 @@ export async function getClassWatchStats(classId: string, teacherId?: string) {
           lessonDayId: day._id.toString(),
           periodId: period._id.toString(),
           date,
-          period: idx + 1,
+          period: periodDisplayNumber(period, idx),
           attendance: rec.attendance ?? '',
           watchedSec: 0,
           playTimeSec: 0,

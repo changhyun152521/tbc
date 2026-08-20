@@ -6,6 +6,7 @@ import { Student } from '../../models/Student.model';
 import { VideoWatchProgress } from '../../models/VideoWatchProgress.model';
 import { getTeacherIdByUserId } from './teacherClass.service';
 import { aggregatePeriodWatch, getReviewVideos } from '../student/reviewVideo.service';
+import { periodDisplayNumber } from '../admin/lessonDay.utils';
 
 const ABSENCE_LOOKBACK_DAYS = 14;
 const PERIOD_LOOKBACK_DAYS = 7;
@@ -63,7 +64,7 @@ export async function getTeacherDashboard(userId: string) {
         lessonDayId: day._id.toString(),
         periodId: pid,
         date: dateStr(day.date),
-        period: idx + 1,
+        period: periodDisplayNumber(period, idx),
       });
     });
   }
@@ -112,7 +113,7 @@ export async function getTeacherDashboard(userId: string) {
           lessonDayId: day._id.toString(),
           periodId: pid,
           date: dateStr(day.date),
-          period: idx + 1,
+          period: periodDisplayNumber(period, idx),
           hasReviewVideo,
         });
       }

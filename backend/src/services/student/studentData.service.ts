@@ -4,6 +4,7 @@ import { Class } from '../../models/Class.model';
 import { LessonDay } from '../../models/LessonDay.model';
 import type { IPeriod, IStudentRecord } from '../../models/LessonDay.model';
 import { Test } from '../../models/Test.model';
+import { periodDisplayNumber, sortPeriods } from '../admin/lessonDay.utils';
 
 const RECENT_LIMIT = 10;
 
@@ -61,7 +62,7 @@ function flattenLessonDaysForStudent(
   const sid = studentId;
   const result: { _id: string; date: Date; period: string; progress: string; homework: string; homeworkDone: boolean; attendanceStatus: string; homeworkDescription?: string; homeworkDueDate?: string; teacherName?: string; note?: string; parentNote?: string; lessonDayId: string; periodId: string; hasReviewVideo: boolean }[] = [];
   for (const day of lessonDays) {
-    const periods = (day.periods || []) as (IPeriod & { teacherId?: mongoose.Types.ObjectId | { name?: string }; _id?: mongoose.Types.ObjectId })[];
+    const periods = sortPeriods((day.periods || []) as (IPeriod & { teacherId?: mongoose.Types.ObjectId | { name?: string }; _id?: mongoose.Types.ObjectId })[]);
     periods.forEach((period, idx) => {
       const record = (period.records || []).find(
         (r: IStudentRecord) => r.studentId?.toString() === sid
@@ -78,7 +79,7 @@ function flattenLessonDaysForStudent(
       result.push({
         _id: `${day._id}-${idx}`,
         date: day.date,
-        period: String(idx + 1),
+        period: String(periodDisplayNumber(period, idx)),
         progress: (period as IPeriod & { memo?: string }).memo ?? '',
         homework: hw === 'O' ? '제출' : hw === 'X' ? '미제출' : '',
         homeworkDone: hw === 'O',
