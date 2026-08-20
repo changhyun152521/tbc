@@ -18,11 +18,11 @@ function parseCsvLine(line: string): string[] {
   return result;
 }
 
-function validateRow(row: TeacherExcelRow, _index: number): string[] {
+function validateRow(row: TeacherExcelRow, _index: number, passwordOptional: boolean): string[] {
   const err: string[] = [];
   if (!row.name?.trim()) err.push('이름 누락');
   if (!row.loginId?.trim()) err.push('로그인 ID 누락');
-  if (!row.password?.trim()) err.push('비밀번호 누락');
+  if (!passwordOptional && !row.password?.trim()) err.push('비밀번호 누락');
   return err;
 }
 
@@ -31,6 +31,7 @@ interface TeacherExcelBulkUploadModalProps {
   onClose: () => void;
   onComplete: () => void;
   onRegister: (rows: TeacherExcelRow[]) => Promise<{ success: number; fail: number }>;
+  passwordOptional?: boolean;
 }
 
 export default function TeacherExcelBulkUploadModal({
@@ -38,6 +39,7 @@ export default function TeacherExcelBulkUploadModal({
   onClose,
   onComplete,
   onRegister,
+  passwordOptional = false,
 }: TeacherExcelBulkUploadModalProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [previewRows, setPreviewRows] = useState<TeacherPreviewRow[]>([]);
@@ -71,7 +73,7 @@ export default function TeacherExcelBulkUploadModal({
           phone: cells[3] ?? '',
           description: cells[4] ?? '',
         };
-        const errors = validateRow(row, i);
+        const errors = validateRow(row, i, passwordOptional);
         rows.push({ ...row, _rowIndex: i, errors: errors.length ? errors : undefined });
       }
       setPreviewRows(rows);
@@ -119,7 +121,11 @@ export default function TeacherExcelBulkUploadModal({
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-xl font-bold text-slate-950">엑셀 일괄 등록 (강사)</h2>
           <p className="text-sm text-slate-500 mt-1">
-            {step === 1 && '파일을 선택하세요. (CSV, 컬럼: 이름, 로그인 ID, 비밀번호, 전화번호, 비고)'}
+            {step === 1 && (
+              passwordOptional
+                ? '파일을 선택하세요. (CSV, 컬럼: 이름, 로그인 ID, 전화번호, 비고 — 비밀번호 생략 시 1로 설정)'
+                : '파일을 선택하세요. (CSV, 컬럼: 이름, 로그인 ID, 비밀번호, 전화번호, 비고)'
+            )}
             {step === 2 && '미리보기 및 검증 결과. 유효한 행만 등록할 수 있습니다.'}
             {step === 3 && '등록이 완료되었습니다.'}
           </p>
@@ -142,7 +148,9 @@ export default function TeacherExcelBulkUploadModal({
                 파일 선택
               </button>
               <p className="text-sm text-slate-500 mt-2">
-                CSV (이름, 로그인 ID, 비밀번호, 전화번호, 비고)
+                {passwordOptional
+                  ? 'CSV (이름, 로그인 ID, [비밀번호], 전화번호, 비고) — 비밀번호 미입력 시 1'
+                  : 'CSV (이름, 로그인 ID, 비밀번호, 전화번호, 비고)'}
               </p>
             </div>
           )}

@@ -20,6 +20,8 @@ export interface MeProfile {
   isAdminAccess?: boolean;
   /** 강사 역할일 때 Teacher 문서 ID */
   teacherId?: string;
+  /** true이면 로그인 후 비밀번호 변경 유도 */
+  mustChangePassword?: boolean;
 }
 
 function toMeProfile(user: IUser, isAdminAccess?: boolean): MeProfile {
@@ -33,6 +35,7 @@ function toMeProfile(user: IUser, isAdminAccess?: boolean): MeProfile {
     updatedAt: user.updatedAt,
   };
   if (isAdminAccess === true) profile.isAdminAccess = true;
+  if (user.mustChangePassword === true) profile.mustChangePassword = true;
   return profile;
 }
 
@@ -65,6 +68,7 @@ export async function updatePassword(
   if (!match) return { ok: false, message: '현재 비밀번호가 일치하지 않습니다.' };
 
   user.passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  user.mustChangePassword = false;
   await user.save();
   return { ok: true };
 }

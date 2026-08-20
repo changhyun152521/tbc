@@ -15,6 +15,7 @@ const STORAGE_KEY_TOKEN = 'tbc_token';
 const STORAGE_KEY_ROLE = 'tbc_role';
 const STORAGE_KEY_NAME = 'tbc_name';
 const STORAGE_KEY_REMEMBER = 'tbc_remember';
+const STORAGE_KEY_MUST_CHANGE = 'tbc_must_change';
 
 type Storage = typeof localStorage | typeof sessionStorage;
 
@@ -33,23 +34,26 @@ function isTokenExpired(token: string): boolean {
   }
 }
 
-function loadFromStorage(storage: Storage): { token: string; role: UserRole; name: string } | null {
+function loadFromStorage(storage: Storage): { token: string; role: UserRole; name: string; mustChangePassword: boolean } | null {
   const token = storage.getItem(STORAGE_KEY_TOKEN);
   const role = storage.getItem(STORAGE_KEY_ROLE) as UserRole | null;
   const name = storage.getItem(STORAGE_KEY_NAME);
+  const mustChangePassword = storage.getItem(STORAGE_KEY_MUST_CHANGE) === '1';
   if (!token || !role || !name) return null;
   if (isTokenExpired(token)) return null;
-  return { token, role, name };
+  return { token, role, name, mustChangePassword };
 }
 
 interface AuthContextValue {
   token: string | null;
   role: UserRole | null;
   name: string | null;
+  mustChangePassword: boolean;
   isAuthenticated: boolean;
   isReady: boolean;
   login: (loginId: string, password: string, remember: boolean) => Promise<void>;
   logout: () => void;
+  setMustChangePassword: (value: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -58,18 +62,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
   const [name, setName] = useState<string | null>(null);
+  const [mustChangePassword, setMustChangePasswordState] = useState(false);
   const [isReady, setIsReady] = useState(false);
 
-  const persist = useCallback((newToken: string, newRole: UserRole, newName: string, remember: boolean) => {
+  const persist = useCallback(
+    (newToken: string, newRole: UserRole, newName: string, remember: boolean, newMustChangePassword = false) => {
+      const storage = getStorage(remember);
+      storage.setItem(STORAGE_KEY_TOKEN, newToken);
+      storage.setItem(STORAGE_KEY_ROLE, newRole);
+      storage.setItem(STORAGE_KEY_NAME, newName);
+      if (newMustChangePassword) storage.setItem(STORAGE_KEY_MUST_CHANGE, '1');
+      else storage.removeItem(STORAGE_KEY_MUST_CHANGE);
+      if (remember) localStorage.setItem(STORAGE_KEY_REMEMBER, '1');
+      else localStorage.removeItem(STORAGE_KEY_REMEMBER);
+      setToken(newToken);
+      setRole(newRole);
+      setName(newName);
+      setMustChangePasswordState(newMustChangePassword);
+    },
+    []
+  );
+
+  const setMustChangePassword = useCallback((value: boolean) => {
+    setMustChangePasswordState(value);
+    const remember = localStorage.getItem(STORAGE_KEY_REMEMBER) === '1';
     const storage = getStorage(remember);
-    storage.setItem(STORAGE_KEY_TOKEN, newToken);
-    storage.setItem(STORAGE_KEY_ROLE, newRole);
-    storage.setItem(STORAGE_KEY_NAME, newName);
-    if (remember) localStorage.setItem(STORAGE_KEY_REMEMBER, '1');
-    else localStorage.removeItem(STORAGE_KEY_REMEMBER);
-    setToken(newToken);
-    setRole(newRole);
-    setName(newName);
+    if (value) storage.setItem(STORAGE_KEY_MUST_CHANGE, '1');
+    else storage.removeItem(STORAGE_KEY_MUST_CHANGE);
   }, []);
 
   const clearStorage = useCallback(() => {
@@ -77,13 +96,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(STORAGE_KEY_ROLE);
     localStorage.removeItem(STORAGE_KEY_NAME);
     localStorage.removeItem(STORAGE_KEY_REMEMBER);
+    localStorage.removeItem(STORAGE_KEY_MUST_CHANGE);
     sessionStorage.removeItem(STORAGE_KEY_TOKEN);
     sessionStorage.removeItem(STORAGE_KEY_ROLE);
     sessionStorage.removeItem(STORAGE_KEY_NAME);
+    sessionStorage.removeItem(STORAGE_KEY_MUST_CHANGE);
     sessionStorage.removeItem('tbc_student_popups_shown');
     setToken(null);
     setRole(null);
     setName(null);
+    setMustChangePasswordState(false);
   }, []);
 
   useEffect(() => {
@@ -94,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(saved.token);
       setRole(saved.role);
       setName(saved.name);
+      setMustChangePasswordState(saved.mustChangePassword);
     } else {
       // 저장된 토큰이 없거나 만료된 경우 스토리지 정리 (만료 시 로그인 화면으로)
       const token = storage.getItem(STORAGE_KEY_TOKEN);
@@ -107,7 +130,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(
     async (loginId: string, password: string, remember: boolean) => {
       try {
-        const res = await axios.post<{ success: boolean; data?: { token: string; user: { id: string; role: UserRole; name: string } }; message?: string }>(
+        const res = await axios.post<{
+          success: boolean;
+          data?: {
+            token: string;
+            user: { id: string; role: UserRole; name: string; mustChangePassword?: boolean };
+          };
+          message?: string;
+        }>(
           `${apiBaseUrl}/api/auth/login`,
           { loginId, password }
         );
@@ -117,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         const { token: newToken, user } = res.data.data;
         sessionStorage.removeItem('tbc_student_popups_shown');
-        persist(newToken, user.role, user.name, remember);
+        persist(newToken, user.role, user.name, remember, user.mustChangePassword === true);
       } catch (err: unknown) {
         if (axios.isAxiosError(err) && err.response?.data?.message) {
           throw new Error(err.response.data.message as string);
@@ -137,12 +167,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token,
       role,
       name,
+      mustChangePassword,
       isAuthenticated: !!token && !!role,
       isReady,
       login,
       logout,
+      setMustChangePassword,
     }),
-    [token, role, name, isReady, login, logout]
+    [token, role, name, mustChangePassword, isReady, login, logout, setMustChangePassword]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

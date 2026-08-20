@@ -8,6 +8,8 @@ export interface IUser extends Document {
   role: UserRole;
   name: string;
   phone?: string;
+  /** true이면 로그인 후 비밀번호 변경 페이지로 유도 */
+  mustChangePassword?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +25,7 @@ const userSchema = new Schema<IUser>(
     },
     name: { type: String, required: true, trim: true },
     phone: { type: String, trim: true, default: '' },
+    mustChangePassword: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

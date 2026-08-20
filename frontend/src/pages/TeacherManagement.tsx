@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '../api/client';
+import { useAuth } from '../contexts/AuthContext';
 import type { TeacherListItem, TeacherFormValues, TeacherExcelRow } from '../types/teacher';
 import TeacherSearchFilter from '../components/teacher/TeacherSearchFilter';
 import TeacherTable from '../components/teacher/TeacherTable';
@@ -20,6 +21,8 @@ function getPhone(row: TeacherListItem): string {
 }
 
 export default function TeacherManagement() {
+  const { role } = useAuth();
+  const isTeacher = role === 'teacher';
   const [list, setList] = useState<TeacherListItem[]>([]);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -37,6 +40,9 @@ export default function TeacherManagement() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const [excelBulkOpen, setExcelBulkOpen] = useState(false);
+
+  const [createSuccessOpen, setCreateSuccessOpen] = useState(false);
+  const [createdTeacherInfo, setCreatedTeacherInfo] = useState<{ name: string; loginId: string } | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
@@ -119,10 +125,14 @@ export default function TeacherManagement() {
       await apiClient.post('/admin/teachers', {
         name: values.name,
         loginId: values.loginId,
-        password: values.password,
+        ...(isTeacher ? {} : { password: values.password }),
         phone: values.phone || undefined,
         description: values.description || undefined,
       });
+      if (isTeacher) {
+        setCreatedTeacherInfo({ name: values.name, loginId: values.loginId });
+        setCreateSuccessOpen(true);
+      }
     } else if (editingId) {
       const body: Record<string, string> = {
         name: values.name,
@@ -130,7 +140,7 @@ export default function TeacherManagement() {
         description: values.description ?? '',
       };
       if (values.loginId) body.loginId = values.loginId;
-      if (values.password?.trim()) body.password = values.password.trim();
+      if (!isTeacher && values.password?.trim()) body.password = values.password.trim();
       await apiClient.put(`/admin/teachers/${editingId}`, body);
     }
     fetchList();
@@ -169,7 +179,7 @@ export default function TeacherManagement() {
         await apiClient.post('/admin/teachers', {
           name: row.name.trim(),
           loginId: row.loginId.trim(),
-          password: row.password,
+          ...(isTeacher ? {} : { password: row.password }),
           phone: row.phone?.trim() || '',
           description: row.description?.trim() || '',
         });
@@ -267,6 +277,7 @@ export default function TeacherManagement() {
         open={formOpen}
         mode={formMode}
         initialValues={formInitial}
+        hidePasswordFields={isTeacher}
         onClose={() => setFormOpen(false)}
         onSubmit={handleFormSubmit}
       />
@@ -285,7 +296,41 @@ export default function TeacherManagement() {
         onClose={() => setExcelBulkOpen(false)}
         onComplete={fetchList}
         onRegister={handleBulkRegister}
+        passwordOptional={isTeacher}
       />
+
+      {createSuccessOpen && createdTeacherInfo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50"
+          onClick={() => setCreateSuccessOpen(false)}
+        >
+          <div
+            className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-lg p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-xl font-bold text-slate-950 mb-2">강사 등록 완료</h2>
+            <p className="text-sm text-slate-600 mb-4">
+              <strong className="text-slate-900">{createdTeacherInfo.name}</strong> 강사가 등록되었습니다.
+            </p>
+            <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-900 space-y-1">
+              <p>
+                로그인 ID: <strong>{createdTeacherInfo.loginId}</strong>
+              </p>
+              <p>
+                초기 비밀번호: <strong>1</strong>
+              </p>
+              <p className="text-blue-700 pt-1">첫 로그인 시 비밀번호 변경을 안내해 주세요.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCreateSuccessOpen(false)}
+              className="mt-5 w-full py-2.5 bg-slate-950 text-white rounded-lg font-medium hover:bg-slate-800"
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import ScrollToTop from '../components/ScrollToTop';
+import { apiClient } from '../api/client';
 
 const ADMIN_NAV = [
   { to: '/admin/dashboard', label: '대시보드' },
@@ -11,6 +12,7 @@ const ADMIN_NAV = [
   { to: '/admin/classes', label: '반 관리' },
   { to: '/admin/lessons', label: '수업 관리' },
   { to: '/admin/tests', label: '시험 관리' },
+  { to: '/admin/profile', label: '내 정보' },
 ] as const;
 
 function getPageTitle(pathname: string): string {
@@ -19,15 +21,32 @@ function getPageTitle(pathname: string): string {
   if (pathname.includes('/admin/classes')) return '반 관리';
   if (pathname.includes('/admin/lessons')) return '수업 관리';
   if (pathname.includes('/admin/tests')) return '시험 관리';
+  if (pathname.includes('/admin/profile')) return '내 정보';
   return '대시보드';
 }
 
 export default function AdminLayout() {
-  const { name, role, logout } = useAuth();
+  const { name, role, logout, mustChangePassword, setMustChangePassword } = useAuth();
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pageTitle = getPageTitle(location.pathname);
   const roleLabel = role === 'teacher' ? '강사' : '관리자';
+
+  useEffect(() => {
+    if (role !== 'admin' && role !== 'teacher') return;
+    apiClient
+      .get<{ success: boolean; data?: { mustChangePassword?: boolean } }>('/me')
+      .then((res) => {
+        if (res.data.success && res.data.data) {
+          setMustChangePassword(res.data.data.mustChangePassword === true);
+        }
+      })
+      .catch(() => {});
+  }, [role, setMustChangePassword]);
+
+  if (mustChangePassword && location.pathname !== '/admin/profile') {
+    return <Navigate to="/admin/profile" replace />;
+  }
 
   return (
     <>

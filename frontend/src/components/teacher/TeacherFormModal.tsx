@@ -5,6 +5,7 @@ interface TeacherFormModalProps {
   open: boolean;
   mode: 'create' | 'edit';
   initialValues?: TeacherFormValues | null;
+  hidePasswordFields?: boolean;
   onClose: () => void;
   onSubmit: (values: TeacherFormValues) => Promise<void>;
 }
@@ -21,6 +22,7 @@ export default function TeacherFormModal({
   open,
   mode,
   initialValues,
+  hidePasswordFields = false,
   onClose,
   onSubmit,
 }: TeacherFormModalProps) {
@@ -58,7 +60,7 @@ export default function TeacherFormModal({
       setError('로그인 ID를 입력하세요.');
       return;
     }
-    if (mode === 'create' && !form.password?.trim()) {
+    if (mode === 'create' && !hidePasswordFields && !form.password?.trim()) {
       setError('비밀번호를 입력하세요.');
       return;
     }
@@ -122,19 +124,28 @@ export default function TeacherFormModal({
                   placeholder="로그인에 사용할 ID"
                 />
               </div>
-              <div>
-                <label className={labelClass}>
-                  비밀번호 {mode === 'create' ? '(필수)' : '(변경 시에만 입력)'}
-                </label>
-                <input
-                  type="password"
-                  autoComplete={mode === 'create' ? 'new-password' : 'new-password'}
-                  value={form.password}
-                  onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
-                  className={inputClass}
-                  placeholder={mode === 'edit' ? '변경할 때만 입력' : '비밀번호'}
-                />
-              </div>
+              {hidePasswordFields ? (
+                mode === 'create' && (
+                  <p className="text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
+                    등록 후 초기 비밀번호는 <strong className="text-slate-800">1</strong>로 설정됩니다. 강사에게
+                    안내해 주세요.
+                  </p>
+                )
+              ) : (
+                <div>
+                  <label className={labelClass}>
+                    비밀번호 {mode === 'create' ? '(필수)' : '(변경 시에만 입력)'}
+                  </label>
+                  <input
+                    type="password"
+                    autoComplete={mode === 'create' ? 'new-password' : 'new-password'}
+                    value={form.password}
+                    onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+                    className={inputClass}
+                    placeholder={mode === 'edit' ? '변경할 때만 입력' : '비밀번호'}
+                  />
+                </div>
+              )}
               <div>
                 <label className={labelClass}>전화번호 (선택)</label>
                 <input

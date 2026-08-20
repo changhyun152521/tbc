@@ -11,12 +11,24 @@ export async function createTeacher(req: Request, res: Response<ApiResponse>): P
       return;
     }
     const body = req.body;
+    const creatorRole = req.user?.role;
+    const isTeacherCreator = creatorRole === 'teacher';
+
+    let password = String(body.password ?? '').trim();
+    if (isTeacherCreator) {
+      password = '1';
+    } else if (!password) {
+      res.status(400).json({ success: false, message: 'password는 필수입니다.' });
+      return;
+    }
+
     const teacher = await teacherService.createTeacher({
       name: body.name,
       loginId: body.loginId,
-      password: body.password,
+      password,
       phone: body.phone,
       description: body.description,
+      mustChangePassword: isTeacherCreator,
     });
     res.status(201).json({ success: true, data: teacher });
   } catch (err) {
@@ -58,10 +70,11 @@ export async function updateTeacher(req: Request, res: Response<ApiResponse>): P
       return;
     }
     const body = req.body;
+    const isTeacherEditor = req.user?.role === 'teacher';
     const teacher = await teacherService.updateTeacher(req.params.id, {
       name: body.name,
       loginId: body.loginId,
-      password: body.password,
+      password: isTeacherEditor ? undefined : body.password,
       phone: body.phone,
       description: body.description,
     });

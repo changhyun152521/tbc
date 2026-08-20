@@ -6,7 +6,7 @@ import { JwtPayload } from '../types/api';
 
 export interface LoginResult {
   token: string;
-  user: { id: string; role: string; name: string };
+  user: { id: string; role: string; name: string; mustChangePassword?: boolean };
 }
 
 /**
@@ -29,7 +29,12 @@ export async function login(loginId: string, password: string): Promise<LoginRes
   );
   return {
     token,
-    user: { id: user._id.toString(), role: user.role, name: user.name },
+    user: {
+      id: user._id.toString(),
+      role: user.role,
+      name: user.name,
+      mustChangePassword: user.mustChangePassword === true,
+    },
   };
 }
 

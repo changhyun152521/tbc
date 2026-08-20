@@ -13,6 +13,8 @@ export interface CreateTeacherInput {
   password: string;
   phone?: string;
   description?: string;
+  /** 강사 계정 생성 시 비밀번호 변경 유도 여부 */
+  mustChangePassword?: boolean;
 }
 
 export interface UpdateTeacherInput {
@@ -34,6 +36,7 @@ export async function createTeacher(input: CreateTeacherInput): Promise<ITeacher
     passwordHash: await hashPassword(input.password),
     name: input.name.trim(),
     phone: input.phone?.trim() ?? '',
+    mustChangePassword: input.mustChangePassword === true,
   });
 
   const teacher = await Teacher.create({

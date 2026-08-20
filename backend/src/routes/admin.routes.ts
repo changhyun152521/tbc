@@ -45,7 +45,6 @@ router.post(
   [
     body('name').trim().notEmpty().withMessage('이름은 필수입니다.'),
     body('loginId').trim().notEmpty().withMessage('loginId는 필수입니다.'),
-    body('password').notEmpty().withMessage('password는 필수입니다.'),
   ],
   teacherController.createTeacher
 );

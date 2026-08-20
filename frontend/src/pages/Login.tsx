@@ -14,7 +14,7 @@ export default function Login() {
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, role, isAuthenticated, isReady } = useAuth();
+  const { login, role, isAuthenticated, isReady, mustChangePassword } = useAuth();
 
   const [findIdOpen, setFindIdOpen] = useState(false);
   const [findIdType, setFindIdType] = useState<'student' | 'parent'>('student');
@@ -90,7 +90,10 @@ export default function Login() {
   }
 
   if (isAuthenticated && role) {
-    if (role === 'admin' || role === 'teacher') return <Navigate to="/admin/dashboard" replace />;
+    if (role === 'admin' || role === 'teacher') {
+      if (mustChangePassword) return <Navigate to="/admin/profile" replace />;
+      return <Navigate to="/admin/dashboard" replace />;
+    }
     return <Navigate to="/student/dashboard" replace />;
   }
 
