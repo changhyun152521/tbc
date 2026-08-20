@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import type { ClassDetail as ClassDetailType, ClassStudentItem } from '../types/class';
@@ -11,6 +11,7 @@ import ClassWatchStatsSection from '../components/class/ClassWatchStatsSection';
 export default function ClassDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { role } = useAuth();
   const [detail, setDetail] = useState<ClassDetailType | null>(null);
   const [loading, setLoading] = useState(true);
@@ -18,7 +19,10 @@ export default function ClassDetail() {
   const [addTeachersOpen, setAddTeachersOpen] = useState(false);
   const [addStudentsOpen, setAddStudentsOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [tab, setTab] = useState<'members' | 'announcements' | 'videos'>('members');
+  const [tab, setTab] = useState<'members' | 'announcements' | 'videos'>(() => {
+    const t = searchParams.get('tab');
+    return t === 'announcements' || t === 'videos' || t === 'members' ? t : 'members';
+  });
   const [myTeacherId, setMyTeacherId] = useState<string | null>(null);
   const [removeTarget, setRemoveTarget] = useState<{ _id: string; name: string; isSelf: boolean } | null>(null);
   const [removingTeacher, setRemovingTeacher] = useState(false);
@@ -42,6 +46,11 @@ export default function ClassDetail() {
   useEffect(() => {
     fetchDetail();
   }, [fetchDetail]);
+
+  useEffect(() => {
+    const t = searchParams.get('tab');
+    if (t === 'announcements' || t === 'videos' || t === 'members') setTab(t);
+  }, [searchParams]);
 
   useEffect(() => {
     if (role !== 'teacher') return;

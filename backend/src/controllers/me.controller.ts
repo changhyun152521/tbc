@@ -106,8 +106,8 @@ export async function listNotifications(req: Request, res: Response<ApiResponse>
     const types = rawTypes
       .split(',')
       .map((v) => v.trim())
-      .filter((v): v is 'lesson_update' | 'test_created' | 'student_reply' | 'parent_reply' | 'reply_like' =>
-        ['lesson_update', 'test_created', 'student_reply', 'parent_reply', 'reply_like'].includes(v)
+      .filter((v): v is 'lesson_update' | 'test_created' | 'student_reply' | 'parent_reply' | 'reply_like' | 'announcement_created' =>
+        ['lesson_update', 'test_created', 'student_reply', 'parent_reply', 'reply_like', 'announcement_created'].includes(v)
       );
     const data = await notificationService.listNotificationsForUser(req.user.id, {
       limit,

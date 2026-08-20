@@ -2,7 +2,10 @@ import mongoose from 'mongoose';
 import { Announcement } from '../../models/Announcement.model';
 import { AnnouncementDismissal } from '../../models/AnnouncementDismissal.model';
 import { Class } from '../../models/Class.model';
+import { Teacher } from '../../models/Teacher.model';
+import { User } from '../../models/User.model';
 import { isYyyyMmDd, kstToday } from '../../utils/dateKst';
+import { notifyAnnouncementCreated } from '../notification.service';
 
 export interface AnnouncementInput {
   title: string;
@@ -28,7 +31,7 @@ export async function listByClass(classId: string) {
 
 export async function createAnnouncement(classId: string, input: AnnouncementInput, createdBy?: string) {
   if (!mongoose.Types.ObjectId.isValid(classId)) return { error: '올바른 반 ID가 아닙니다.' };
-  const classDoc = await Class.findById(classId).select('_id').lean().exec();
+  const classDoc = await Class.findById(classId).select('_id name').lean().exec();
   if (!classDoc) return { error: '반을 찾을 수 없습니다.' };
   const rangeErr = assertDateRange(input.startsAt, input.endsAt);
   if (rangeErr) return { error: rangeErr };
@@ -41,6 +44,27 @@ export async function createAnnouncement(classId: string, input: AnnouncementInp
     isActive: input.isActive !== false,
     createdBy: createdBy && mongoose.Types.ObjectId.isValid(createdBy) ? new mongoose.Types.ObjectId(createdBy) : undefined,
   });
+
+  let teacherName = '';
+  if (createdBy && mongoose.Types.ObjectId.isValid(createdBy)) {
+    const teacher = await Teacher.findOne({ userId: new mongoose.Types.ObjectId(createdBy) }).select('name').lean().exec();
+    if (teacher?.name) {
+      teacherName = teacher.name;
+    } else {
+      const user = await User.findById(createdBy).select('name').lean().exec();
+      teacherName = user?.name ?? '';
+    }
+  }
+
+  await notifyAnnouncementCreated({
+    actorUserId: createdBy ?? null,
+    classId,
+    className: classDoc.name ?? '',
+    announcementId: doc._id.toString(),
+    title: doc.title,
+    teacherName,
+  });
+
   return { data: doc };
 }
 

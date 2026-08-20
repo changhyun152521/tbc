@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { FileCheckIcon } from '../components/ui/Icons';
 import RecordDatePicker from '../components/RecordDatePicker';
 import { apiClient } from '../api/client';
@@ -85,13 +86,20 @@ function TestCard({ t, typeLabel }: { t: StudentTestItem; typeLabel: string }) {
 
 export default function TestScores() {
   const { role } = useAuth();
-  const { selectedClassId } = useStudentClass();
+  const { selectedClassId, setSelectedClassId } = useStudentClass();
+  const [searchParams] = useSearchParams();
   const [allTests, setAllTests] = useState<StudentTestItem[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(todayDateOnly());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const apiPrefix = role === 'parent' ? 'parent' : 'student';
+  const dateFromUrl = searchParams.get('date');
+  const classIdFromUrl = searchParams.get('classId');
+
+  useEffect(() => {
+    if (classIdFromUrl) setSelectedClassId(classIdFromUrl);
+  }, [classIdFromUrl, setSelectedClassId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,7 +113,9 @@ export default function TestScores() {
         if (res.data.success && Array.isArray(res.data.data?.tests)) {
           const tests = res.data.data.tests;
           setAllTests(tests);
-          if (tests.length > 0) {
+          if (dateFromUrl && /^\d{4}-\d{2}-\d{2}$/.test(dateFromUrl)) {
+            setSelectedDate(dateFromUrl);
+          } else if (tests.length > 0) {
             const latest = tests.reduce((max, t) => {
               const d = toDateOnly(t.date);
               return d > max ? d : max;
@@ -129,7 +139,7 @@ export default function TestScores() {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [apiPrefix, selectedClassId]);
+  }, [apiPrefix, selectedClassId, dateFromUrl]);
 
   const handleDateChange = (next: string) => {
     if (!next) return;

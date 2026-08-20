@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import type { ClassDetail } from '../types/class';
 import type { TestListItem } from '../types/test';
@@ -13,6 +13,7 @@ const TEST_TYPE_LABEL: Record<string, string> = {
 
 export default function ClassroomTestPage() {
   const { classId } = useParams<{ classId: string }>();
+  const [searchParams] = useSearchParams();
   const [classInfo, setClassInfo] = useState<ClassDetail | null>(null);
   const [tests, setTests] = useState<TestListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +61,18 @@ export default function ClassroomTestPage() {
   useEffect(() => {
     fetchTests();
   }, [fetchTests]);
+
+  useEffect(() => {
+    const testId = searchParams.get('testId');
+    if (!testId || tests.length === 0) return;
+    const target = tests.find((t) => t._id === testId);
+    if (!target) return;
+    setScoreModalTest(target);
+    setScoreModalOpen(true);
+    window.setTimeout(() => {
+      document.getElementById(`classroom-test-${testId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 80);
+  }, [searchParams, tests]);
 
   const openAddForm = () => {
     setEditingTest(null);
@@ -210,7 +223,7 @@ export default function ClassroomTestPage() {
                     </tr>
                   ) : (
                     tests.map((t) => (
-                      <tr key={t._id} className="hover:bg-slate-50 text-slate-700">
+                      <tr id={`classroom-test-${t._id}`} key={t._id} className="hover:bg-slate-50 text-slate-700">
                         <td className="p-4 min-w-[90px] text-slate-600 text-xs sm:text-[14px] whitespace-nowrap">{formatTestDate(t.date)}</td>
                         <td className="p-4 font-medium text-slate-900 whitespace-nowrap">
                           {TEST_TYPE_LABEL[t.testType] ?? t.testType}

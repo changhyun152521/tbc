@@ -63,6 +63,27 @@ async function getReplyRecipientUserIds(classId: string, teacherId?: string | nu
   ]);
 }
 
+/** 반 소속 강사 + 관리자 (공지 등) */
+async function getClassTeacherAndAdminUserIds(classId: string): Promise<string[]> {
+  if (!mongoose.Types.ObjectId.isValid(classId)) return [];
+  const classDoc = await Class.findById(classId).select('teacherIds').lean().exec();
+  if (!classDoc) return [];
+  const teacherIds = ((classDoc.teacherIds ?? []) as mongoose.Types.ObjectId[]).map((id) => id.toString());
+  const [teachers, admins] = await Promise.all([
+    teacherIds.length > 0
+      ? Teacher.find({ _id: { $in: teacherIds.map((id) => new mongoose.Types.ObjectId(id)) } })
+          .select('userId')
+          .lean()
+          .exec()
+      : [],
+    User.find({ role: 'admin' }).select('_id').lean().exec(),
+  ]);
+  return uniqStrings([
+    ...teachers.map((t) => t.userId?.toString() ?? ''),
+    ...admins.map((u) => u._id.toString()),
+  ]);
+}
+
 async function createForRecipients(
   recipientUserIds: string[],
   input: {
@@ -102,7 +123,9 @@ async function filterNotificationsForTeacher(userId: string, rows: NotificationR
   const teacher = await Teacher.findOne({ userId: new mongoose.Types.ObjectId(userId) }).select('_id').lean().exec();
   if (!teacher) return rows;
 
-  const classScopedRows = rows.filter((row) => row.type === 'lesson_update' || row.type === 'test_created');
+  const classScopedRows = rows.filter(
+    (row) => row.type === 'lesson_update' || row.type === 'test_created' || row.type === 'announcement_created'
+  );
   const classIds = uniqStrings(
     classScopedRows.map((row) => (typeof row.payload?.classId === 'string' ? row.payload.classId : ''))
   ).filter((id) => mongoose.Types.ObjectId.isValid(id));
@@ -143,7 +166,7 @@ async function filterNotificationsForTeacher(userId: string, rows: NotificationR
   }
 
   return rows.filter((row) => {
-    if (row.type === 'lesson_update' || row.type === 'test_created') {
+    if (row.type === 'lesson_update' || row.type === 'test_created' || row.type === 'announcement_created') {
       const classId = typeof row.payload?.classId === 'string' ? row.payload.classId : '';
       return Boolean(classId && allowedClassIds.has(classId));
     }
@@ -228,6 +251,30 @@ export async function notifyTestCreated(params: {
       testType: params.testType,
       date: params.date,
       subject: params.subject ?? '',
+    },
+  });
+}
+
+export async function notifyAnnouncementCreated(params: {
+  actorUserId?: string | null;
+  classId: string;
+  className: string;
+  announcementId: string;
+  title: string;
+  teacherName: string;
+}) {
+  const recipientUserIds = await getClassTeacherAndAdminUserIds(params.classId);
+  const teacherLabel = (params.teacherName ?? '').trim() || '강사';
+  await createForRecipients(recipientUserIds, {
+    type: 'announcement_created',
+    title: '새 공지 등록',
+    body: `${params.className} · ${teacherLabel}T · ${clipText(params.title)}`,
+    payload: {
+      classId: params.classId,
+      className: params.className,
+      announcementId: params.announcementId,
+      title: params.title,
+      teacherName: teacherLabel,
     },
   });
 }
@@ -602,8 +649,21 @@ export async function toggleReplyLike(params: {
 }
 
 const USER_BELL_TYPES: NotificationType[] = ['lesson_update', 'test_created', 'reply_like'];
-const TEACHER_BELL_TYPES: NotificationType[] = ['lesson_update', 'test_created', 'student_reply', 'parent_reply'];
-const ADMIN_BELL_TYPES: NotificationType[] = ['lesson_update', 'test_created', 'student_reply', 'parent_reply', 'reply_like'];
+const TEACHER_BELL_TYPES: NotificationType[] = [
+  'lesson_update',
+  'test_created',
+  'student_reply',
+  'parent_reply',
+  'announcement_created',
+];
+const ADMIN_BELL_TYPES: NotificationType[] = [
+  'lesson_update',
+  'test_created',
+  'student_reply',
+  'parent_reply',
+  'reply_like',
+  'announcement_created',
+];
 
 function resolveTypesForRole(role: string | undefined, requestedTypes?: NotificationType[]): NotificationType[] | undefined {
   if (role === 'student' || role === 'parent') {

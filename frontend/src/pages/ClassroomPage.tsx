@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import type { ClassDetail, ClassStudentItem } from '../types/class';
@@ -15,6 +15,17 @@ function todayString(): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+function parseYmdParam(raw: string | null): string | null {
+  if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  return raw;
+}
+
+function parsePeriodParam(raw: string | null): number | null {
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 1 ? n : null;
 }
 
 function lessonDateToYmd(raw: string): string {
@@ -93,12 +104,17 @@ function buildInitialVideos(p: PeriodItem): ReviewVideoItem[] {
 
 export default function ClassroomPage() {
   const { classId } = useParams<{ classId: string }>();
+  const [searchParams] = useSearchParams();
   const { role } = useAuth();
   const isTeacher = role === 'teacher';
 
+  const dateFromUrl = parseYmdParam(searchParams.get('date'));
+  const periodFromUrl = parsePeriodParam(searchParams.get('period'));
+  const pendingPeriodRef = useRef<number | null>(periodFromUrl);
+
   const [classInfo, setClassInfo] = useState<ClassDetail | null>(null);
   const [lessonDay, setLessonDay] = useState<LessonDayDetail | null>(null);
-  const [date, setDate] = useState(todayString);
+  const [date, setDate] = useState(() => dateFromUrl ?? todayString());
   const [loadingClass, setLoadingClass] = useState(true);
   const [loadingLesson, setLoadingLesson] = useState(true);
   const [error, setError] = useState('');
@@ -114,6 +130,19 @@ export default function ClassroomPage() {
   const [reviewModalPeriodIndex, setReviewModalPeriodIndex] = useState<number | null>(null);
   const [reordering, setReordering] = useState(false);
   const [markedDates, setMarkedDates] = useState<string[]>([]);
+
+  useEffect(() => {
+    const nextDate = parseYmdParam(searchParams.get('date'));
+    const nextPeriod = parsePeriodParam(searchParams.get('period'));
+    if (nextPeriod != null) pendingPeriodRef.current = nextPeriod;
+    if (nextDate && nextDate !== date) {
+      setDate(nextDate);
+    } else if (nextPeriod != null && nextDate === date) {
+      setSelectedPeriodNumber(nextPeriod);
+      pendingPeriodRef.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- apply URL deep-link only when searchParams change
+  }, [searchParams]);
 
   const periods = lessonDay?.periods ?? [];
 
@@ -196,8 +225,14 @@ export default function ClassroomPage() {
   }, [fetchMarkedDates, lessonDay?._id, lessonDay?.periods?.length]);
 
   useEffect(() => {
-    setSelectedPeriodNumber(null);
     setRegisterTeacherId('');
+    const pending = pendingPeriodRef.current;
+    if (pending != null) {
+      setSelectedPeriodNumber(pending);
+      pendingPeriodRef.current = null;
+    } else {
+      setSelectedPeriodNumber(null);
+    }
   }, [date, lessonDay?._id]);
 
   useEffect(() => {

@@ -123,7 +123,11 @@ export default function ReplyInboxSection() {
                   <div className="px-4 py-4 sm:px-5">
                     <div className="flex items-start justify-between gap-3">
                       <Link
-                        to={item.classId ? `/admin/lessons/classroom/${item.classId}` : '/admin/lessons'}
+                        to={
+                          item.classId
+                            ? `/admin/lessons/classroom/${item.classId}?date=${encodeURIComponent(item.date)}&period=${item.periodNumber}`
+                            : '/admin/lessons'
+                        }
                         className="min-w-0 flex-1 hover:opacity-80 transition-opacity"
                       >
                         <div className="flex items-center gap-2">

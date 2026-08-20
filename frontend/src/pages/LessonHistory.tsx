@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import RecordDatePicker from '../components/RecordDatePicker';
 
 function LibraryIcon({ className, strokeWidth, stroke, style }: { className?: string; strokeWidth?: number; stroke?: string; style?: React.CSSProperties }) {
@@ -95,7 +95,8 @@ function todayDateOnly(): string {
 
 export default function LessonHistory() {
   const { role } = useAuth();
-  const { selectedClassId } = useStudentClass();
+  const { selectedClassId, setSelectedClassId } = useStudentClass();
+  const [searchParams] = useSearchParams();
   const [selectedDate, setSelectedDate] = useState<string>(todayDateOnly());
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [list, setList] = useState<LessonItem[]>([]);
@@ -110,6 +111,13 @@ export default function LessonHistory() {
       : '복습 영상은 학생 본인 계정에서만 시청할 수 있습니다. 관리자 접속 계정으로는 시청할 수 없습니다.';
 
   const apiPrefix = role === 'parent' ? 'parent' : 'student';
+  const dateFromUrl = searchParams.get('date');
+  const periodFromUrl = searchParams.get('period');
+  const classIdFromUrl = searchParams.get('classId');
+
+  useEffect(() => {
+    if (classIdFromUrl) setSelectedClassId(classIdFromUrl);
+  }, [classIdFromUrl, setSelectedClassId]);
 
   const fetchForDate = useCallback(
     (date: string) => {
@@ -163,9 +171,12 @@ export default function LessonHistory() {
           setIsAdminAccess(Boolean(d.isAdminAccess));
           const dates = [...new Set(lessons.map((l) => toDateOnly(l.date)))].sort();
           setAvailableDates(dates);
-          const latestDay = dates[dates.length - 1] ?? toDateOnly(lessons[0].date);
-          setSelectedDate(latestDay);
-          const filtered = lessons.filter((l) => toDateOnly(l.date) === latestDay);
+          const preferred =
+            dateFromUrl && /^\d{4}-\d{2}-\d{2}$/.test(dateFromUrl) && dates.includes(dateFromUrl)
+              ? dateFromUrl
+              : dates[dates.length - 1] ?? toDateOnly(lessons[0].date);
+          setSelectedDate(preferred);
+          const filtered = lessons.filter((l) => toDateOnly(l.date) === preferred);
           setList(filtered);
         } else {
           setIsAdminAccess(Boolean(d?.isAdminAccess));
@@ -181,11 +192,19 @@ export default function LessonHistory() {
         setSelectedDate(todayDateOnly());
       })
       .finally(() => setLoading(false));
-  }, [apiPrefix, role, selectedClassId]);
+  }, [apiPrefix, role, selectedClassId, dateFromUrl]);
 
   useEffect(() => {
     fetchLatestThenSetDate();
   }, [fetchLatestThenSetDate]);
+
+  useEffect(() => {
+    if (loading || !periodFromUrl) return;
+    const timer = window.setTimeout(() => {
+      document.getElementById(`lesson-period-${periodFromUrl}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+    return () => window.clearTimeout(timer);
+  }, [loading, list, periodFromUrl]);
 
   const handleDateChange = (next: string) => {
     if (!next) return;
@@ -254,7 +273,8 @@ export default function LessonHistory() {
           sortedPeriods.map((l) => (
             <section
               key={l._id}
-              className="bg-white border border-slate-100 rounded-[20px] p-6 shadow-sm"
+              id={`lesson-period-${l.period}`}
+              className="bg-white border border-slate-100 rounded-[20px] p-6 shadow-sm scroll-mt-20"
             >
               {/* 카드 헤더: 홈 제출 예정 과제 스타일 */}
               <div className="flex items-center justify-between mb-6">
