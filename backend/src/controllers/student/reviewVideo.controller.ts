@@ -99,9 +99,12 @@ export async function getClassWatchStats(req: Request, res: Response<ApiResponse
       res.status(200).json({ success: true, data: [] });
       return;
     }
+    const dateFrom = typeof req.query.dateFrom === 'string' ? req.query.dateFrom : undefined;
+    const dateTo = typeof req.query.dateTo === 'string' ? req.query.dateTo : undefined;
     const list = await reviewVideoService.getClassWatchStats(
       classId,
-      teacherId ? teacherId.toString() : undefined
+      teacherId ? teacherId.toString() : undefined,
+      { dateFrom, dateTo }
     );
     res.status(200).json({ success: true, data: list });
   } catch (err) {

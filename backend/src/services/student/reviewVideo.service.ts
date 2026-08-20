@@ -401,7 +401,11 @@ export async function listPendingForStudent(studentId: string) {
     });
 }
 
-export async function getClassWatchStats(classId: string, teacherId?: string) {
+export async function getClassWatchStats(
+  classId: string,
+  teacherId?: string,
+  options: { dateFrom?: string; dateTo?: string } = {}
+) {
   if (!mongoose.Types.ObjectId.isValid(classId)) return [];
   const cid = new mongoose.Types.ObjectId(classId);
   const classDoc = await Class.findById(cid).select('studentIds').lean().exec();
@@ -413,7 +417,18 @@ export async function getClassWatchStats(classId: string, teacherId?: string) {
     .exec();
   const nameById = new Map(students.map((s) => [s._id.toString(), s.name]));
 
-  const days = await LessonDay.find({ classId: cid }).sort({ date: -1 }).lean().exec();
+  const dateQuery: Record<string, Date> = {};
+  if (options.dateFrom && /^\d{4}-\d{2}-\d{2}$/.test(options.dateFrom)) {
+    dateQuery.$gte = new Date(options.dateFrom);
+  }
+  if (options.dateTo && /^\d{4}-\d{2}-\d{2}$/.test(options.dateTo)) {
+    dateQuery.$lte = new Date(`${options.dateTo}T23:59:59.999Z`);
+  }
+
+  const dayFilter: Record<string, unknown> = { classId: cid };
+  if (Object.keys(dateQuery).length > 0) dayFilter.date = dateQuery;
+
+  const days = await LessonDay.find(dayFilter).sort({ date: -1 }).lean().exec();
   const rows: {
     studentId: string;
     studentName: string;
