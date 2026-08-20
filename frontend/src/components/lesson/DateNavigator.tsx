@@ -109,7 +109,7 @@ export default function DateNavigator({
       <button
         type="button"
         onClick={() => setIsOpen((o) => !o)}
-        className="h-[42px] px-4 py-2.5 box-border bg-white border border-slate-200 rounded-lg text-[14px] text-slate-900 hover:border-slate-400 min-w-[168px] text-left"
+        className="h-[42px] px-4 py-2.5 box-border bg-white border border-slate-200 rounded-lg text-[14px] text-slate-900 hover:border-slate-400 min-w-[168px] text-center"
         aria-label="날짜 선택"
       >
         {formatDisplay(value)}
