@@ -29,8 +29,8 @@ function rowClasses(status: PeriodRowStatus, selected: boolean): string {
   const base = 'cursor-pointer transition-colors border-b border-slate-100 last:border-b-0';
   if (status === 'mine') {
     return selected
-      ? `${base} bg-sky-50 border-l-[3px] border-l-sky-500`
-      : `${base} bg-white border-l-[3px] border-l-sky-400 hover:bg-sky-50/60`;
+      ? `${base} bg-sky-100 border-l-[3px] border-l-sky-500`
+      : `${base} bg-sky-50 border-l-[3px] border-l-sky-400 hover:bg-sky-100`;
   }
   if (status === 'other') {
     return selected
