@@ -36,17 +36,6 @@ function findPeriodIndexByNumber(periods: PeriodItem[], n: number): number {
   return periods.findIndex((p, i) => periodNum(p, i + 1) === n);
 }
 
-function reviewLabelForPeriod(p: PeriodItem | null, status: PeriodRowItem['status']): string {
-  if (status === 'empty' || !p) return '—';
-  if (status === 'other') {
-    return p.hasReviewVideos ? `${p.reviewVideoCount ?? 0}개` : '없음';
-  }
-  const vids = (p.reviewVideos ?? []).filter((v) => (v.url ?? '').trim() || (v.videoId ?? '').trim());
-  if (vids.length > 0) return `${vids.length}개`;
-  if ((p.reviewVideoUrl ?? '').trim()) return '1개';
-  return '없음';
-}
-
 function buildPeriodRows(
   periods: PeriodItem[],
   slotCount: number,
@@ -61,19 +50,16 @@ function buildPeriodRows(
         periodNumber: n,
         status: 'empty',
         removable: n === slotCount && slotCount > minSlotCount,
-        reviewLabel: '—',
       });
       continue;
     }
     const p = periods[idx];
     const isMine = p.isMine === true || (myTeacherId != null && teacherIdOf(p) === myTeacherId);
-    const status = isMine ? 'mine' : 'other';
     rows.push({
       periodNumber: n,
-      status,
+      status: isMine ? 'mine' : 'other',
       teacherName: teacherNameOf(p),
       periodIndex: idx,
-      reviewLabel: reviewLabelForPeriod(p, status),
     });
   }
   return rows;
@@ -349,7 +335,7 @@ export default function ClassroomPage() {
     }
   };
 
-  const emptySlotNumbers = periodRows.filter((r) => r.status === 'empty').map((r) => r.periodNumber);
+  const moveTargets = periodRows.filter((r) => r.periodNumber !== selectedPeriodNumber);
   const isOwnSelected =
     selectedPeriod != null &&
     (selectedPeriod.isMine === true || (myTeacherId != null && teacherIdOf(selectedPeriod) === myTeacherId));
@@ -467,7 +453,7 @@ export default function ClassroomPage() {
               </div>
             ) : selectedPeriod && selectedPeriodIndex >= 0 ? (
               <>
-                {isOwnSelected && emptySlotNumbers.length > 0 && (
+                {selectedPeriod && moveTargets.length > 0 && (
                   <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
                     <span className="font-medium">교시 변경</span>
                     <select
@@ -482,9 +468,11 @@ export default function ClassroomPage() {
                       <option value="" disabled>
                         이동할 교시 선택
                       </option>
-                      {emptySlotNumbers.map((n) => (
-                        <option key={n} value={n}>
-                          {n}교시 (비어있음)
+                      {moveTargets.map((row) => (
+                        <option key={row.periodNumber} value={row.periodNumber}>
+                          {row.status === 'empty'
+                            ? `${row.periodNumber}교시 (비어있음)`
+                            : `${row.periodNumber}교시 (${row.teacherName || '등록됨'} · 맞바꾸기)`}
                         </option>
                       ))}
                     </select>
@@ -496,10 +484,10 @@ export default function ClassroomPage() {
                 period={selectedPeriod}
                 teacherOptions={teacherOptions}
                 classStudents={classStudents}
-                readOnly={!(selectedPeriod.isMine === true || (myTeacherId != null && teacherIdOf(selectedPeriod) === myTeacherId))}
+                readOnly={false}
+                canDelete={isOwnSelected}
                 canEditReviewVideos={
-                  (selectedPeriod.isMine === true || (myTeacherId != null && teacherIdOf(selectedPeriod) === myTeacherId)) &&
-                  selectedPeriod.canEditReviewVideos !== false
+                  isOwnSelected && selectedPeriod.canEditReviewVideos !== false
                 }
                 useReviewVideoModal
                 lockTeacherSelect

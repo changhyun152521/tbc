@@ -7,7 +7,6 @@ export interface PeriodRowItem {
   periodIndex?: number;
   /** 빈 칸 제거 가능 (끝 슬롯만) */
   removable?: boolean;
-  reviewLabel: string;
 }
 
 interface PeriodListTableProps {
@@ -87,13 +86,12 @@ export default function PeriodListTable({
         </p>
       ) : (
         <div className="overflow-x-auto scrollbar-hide border border-slate-200 rounded-lg">
-          <table className="w-full text-left border-collapse min-w-[280px] text-sm">
+          <table className="w-full text-left border-collapse min-w-[240px] text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr className="text-slate-500 text-xs font-semibold">
                 <th className="px-3 py-2.5 w-16 whitespace-nowrap">교시</th>
                 <th className="px-3 py-2.5 whitespace-nowrap">담당</th>
                 <th className="px-3 py-2.5 w-24 whitespace-nowrap">구분</th>
-                <th className="px-3 py-2.5 w-20 whitespace-nowrap">복습영상</th>
               </tr>
             </thead>
             <tbody>
@@ -113,9 +111,6 @@ export default function PeriodListTable({
                     </td>
                     <td className={`px-3 py-3 whitespace-nowrap ${roleCellClasses(row.status)}`}>
                       {roleLabel(row.status)}
-                    </td>
-                    <td className="px-3 py-3 text-slate-500 text-xs whitespace-nowrap">
-                      {row.reviewLabel}
                     </td>
                   </tr>
                 );

@@ -18,6 +18,8 @@ interface PeriodSectionProps {
   onOpenReviewVideos?: () => void;
   /** 강사 선택 숨김 */
   lockTeacherSelect?: boolean;
+  /** 교시 삭제 버튼 (기본: 읽기 전용이 아니면 표시) */
+  canDelete?: boolean;
   onSave: (
     periodIndex: number,
     teacherId: string,
@@ -96,6 +98,7 @@ export default function PeriodSection({
   useReviewVideoModal = false,
   onOpenReviewVideos,
   lockTeacherSelect = false,
+  canDelete,
   onSave,
   onDelete,
   saveAllTrigger,
@@ -295,7 +298,7 @@ export default function PeriodSection({
             {saving ? '저장 중...' : '저장'}
           </button>
         )}
-        {!readOnly && (
+        {!readOnly && (canDelete ?? true) && (
         <button
           type="button"
           onClick={() => onDelete(periodIndex)}

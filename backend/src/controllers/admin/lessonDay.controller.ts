@@ -274,11 +274,6 @@ export async function updatePeriod(req: Request, res: Response<ApiResponse>): Pr
     const periodNumber = req.body.periodNumber != null ? Number(req.body.periodNumber) : undefined;
 
     if (role === 'teacher') {
-      const myTeacherId = await getTeacherIdByUserId(userId);
-      if (!myTeacherId || !assertPeriodOwnedByTeacher(period, myTeacherId)) {
-        res.status(403).json({ success: false, message: '본인 교시만 수정할 수 있습니다.' });
-        return;
-      }
       teacherId = undefined;
       reviewVideos = undefined;
       reviewVideoUrl = undefined;
@@ -315,15 +310,7 @@ export async function movePeriod(req: Request, res: Response<ApiResponse>): Prom
       res.status(400).json({ success: false, message: 'periodIndex와 periodNumber가 필요합니다.' });
       return;
     }
-    const { role, id: userId } = userOf(req);
-    if (role === 'teacher') {
-      const myTeacherId = await getTeacherIdByUserId(userId);
-      const period = await sortedPeriodAt(req.params.id, periodIndex);
-      if (!myTeacherId || !assertPeriodOwnedByTeacher(period ?? undefined, myTeacherId)) {
-        res.status(403).json({ success: false, message: '본인 교시만 이동할 수 있습니다.' });
-        return;
-      }
-    }
+    const { role } = userOf(req);
     const result = await lessonDayService.movePeriodNumber(req.params.id, periodIndex, newPeriodNumber);
     if (result && 'error' in result) {
       res.status(400).json({ success: false, message: result.error });

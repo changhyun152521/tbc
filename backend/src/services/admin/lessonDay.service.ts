@@ -171,8 +171,12 @@ export async function movePeriodNumber(
   lesson.periods = sortPeriods(lesson.periods as IPeriod[]) as typeof lesson.periods;
   if (periodIndex < 0 || periodIndex >= lesson.periods.length) return null;
   if (newPeriodNumber < 1) return { error: '유효한 교시 번호가 아닙니다.' };
-  if (periodNumberTaken(lesson.periods as IPeriod[], newPeriodNumber, periodIndex)) {
-    return { error: '이미 등록된 교시 번호입니다.' };
+  const currentNumber = lesson.periods[periodIndex].periodNumber ?? periodIndex + 1;
+  const occupant = (lesson.periods as IPeriod[]).find(
+    (p, i) => i !== periodIndex && (p.periodNumber ?? 0) === newPeriodNumber
+  );
+  if (occupant) {
+    occupant.periodNumber = currentNumber;
   }
   lesson.periods[periodIndex].periodNumber = newPeriodNumber;
   lesson.periods = sortPeriods(lesson.periods as IPeriod[]) as typeof lesson.periods;
