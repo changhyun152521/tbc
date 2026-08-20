@@ -150,9 +150,9 @@ export default function CommentReplySection({
                   <ThumbsUpIcon className="w-3.5 h-3.5" />
                 </button>
                 {likeTipOpen && (
-                  <span className="absolute left-1/2 -translate-x-1/2 bottom-[calc(100%+6px)] z-20 w-max max-w-[220px] rounded-lg bg-slate-800 px-2.5 py-1.5 text-[11px] leading-snug text-white shadow-lg">
+                  <span className="absolute left-0 bottom-[calc(100%+6px)] z-20 w-max max-w-[min(220px,calc(100vw-2rem))] rounded-lg bg-slate-800 px-2.5 py-1.5 text-[11px] leading-snug text-white shadow-lg sm:left-1/2 sm:-translate-x-1/2">
                     {likeTipText}
-                    <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
+                    <span className="absolute left-2.5 top-full border-4 border-transparent border-t-slate-800 sm:left-1/2 sm:-translate-x-1/2" />
                   </span>
                 )}
               </span>
