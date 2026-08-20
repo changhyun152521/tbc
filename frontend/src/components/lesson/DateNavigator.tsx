@@ -93,8 +93,7 @@ export default function DateNavigator({
     'shrink-0 p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300';
 
   return (
-    <div ref={containerRef} className={`relative flex items-center gap-2 ${className}`}>
-      <label className="shrink-0 text-xs font-bold text-slate-500 uppercase tracking-wide">날짜</label>
+    <div ref={containerRef} className={`relative flex items-center justify-center gap-2 w-full ${className}`}>
       <button
         type="button"
         onClick={() => onChange(shiftDate(value, -1))}
@@ -127,7 +126,7 @@ export default function DateNavigator({
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-10 mt-2 z-50 w-[280px] bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 w-[280px] bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
             <button
               type="button"

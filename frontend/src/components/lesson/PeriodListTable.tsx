@@ -20,6 +20,8 @@ interface PeriodListTableProps {
   onReorder?: (periodIndex: number, fromNumber: number, toNumber: number) => void;
   reordering?: boolean;
   adding?: boolean;
+  /** 강사 화면: 이름 옆 나/다른 강사 뱃지 */
+  showRoleBadges?: boolean;
 }
 
 function rowClasses(selected: boolean): string {
@@ -54,6 +56,7 @@ export default function PeriodListTable({
   onReorder,
   reordering = false,
   adding = false,
+  showRoleBadges = true,
 }: PeriodListTableProps) {
   const lastRow = rows[rows.length - 1];
   const canShrink =
@@ -134,7 +137,7 @@ export default function PeriodListTable({
                       ) : (
                         <span className="inline-flex items-center gap-1.5 flex-wrap">
                           <span>{row.teacherName || '—'}</span>
-                          <NameBadge status={row.status} />
+                          {showRoleBadges && <NameBadge status={row.status} />}
                         </span>
                       )}
                     </td>

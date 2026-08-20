@@ -102,15 +102,10 @@ export default function ClassroomPage() {
   const [loadingClass, setLoadingClass] = useState(true);
   const [loadingLesson, setLoadingLesson] = useState(true);
   const [error, setError] = useState('');
-  const [addPeriodOpen, setAddPeriodOpen] = useState(false);
-  const [addPeriodTeacherId, setAddPeriodTeacherId] = useState('');
   const [addingPeriod, setAddingPeriod] = useState(false);
-  const [saveAllTrigger, setSaveAllTrigger] = useState(0);
-  const [savingAll, setSavingAll] = useState(false);
-  const [periodHasChanges, setPeriodHasChanges] = useState<Record<number, boolean>>({});
-  const pendingSaveCountRef = useRef(0);
   const slotBaselineRef = useRef<{ date: string; lessonId: string | null; min: number } | null>(null);
   const [teacherOptions, setTeacherOptions] = useState<{ _id: string; name: string }[]>([]);
+  const [registerTeacherId, setRegisterTeacherId] = useState('');
 
   const [myTeacherId, setMyTeacherId] = useState<string | null>(null);
   const [slotCount, setSlotCount] = useState(0);
@@ -120,7 +115,6 @@ export default function ClassroomPage() {
   const [reordering, setReordering] = useState(false);
   const [markedDates, setMarkedDates] = useState<string[]>([]);
 
-  const hasAnyChanges = Object.values(periodHasChanges).some(Boolean);
   const periods = lessonDay?.periods ?? [];
 
   const classStudents = classInfo?.studentIds?.length
@@ -202,20 +196,18 @@ export default function ClassroomPage() {
   }, [fetchMarkedDates, lessonDay?._id, lessonDay?.periods?.length]);
 
   useEffect(() => {
-    setPeriodHasChanges({});
-    if (isTeacher) setSelectedPeriodNumber(null);
-  }, [date, lessonDay?._id, isTeacher]);
+    setSelectedPeriodNumber(null);
+    setRegisterTeacherId('');
+  }, [date, lessonDay?._id]);
 
   useEffect(() => {
-    if (!isTeacher) {
-      apiClient
-        .get<{ success: boolean; data: { _id: string; name: string }[] }>('/admin/teachers')
-        .then((res) => {
-          if (res.data.success && Array.isArray(res.data.data)) setTeacherOptions(res.data.data);
-        })
-        .catch(() => setTeacherOptions([]));
-    }
-  }, [isTeacher]);
+    apiClient
+      .get<{ success: boolean; data: { _id: string; name: string }[] }>('/admin/teachers')
+      .then((res) => {
+        if (res.data.success && Array.isArray(res.data.data)) setTeacherOptions(res.data.data);
+      })
+      .catch(() => setTeacherOptions([]));
+  }, []);
 
   useEffect(() => {
     if (!isTeacher) return;
@@ -228,7 +220,7 @@ export default function ClassroomPage() {
   }, [isTeacher]);
 
   useEffect(() => {
-    if (!isTeacher || loadingLesson) return;
+    if (loadingLesson) return;
     const lessonId = lessonDay?._id ?? null;
     const min = minRegisteredSlot(periods);
     const baseline = slotBaselineRef.current;
@@ -246,7 +238,7 @@ export default function ClassroomPage() {
       slotBaselineRef.current = { ...baseline, min };
       setSlotCount(min);
     }
-  }, [isTeacher, date, lessonDay?._id, periods, loadingLesson]);
+  }, [date, lessonDay?._id, periods, loadingLesson]);
 
   const ensureLessonDay = async (): Promise<string | null> => {
     if (!classId) return null;
@@ -266,7 +258,7 @@ export default function ClassroomPage() {
   };
 
   const ensureLessonDayThenAddPeriod = async (periodNumber?: number, teacherId?: string) => {
-    const tid = teacherId ?? addPeriodTeacherId;
+    const tid = teacherId ?? (isTeacher ? undefined : registerTeacherId);
     if (!isTeacher && !tid) return;
     if (isTeacher && periodNumber == null) return;
     setAddingPeriod(true);
@@ -277,8 +269,7 @@ export default function ClassroomPage() {
       await apiClient.post(`/admin/lesson-days/${lessonId}/periods`, {
         ...(isTeacher ? { periodNumber } : { teacherId: tid, periodNumber }),
       });
-      setAddPeriodOpen(false);
-      setAddPeriodTeacherId('');
+      setRegisterTeacherId('');
       await fetchLessonByDate();
       if (periodNumber != null) setSelectedPeriodNumber(periodNumber);
     } catch (err) {
@@ -322,12 +313,6 @@ export default function ClassroomPage() {
       await fetchLessonByDate();
     } catch (err) {
       setError(err instanceof Error ? err.message : '저장에 실패했습니다.');
-    } finally {
-      pendingSaveCountRef.current--;
-      if (pendingSaveCountRef.current <= 0) {
-        pendingSaveCountRef.current = 0;
-        setSavingAll(false);
-      }
     }
   };
 
@@ -339,26 +324,6 @@ export default function ClassroomPage() {
     });
     await fetchLessonByDate();
   };
-
-  const handleWillSavePeriod = useCallback((_periodIndex: number) => {
-    pendingSaveCountRef.current++;
-  }, []);
-
-  const handleHasChangesChange = useCallback((periodIndex: number, hasChanges: boolean) => {
-    setPeriodHasChanges((prev) =>
-      prev[periodIndex] === hasChanges ? prev : { ...prev, [periodIndex]: hasChanges }
-    );
-  }, []);
-
-  const handleSaveAll = useCallback(() => {
-    if (!lessonDay?.periods?.length) return;
-    setError('');
-    setSavingAll(true);
-    setSaveAllTrigger((t) => t + 1);
-    setTimeout(() => {
-      if (pendingSaveCountRef.current === 0) setSavingAll(false);
-    }, 150);
-  }, [lessonDay?.periods?.length]);
 
   const handleMovePeriod = async (periodIndex: number, fromNumber: number, toNumber: number) => {
     if (!lessonDay?._id || periodIndex < 0) return;
@@ -451,34 +416,13 @@ export default function ClassroomPage() {
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <DateNavigator value={date} onChange={setDate} markedDates={markedDates} />
-          {!isTeacher && (
-            <>
-              <button
-                type="button"
-                onClick={() => setAddPeriodOpen(true)}
-                className="h-[42px] px-4 py-2.5 box-border bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50 hover:border-slate-400 flex items-center"
-              >
-                교시 추가
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveAll}
-                disabled={!lessonDay?.periods?.length || savingAll || !hasAnyChanges}
-                className="h-[42px] px-4 py-2.5 box-border bg-slate-800 text-white rounded-lg text-sm font-semibold hover:bg-slate-700 disabled:opacity-50 disabled:hover:bg-slate-800 flex items-center"
-              >
-                {savingAll ? '저장 중...' : '저장'}
-              </button>
-            </>
-          )}
-        </div>
+        <DateNavigator value={date} onChange={setDate} markedDates={markedDates} />
 
         {loadingLesson ? (
           <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-500">
             수업 정보 로딩 중...
           </div>
-        ) : isTeacher ? (
+        ) : (
           <>
             <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">교시</p>
@@ -491,6 +435,7 @@ export default function ClassroomPage() {
                 onReorder={handleMovePeriod}
                 reordering={reordering}
                 adding={addingPeriod}
+                showRoleBadges={isTeacher}
               />
             </div>
             {selectedPeriodNumber == null ? (
@@ -502,7 +447,7 @@ export default function ClassroomPage() {
               </div>
             ) : selectedPeriod && selectedPeriodIndex >= 0 ? (
               <>
-                {selectedPeriod && moveTargets.length > 0 && (
+                {moveTargets.length > 0 && (
                   <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
                     <span className="font-medium">교시 변경</span>
                     <select
@@ -530,112 +475,66 @@ export default function ClassroomPage() {
                   </div>
                 )}
                 <PeriodSection
-                key={`${lessonDay?._id ?? 'new'}-${selectedPeriodIndex}`}
-                periodIndex={selectedPeriodIndex}
-                period={selectedPeriod}
-                teacherOptions={teacherOptions}
-                classStudents={classStudents}
-                readOnly={false}
-                canDelete
-                canEditReviewVideos={
-                  isOwnSelected && selectedPeriod.canEditReviewVideos !== false
-                }
-                useReviewVideoModal
-                lockTeacherSelect
-                onOpenReviewVideos={() => {
-                  setReviewModalPeriodIndex(selectedPeriodIndex);
-                  setReviewModalOpen(true);
-                }}
-                onSave={handleSavePeriod}
-                onDelete={handleDeletePeriod}
-              />
+                  key={`${lessonDay?._id ?? 'new'}-${selectedPeriodIndex}`}
+                  periodIndex={selectedPeriodIndex}
+                  period={selectedPeriod}
+                  teacherOptions={teacherOptions}
+                  classStudents={classStudents}
+                  readOnly={false}
+                  canDelete
+                  canEditReviewVideos={!isTeacher || (isOwnSelected && selectedPeriod.canEditReviewVideos !== false)}
+                  useReviewVideoModal={isTeacher}
+                  lockTeacherSelect={isTeacher}
+                  onOpenReviewVideos={() => {
+                    setReviewModalPeriodIndex(selectedPeriodIndex);
+                    setReviewModalOpen(true);
+                  }}
+                  onSave={handleSavePeriod}
+                  onDelete={handleDeletePeriod}
+                />
               </>
             ) : selectedRow?.status === 'empty' ? (
               <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center">
                 <p className="text-slate-800 font-semibold">{selectedPeriodNumber}교시 · 비어있음</p>
-                <p className="text-sm text-slate-500 mt-2">이 교시에 내 수업을 등록할 수 있습니다.</p>
-                <button
-                  type="button"
-                  disabled={addingPeriod}
-                  onClick={() => void handleTeacherRegisterAt(selectedPeriodNumber)}
-                  className="mt-5 px-6 py-2.5 bg-slate-950 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 disabled:opacity-50"
-                >
-                  {addingPeriod ? '등록 중...' : '내 교시 등록'}
-                </button>
+                <p className="text-sm text-slate-500 mt-2">
+                  {isTeacher ? '이 교시에 내 수업을 등록할 수 있습니다.' : '담당 강사를 선택해 교시를 등록하세요.'}
+                </p>
+                {isTeacher ? (
+                  <button
+                    type="button"
+                    disabled={addingPeriod}
+                    onClick={() => void handleTeacherRegisterAt(selectedPeriodNumber)}
+                    className="mt-5 px-6 py-2.5 bg-slate-950 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    {addingPeriod ? '등록 중...' : '내 교시 등록'}
+                  </button>
+                ) : (
+                  <div className="mt-5 max-w-xs mx-auto space-y-3">
+                    <select
+                      value={registerTeacherId}
+                      onChange={(e) => setRegisterTeacherId(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-slate-900"
+                    >
+                      <option value="">강사 선택</option>
+                      {teacherOptions.map((t) => (
+                        <option key={t._id} value={t._id}>{t.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      disabled={addingPeriod || !registerTeacherId}
+                      onClick={() => void ensureLessonDayThenAddPeriod(selectedPeriodNumber)}
+                      className="w-full px-6 py-2.5 bg-slate-950 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 disabled:opacity-50"
+                    >
+                      {addingPeriod ? '등록 중...' : '교시 등록'}
+                    </button>
+                  </div>
+                )}
               </div>
             ) : null}
           </>
-        ) : !lessonDay ? (
-          <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-slate-500">
-            이 날짜에는 아직 수업이 없습니다. 교시 추가 버튼으로 수업을 시작하세요.
-          </div>
-        ) : (
-          <div className="space-y-6 sm:space-y-8">
-            {lessonDay.periods?.length === 0 ? (
-              <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-slate-500">
-                등록된 교시가 없습니다. 교시 추가 버튼으로 추가하세요.
-              </div>
-            ) : (
-              lessonDay.periods?.map((period, idx) => (
-                <PeriodSection
-                  key={idx}
-                  periodIndex={idx}
-                  period={period}
-                  teacherOptions={teacherOptions}
-                  classStudents={classStudents}
-                  onSave={handleSavePeriod}
-                  onDelete={handleDeletePeriod}
-                  saveAllTrigger={saveAllTrigger}
-                  onWillSave={handleWillSavePeriod}
-                  onHasChangesChange={handleHasChangesChange}
-                />
-              ))
-            )}
-          </div>
         )}
       </div>
-
-      {!isTeacher && addPeriodOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50"
-          onClick={() => setAddPeriodOpen(false)}
-        >
-          <div
-            className="bg-white border border-slate-200 rounded-2xl shadow-lg p-6 max-w-sm w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-bold text-slate-950 mb-4">교시 추가</h3>
-            <p className="text-sm text-slate-500 mb-3">담당 강사를 선택하세요.</p>
-            <select
-              value={addPeriodTeacherId}
-              onChange={(e) => setAddPeriodTeacherId(e.target.value)}
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-slate-900 mb-4"
-            >
-              <option value="">강사 선택</option>
-              {teacherOptions.map((t) => (
-                <option key={t._id} value={t._id}>{t.name}</option>
-              ))}
-            </select>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => { setAddPeriodOpen(false); setAddPeriodTeacherId(''); }}
-                className="flex-1 py-2 border border-slate-200 rounded-lg text-slate-700"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={() => ensureLessonDayThenAddPeriod()}
-                disabled={!addPeriodTeacherId || addingPeriod}
-                className="flex-1 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 hover:border-slate-400 disabled:opacity-50 disabled:hover:bg-white"
-              >
-                {addingPeriod ? '추가 중...' : '추가'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {isTeacher && reviewModalOpen && reviewModalPeriodIndex != null && selectedPeriod && (
         <ReviewVideoRegisterModal
