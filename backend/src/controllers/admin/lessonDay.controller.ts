@@ -233,15 +233,7 @@ export async function removePeriod(req: Request, res: Response<ApiResponse>): Pr
       res.status(400).json({ success: false, message: '유효한 periodIndex가 필요합니다.' });
       return;
     }
-    const { role, id: userId } = userOf(req);
-    if (role === 'teacher') {
-      const myTeacherId = await getTeacherIdByUserId(userId);
-      const period = await sortedPeriodAt(req.params.id, periodIndex);
-      if (!myTeacherId || !assertPeriodOwnedByTeacher(period ?? undefined, myTeacherId)) {
-        res.status(403).json({ success: false, message: '본인 교시만 삭제할 수 있습니다.' });
-        return;
-      }
-    }
+    const { role } = userOf(req);
     const doc = await lessonDayService.removePeriod(req.params.id, periodIndex);
     if (!doc) {
       res.status(404).json({ success: false, message: '수업 또는 교시를 찾을 수 없습니다.' });

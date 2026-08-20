@@ -104,6 +104,7 @@ export default function ClassroomPage() {
   const [selectedPeriodNumber, setSelectedPeriodNumber] = useState<number | null>(null);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [reviewModalPeriodIndex, setReviewModalPeriodIndex] = useState<number | null>(null);
+  const [reordering, setReordering] = useState(false);
 
   const hasAnyChanges = Object.values(periodHasChanges).some(Boolean);
   const periods = lessonDay?.periods ?? [];
@@ -321,17 +322,24 @@ export default function ClassroomPage() {
     }, 150);
   }, [lessonDay?.periods?.length]);
 
-  const handleMovePeriod = async (newPeriodNumber: number) => {
-    if (!lessonDay?._id || selectedPeriodIndex < 0) return;
+  const handleMovePeriod = async (periodIndex: number, fromNumber: number, toNumber: number) => {
+    if (!lessonDay?._id || periodIndex < 0) return;
+    setReordering(true);
     try {
       await apiClient.patch(`/admin/lesson-days/${lessonDay._id}/periods/move`, {
-        periodIndex: selectedPeriodIndex,
-        periodNumber: newPeriodNumber,
+        periodIndex,
+        periodNumber: toNumber,
       });
-      setSelectedPeriodNumber(newPeriodNumber);
+      setSelectedPeriodNumber((prev) => {
+        if (prev === fromNumber) return toNumber;
+        if (prev === toNumber) return fromNumber;
+        return prev;
+      });
       await fetchLessonByDate();
     } catch (err) {
       setError(err instanceof Error ? err.message : '교시 이동에 실패했습니다.');
+    } finally {
+      setReordering(false);
     }
   };
 
@@ -345,6 +353,7 @@ export default function ClassroomPage() {
     if (!window.confirm('이 교시를 삭제하시겠습니까?')) return;
     try {
       await apiClient.delete(`/admin/lesson-days/${lessonDay._id}/periods?periodIndex=${periodIndex}`);
+      setSelectedPeriodNumber(null);
       await fetchLessonByDate();
     } catch (err) {
       setError(err instanceof Error ? err.message : '교시 삭제에 실패했습니다.');
@@ -441,6 +450,8 @@ export default function ClassroomPage() {
                 onSelect={setSelectedPeriodNumber}
                 onRemoveEmptySlot={handleRemoveEmptySlot}
                 onExtendSlots={() => setSlotCount((c) => c + 1)}
+                onReorder={handleMovePeriod}
+                reordering={reordering}
                 adding={addingPeriod}
               />
             </div>
@@ -460,7 +471,9 @@ export default function ClassroomPage() {
                       defaultValue=""
                       onChange={(e) => {
                         const v = Number(e.target.value);
-                        if (v >= 1) void handleMovePeriod(v);
+                        if (v >= 1 && selectedPeriodIndex >= 0 && selectedPeriodNumber != null) {
+                          void handleMovePeriod(selectedPeriodIndex, selectedPeriodNumber, v);
+                        }
                         e.target.value = '';
                       }}
                       className="px-3 py-2 border border-slate-200 rounded-lg text-slate-800"
@@ -485,7 +498,7 @@ export default function ClassroomPage() {
                 teacherOptions={teacherOptions}
                 classStudents={classStudents}
                 readOnly={false}
-                canDelete={isOwnSelected}
+                canDelete
                 canEditReviewVideos={
                   isOwnSelected && selectedPeriod.canEditReviewVideos !== false
                 }

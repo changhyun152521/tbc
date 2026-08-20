@@ -1,3 +1,5 @@
+import type { MouseEvent } from 'react';
+
 export type PeriodRowStatus = 'empty' | 'mine' | 'other';
 
 export interface PeriodRowItem {
@@ -15,36 +17,39 @@ interface PeriodListTableProps {
   onSelect: (periodNumber: number) => void;
   onRemoveEmptySlot?: (periodNumber: number) => void;
   onExtendSlots: () => void;
+  onReorder?: (periodIndex: number, fromNumber: number, toNumber: number) => void;
+  reordering?: boolean;
   adding?: boolean;
-}
-
-function roleLabel(status: PeriodRowStatus): string {
-  if (status === 'empty') return '비어있음';
-  if (status === 'other') return '다른 강사';
-  return '나';
 }
 
 function rowClasses(status: PeriodRowStatus, selected: boolean): string {
   const base = 'cursor-pointer transition-colors border-b border-slate-100 last:border-b-0';
-  if (status === 'mine') {
+  if (status === 'empty') {
     return selected
-      ? `${base} bg-sky-100 border-l-[3px] border-l-sky-500`
-      : `${base} bg-sky-50 border-l-[3px] border-l-sky-400 hover:bg-sky-100`;
-  }
-  if (status === 'other') {
-    return selected
-      ? `${base} bg-slate-200 border-l-[3px] border-l-slate-400`
-      : `${base} bg-slate-50 border-l-[3px] border-l-slate-300 hover:bg-slate-100`;
+      ? `${base} bg-slate-100 border-l-[3px] border-l-slate-300`
+      : `${base} bg-white border-l-[3px] border-l-transparent hover:bg-slate-50`;
   }
   return selected
-    ? `${base} bg-slate-100 border-l-[3px] border-l-slate-300`
-    : `${base} bg-white border-l-[3px] border-l-transparent hover:bg-slate-50`;
+    ? `${base} bg-slate-200 border-l-[3px] border-l-slate-400`
+    : `${base} bg-slate-50 border-l-[3px] border-l-slate-300 hover:bg-slate-100`;
 }
 
-function roleCellClasses(status: PeriodRowStatus): string {
-  if (status === 'mine') return 'text-sky-700 font-medium';
-  if (status === 'other') return 'text-slate-600';
-  return 'text-slate-400';
+function NameBadge({ status }: { status: PeriodRowStatus }) {
+  if (status === 'mine') {
+    return (
+      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-white shrink-0">
+        나
+      </span>
+    );
+  }
+  if (status === 'other') {
+    return (
+      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-white text-slate-600 border border-slate-300 shrink-0">
+        다른 강사
+      </span>
+    );
+  }
+  return null;
 }
 
 export default function PeriodListTable({
@@ -53,18 +58,30 @@ export default function PeriodListTable({
   onSelect,
   onRemoveEmptySlot,
   onExtendSlots,
+  onReorder,
+  reordering = false,
   adding = false,
 }: PeriodListTableProps) {
   const lastRow = rows[rows.length - 1];
   const canShrink =
     lastRow?.status === 'empty' && lastRow.removable === true && onRemoveEmptySlot != null;
+  const busy = adding || reordering;
+
+  const handleReorder = (row: PeriodRowItem, direction: -1 | 1, e: MouseEvent) => {
+    e.stopPropagation();
+    if (!onReorder || row.status === 'empty' || row.periodIndex == null) return;
+    const i = rows.findIndex((r) => r.periodNumber === row.periodNumber);
+    const adj = rows[i + direction];
+    if (!adj) return;
+    onReorder(row.periodIndex, row.periodNumber, adj.periodNumber);
+  };
 
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <button
           type="button"
-          disabled={adding}
+          disabled={busy}
           onClick={onExtendSlots}
           className="px-3 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 disabled:opacity-40"
         >
@@ -72,7 +89,7 @@ export default function PeriodListTable({
         </button>
         <button
           type="button"
-          disabled={adding || !canShrink}
+          disabled={busy || !canShrink}
           onClick={() => canShrink && onRemoveEmptySlot!(lastRow!.periodNumber)}
           className="px-3 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
         >
@@ -89,28 +106,61 @@ export default function PeriodListTable({
           <table className="w-full text-left border-collapse min-w-[240px] text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr className="text-slate-500 text-xs font-semibold">
+                <th className="px-3 py-2.5 w-16 whitespace-nowrap">순서</th>
                 <th className="px-3 py-2.5 w-16 whitespace-nowrap">교시</th>
                 <th className="px-3 py-2.5 whitespace-nowrap">담당</th>
-                <th className="px-3 py-2.5 w-24 whitespace-nowrap">구분</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => {
+              {rows.map((row, rowIndex) => {
                 const selected = selectedPeriodNumber === row.periodNumber;
+                const canMove = row.status !== 'empty' && row.periodIndex != null && onReorder;
                 return (
                   <tr
                     key={row.periodNumber}
                     onClick={() => onSelect(row.periodNumber)}
                     className={rowClasses(row.status, selected)}
                   >
+                    <td className="px-2 py-2 whitespace-nowrap">
+                      {canMove ? (
+                        <div className="flex flex-col gap-0.5">
+                          <button
+                            type="button"
+                            disabled={busy || rowIndex === 0}
+                            onClick={(e) => handleReorder(row, -1, e)}
+                            className="w-7 h-6 rounded text-slate-600 hover:bg-white disabled:opacity-25 disabled:hover:bg-transparent"
+                            title="위로"
+                            aria-label={`${row.periodNumber}교시 위로`}
+                          >
+                            ▲
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy || rowIndex === rows.length - 1}
+                            onClick={(e) => handleReorder(row, 1, e)}
+                            className="w-7 h-6 rounded text-slate-600 hover:bg-white disabled:opacity-25 disabled:hover:bg-transparent"
+                            title="아래로"
+                            aria-label={`${row.periodNumber}교시 아래로`}
+                          >
+                            ▼
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-slate-300 px-2">—</span>
+                      )}
+                    </td>
                     <td className="px-3 py-3 font-semibold text-slate-800 whitespace-nowrap">
                       {row.periodNumber}교시
                     </td>
                     <td className="px-3 py-3 text-slate-700">
-                      {row.status === 'empty' ? '—' : row.teacherName || '—'}
-                    </td>
-                    <td className={`px-3 py-3 whitespace-nowrap ${roleCellClasses(row.status)}`}>
-                      {roleLabel(row.status)}
+                      {row.status === 'empty' ? (
+                        <span className="text-slate-400">비어있음</span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 flex-wrap">
+                          <span>{row.teacherName || '—'}</span>
+                          <NameBadge status={row.status} />
+                        </span>
+                      )}
                     </td>
                   </tr>
                 );
