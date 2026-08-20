@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
@@ -75,10 +76,13 @@ function NotificationListModal({ open, onClose, onItemRead, onReadAll }: Notific
 
   if (!open) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50" onClick={onClose}>
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center p-0 bg-slate-900/50 sm:items-center sm:p-4"
+      onClick={onClose}
+    >
       <div
-        className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-lg max-h-[85vh] flex flex-col"
+        className="bg-white rounded-t-2xl shadow-xl w-full max-h-[85vh] flex flex-col sm:rounded-2xl sm:max-w-lg sm:max-h-[80vh]"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-labelledby="notification-modal-title"
@@ -148,7 +152,8 @@ function NotificationListModal({ open, onClose, onItemRead, onReadAll }: Notific
           <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -277,8 +282,8 @@ export default function NotificationBell() {
             onClick={() => setOpen(false)}
             aria-label="알림 닫기"
           />
-          <div className="fixed left-0 right-0 top-0 z-40 px-3 pt-[72px] sm:absolute sm:right-0 sm:top-[calc(100%+8px)] sm:px-0 sm:pt-0">
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden w-full max-w-[360px] max-h-[calc(100vh-120px)]">
+          <div className="fixed left-0 right-0 top-0 z-40 px-3 pt-[72px] sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[360px] sm:px-0 sm:pt-0">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden mx-auto w-full max-w-[360px] max-h-[calc(100vh-120px)] sm:mx-0 sm:max-h-none">
               <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-bold text-slate-900">알림</p>
@@ -293,7 +298,7 @@ export default function NotificationBell() {
                   모두 읽음
                 </button>
               </div>
-              <div className="max-h-[min(360px,60vh)] overflow-y-auto">
+              <div className="max-h-[min(360px,60vh)] sm:max-h-[320px] overflow-y-auto">
                 {loading ? (
                   <div className="p-6 text-center text-sm text-slate-400">불러오는 중...</div>
                 ) : items.length === 0 ? (
