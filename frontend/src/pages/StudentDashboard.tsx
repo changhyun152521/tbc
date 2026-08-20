@@ -79,6 +79,18 @@ function commentReplyKey(item: { lessonDayId: string; periodId: string; _id: str
   return `${item.lessonDayId}:${item.periodId}:${item._id}`;
 }
 
+function ReplyLikeBadge({ names }: { names?: string[] }) {
+  if (!names || names.length === 0) return null;
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] text-sky-500">
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+        <path d="M9 21h8.2c.9 0 1.7-.6 1.9-1.4l1.4-5.8c.2-.9-.4-1.8-1.3-1.8H14l.7-3.4.1-.7c0-.4-.2-.8-.4-1.1L13 5 8.1 10.1c-.3.3-.5.7-.5 1.1V19c0 1.1.9 2 1.4 2zM4 10h2.5C7.3 10 8 10.7 8 11.5V19c0 .8-.7 1.5-1.5 1.5H4c-.8 0-1.5-.7-1.5-1.5v-7C2.5 10.7 3.2 10 4 10z" />
+      </svg>
+      <span>{names.length}</span>
+    </span>
+  );
+}
+
 export default function StudentDashboard() {
   const { role } = useAuth();
   const { selectedClassId } = useStudentClass();
@@ -248,18 +260,30 @@ export default function StudentDashboard() {
                 학생 COMMENT
               </h2>
               <div className="space-y-4 sm:space-y-6">
-                {recentComments.filter((c) => (c.note ?? '').trim()).length === 0 ? (
+                {recentComments.filter((c) => (c.note ?? '').trim() || (c.studentReply ?? '').trim()).length === 0 ? (
                   <p className="text-slate-400 text-xs sm:text-sm font-medium py-2">최근 메시지가 없습니다.</p>
                 ) : (
                   recentComments
-                    .filter((c) => (c.note ?? '').trim())
+                    .filter((c) => (c.note ?? '').trim() || (c.studentReply ?? '').trim())
                     .map((c, i, arr) => (
                       <div key={`student-${c._id}-${i}`} className="flex flex-col gap-1.5">
                         <div className="flex justify-between items-center">
                           <span className="text-[11px] font-bold text-slate-400">{c.teacherName} 선생님</span>
                           <span className="text-[10px] text-slate-300 font-medium">{formatDueDateShort(c.date)}</span>
                         </div>
-                        <p className="text-[14px] text-slate-700 leading-relaxed font-medium">&quot;{(c.note ?? '').trim()}&quot;</p>
+                        {(c.note ?? '').trim() && (
+                          <p className="text-[14px] text-slate-700 leading-relaxed font-medium">&quot;{(c.note ?? '').trim()}&quot;</p>
+                        )}
+                        {(c.studentReply ?? '').trim() && (
+                          <div className="pl-3 border-l-2 border-slate-200">
+                            <p className="text-[13px] text-slate-600 leading-relaxed">
+                              <span className="font-medium text-slate-400">학생 답글</span>
+                              <span className="mx-1.5 text-slate-300">·</span>
+                              <span className="whitespace-pre-wrap">{(c.studentReply ?? '').trim()}</span>
+                              <ReplyLikeBadge names={c.studentReplyLikedTeacherNames} />
+                            </p>
+                          </div>
+                        )}
                         {i !== arr.length - 1 && <div className="mt-4 h-[1px] bg-slate-50 w-full" />}
                       </div>
                     ))
@@ -272,18 +296,30 @@ export default function StudentDashboard() {
                 학부모 COMMENT
               </h2>
               <div className="space-y-4 sm:space-y-6">
-                {recentComments.filter((c) => (c.parentNote ?? '').trim()).length === 0 ? (
+                {recentComments.filter((c) => (c.parentNote ?? '').trim() || (c.parentReply ?? '').trim()).length === 0 ? (
                   <p className="text-slate-400 text-xs sm:text-sm font-medium py-2">최근 메시지가 없습니다.</p>
                 ) : (
                   recentComments
-                    .filter((c) => (c.parentNote ?? '').trim())
+                    .filter((c) => (c.parentNote ?? '').trim() || (c.parentReply ?? '').trim())
                     .map((c, i, arr) => (
                       <div key={`parent-${c._id}-${i}`} className="flex flex-col gap-1.5">
                         <div className="flex justify-between items-center">
                           <span className="text-[11px] font-bold text-slate-400">{c.teacherName} 선생님</span>
                           <span className="text-[10px] text-slate-300 font-medium">{formatDueDateShort(c.date)}</span>
                         </div>
-                        <p className="text-[14px] text-slate-700 leading-relaxed font-medium">&quot;{(c.parentNote ?? '').trim()}&quot;</p>
+                        {(c.parentNote ?? '').trim() && (
+                          <p className="text-[14px] text-slate-700 leading-relaxed font-medium">&quot;{(c.parentNote ?? '').trim()}&quot;</p>
+                        )}
+                        {(c.parentReply ?? '').trim() && (
+                          <div className="pl-3 border-l-2 border-slate-200">
+                            <p className="text-[13px] text-slate-600 leading-relaxed">
+                              <span className="font-medium text-slate-400">학부모 답글</span>
+                              <span className="mx-1.5 text-slate-300">·</span>
+                              <span className="whitespace-pre-wrap">{(c.parentReply ?? '').trim()}</span>
+                              <ReplyLikeBadge names={c.parentReplyLikedTeacherNames} />
+                            </p>
+                          </div>
+                        )}
                         {i !== arr.length - 1 && <div className="mt-4 h-[1px] bg-slate-50 w-full" />}
                       </div>
                     ))
