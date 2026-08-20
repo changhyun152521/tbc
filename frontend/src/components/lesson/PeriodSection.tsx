@@ -9,6 +9,15 @@ interface PeriodSectionProps {
   teacherOptions: { _id: string; name: string }[];
   /** 반 소속 학생 전체 (가나다순). 없으면 period.records만 사용 (기존 상세 페이지 호환) */
   classStudents?: ClassStudentItem[];
+  /** 읽기 전용 (타 강사 교시 참고) */
+  readOnly?: boolean;
+  /** 복습영상 편집 가능 */
+  canEditReviewVideos?: boolean;
+  /** 인라인 대신 복습영상 등록 모달 사용 */
+  useReviewVideoModal?: boolean;
+  onOpenReviewVideos?: () => void;
+  /** 강사 선택 숨김 */
+  lockTeacherSelect?: boolean;
   onSave: (
     periodIndex: number,
     teacherId: string,
@@ -82,6 +91,11 @@ export default function PeriodSection({
   period,
   teacherOptions,
   classStudents,
+  readOnly = false,
+  canEditReviewVideos = true,
+  useReviewVideoModal = false,
+  onOpenReviewVideos,
+  lockTeacherSelect = false,
   onSave,
   onDelete,
   saveAllTrigger,
@@ -198,7 +212,7 @@ export default function PeriodSection({
       memo: memo.trim() || undefined,
       homeworkDescription: homeworkDescription.trim() || undefined,
       homeworkDueDate: homeworkDueDate.trim() || null,
-      reviewVideos: reviewVideos.map((v, i) => ({ ...v, order: i })),
+      reviewVideos: useReviewVideoModal ? undefined : reviewVideos.map((v, i) => ({ ...v, order: i })),
     });
   };
 
@@ -247,22 +261,31 @@ export default function PeriodSection({
     onHasChangesChange?.(periodIndex, hasChanges);
   }, [periodIndex, hasChanges, onHasChangesChange]);
 
+  const displayPeriodNumber = period.periodNumber ?? periodIndex + 1;
+  const selectedTeacherName =
+    teacherOptions.find((t) => t._id === selectedTeacherId)?.name ??
+    (typeof period.teacherId === 'object' && period.teacherId?.name ? period.teacherId.name : '');
+
   return (
     <section className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
       <div className="p-3 sm:p-4 border-b border-slate-100 flex flex-wrap items-center gap-2 sm:gap-3">
         <h3 className="text-slate-600 text-sm sm:text-base font-bold shrink-0">
-          {periodIndex + 1}교시
+          {displayPeriodNumber}교시
         </h3>
-        <select
-          value={selectedTeacherId}
-          onChange={(e) => setSelectedTeacherId(e.target.value)}
-          className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-900 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none shrink-0"
-        >
-          {teacherOptions.map((t) => (
-            <option key={t._id} value={t._id}>{t.name}</option>
-          ))}
-        </select>
-        {saveAllTrigger == null && (
+        {lockTeacherSelect || readOnly ? (
+          <span className="px-3 py-2 text-sm text-slate-800 font-medium">{selectedTeacherName}</span>
+        ) : (
+          <select
+            value={selectedTeacherId}
+            onChange={(e) => setSelectedTeacherId(e.target.value)}
+            className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-900 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none shrink-0"
+          >
+            {teacherOptions.map((t) => (
+              <option key={t._id} value={t._id}>{t.name}</option>
+            ))}
+          </select>
+        )}
+        {!readOnly && saveAllTrigger == null && (
           <button
             type="button"
             onClick={() => requestSave()}
@@ -272,6 +295,7 @@ export default function PeriodSection({
             {saving ? '저장 중...' : '저장'}
           </button>
         )}
+        {!readOnly && (
         <button
           type="button"
           onClick={() => onDelete(periodIndex)}
@@ -279,6 +303,7 @@ export default function PeriodSection({
         >
           교시 삭제
         </button>
+        )}
       </div>
       <div className="p-3 lg:py-6 lg:px-8 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -287,6 +312,7 @@ export default function PeriodSection({
             <textarea
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
+              readOnly={readOnly}
               placeholder="오늘 진도 내용을 자유롭게 입력하세요"
               rows={3}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none resize-y"
@@ -297,6 +323,7 @@ export default function PeriodSection({
             <textarea
               value={homeworkDescription}
               onChange={(e) => setHomeworkDescription(e.target.value)}
+              readOnly={readOnly}
               placeholder="과제 내용을 자유롭게 입력하세요"
               rows={3}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none resize-y"
@@ -307,6 +334,7 @@ export default function PeriodSection({
                 type="date"
                 value={homeworkDueDate}
                 onChange={(e) => setHomeworkDueDate(e.target.value)}
+                readOnly={readOnly}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-900 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none"
               />
             </div>
@@ -315,15 +343,34 @@ export default function PeriodSection({
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="block text-slate-600 text-sm font-semibold">복습 영상 (유튜브)</label>
-            <button
-              type="button"
-              onClick={() => setReviewVideos((prev) => [...prev, { url: '', videoId: '', title: '', order: prev.length }])}
-              className="text-xs text-sky-700 font-medium hover:text-sky-900"
-            >
-              + 영상 추가
-            </button>
+            {canEditReviewVideos && useReviewVideoModal && !readOnly && (
+              <button
+                type="button"
+                onClick={onOpenReviewVideos}
+                className="px-3 py-1.5 text-xs font-semibold bg-slate-950 text-white rounded-lg hover:bg-slate-800"
+              >
+                복습영상 등록
+              </button>
+            )}
+            {canEditReviewVideos && !useReviewVideoModal && !readOnly && (
+              <button
+                type="button"
+                onClick={() => setReviewVideos((prev) => [...prev, { url: '', videoId: '', title: '', order: prev.length }])}
+                className="text-xs text-sky-700 font-medium hover:text-sky-900"
+              >
+                + 영상 추가
+              </button>
+            )}
           </div>
-          {reviewVideos.length === 0 ? (
+          {!canEditReviewVideos ? (
+            <p className="text-xs text-slate-400 py-2">다른 강사 교시의 복습 영상은 볼 수 없습니다.</p>
+          ) : useReviewVideoModal ? (
+            <p className="text-xs text-slate-500 py-2">
+              {reviewVideos.length > 0
+                ? `등록된 영상 ${reviewVideos.length}개 · 복습영상 등록 버튼으로 수정하세요.`
+                : '등록된 영상이 없습니다. 복습영상 등록 버튼을 눌러 추가하세요.'}
+            </p>
+          ) : reviewVideos.length === 0 ? (
             <p className="text-xs text-slate-400 py-2">등록된 영상이 없습니다. 영상 추가 버튼을 눌러 추가하세요.</p>
           ) : (
             <div className="space-y-2">
@@ -335,6 +382,7 @@ export default function PeriodSection({
                       type="text"
                       value={v.title}
                       onChange={(e) => setReviewVideos((prev) => prev.map((x, j) => j === i ? { ...x, title: e.target.value } : x))}
+                      readOnly={readOnly}
                       placeholder="영상 제목 (선택)"
                       className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none"
                     />
@@ -342,10 +390,12 @@ export default function PeriodSection({
                       type="url"
                       value={v.url}
                       onChange={(e) => setReviewVideos((prev) => prev.map((x, j) => j === i ? { ...x, url: e.target.value } : x))}
+                      readOnly={readOnly}
                       placeholder="https://www.youtube.com/watch?v=..."
                       className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none"
                     />
                   </div>
+                  {!readOnly && (
                   <button
                     type="button"
                     onClick={() => setReviewVideos((prev) => prev.filter((_, j) => j !== i))}
@@ -354,11 +404,13 @@ export default function PeriodSection({
                   >
                     ×
                   </button>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </div>
+        {!readOnly && (
         <div className="flex flex-nowrap items-center justify-end gap-2 mb-3 lg:mb-2">
           <button
             type="button"
@@ -389,12 +441,14 @@ export default function PeriodSection({
             과제X
           </button>
         </div>
+        )}
         <AttendanceHomeworkTable
           records={records}
-          onAttendanceChange={handleAttendanceChange}
-          onHomeworkChange={handleHomeworkChange}
-          onNoteChange={hasClassStudents ? handleNoteChange : undefined}
-          onParentNoteChange={hasClassStudents ? handleParentNoteChange : undefined}
+          disabled={readOnly}
+          onAttendanceChange={readOnly ? () => {} : handleAttendanceChange}
+          onHomeworkChange={readOnly ? () => {} : handleHomeworkChange}
+          onNoteChange={readOnly ? undefined : hasClassStudents ? handleNoteChange : undefined}
+          onParentNoteChange={readOnly ? undefined : hasClassStudents ? handleParentNoteChange : undefined}
         />
       </div>
 

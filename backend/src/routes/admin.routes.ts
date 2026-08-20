@@ -170,7 +170,8 @@ router.post(
   '/lesson-days/:id/periods',
   [
     param('id').isMongoId().withMessage('올바른 ID가 아닙니다.'),
-    body('teacherId').notEmpty().withMessage('teacherId는 필수입니다.').isMongoId().withMessage('올바른 강사 ID가 아닙니다.'),
+    body('teacherId').optional().isMongoId().withMessage('올바른 강사 ID가 아닙니다.'),
+    body('periodNumber').optional().isInt({ min: 1 }).withMessage('periodNumber는 1 이상 정수입니다.'),
   ],
   lessonDayController.addPeriod
 );
@@ -189,6 +190,23 @@ router.put(
     body('periodIndex').isInt({ min: 0 }).withMessage('periodIndex는 0 이상 정수입니다.'),
   ],
   lessonDayController.updatePeriod
+);
+router.patch(
+  '/lesson-days/:id/periods/move',
+  [
+    param('id').isMongoId().withMessage('올바른 ID가 아닙니다.'),
+    body('periodIndex').isInt({ min: 0 }).withMessage('periodIndex는 0 이상 정수입니다.'),
+    body('periodNumber').isInt({ min: 1 }).withMessage('periodNumber는 1 이상 정수입니다.'),
+  ],
+  lessonDayController.movePeriod
+);
+router.put(
+  '/lesson-days/:id/periods/review-videos',
+  [
+    param('id').isMongoId().withMessage('올바른 ID가 아닙니다.'),
+    body('periodIndex').isInt({ min: 0 }).withMessage('periodIndex는 0 이상 정수입니다.'),
+  ],
+  lessonDayController.updatePeriodReviewVideos
 );
 
 export default router;

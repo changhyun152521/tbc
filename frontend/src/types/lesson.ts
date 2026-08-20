@@ -27,7 +27,13 @@ export interface ReviewVideoItem {
 
 export interface PeriodItem {
   _id?: string;
+  /** 1-based 교시 번호 */
+  periodNumber?: number;
   teacherId: string | { _id: string; name: string };
+  /** 강사 조회 API: 본인 교시 여부 */
+  isMine?: boolean;
+  /** 강사 조회 API: 복습영상 편집 가능 여부 */
+  canEditReviewVideos?: boolean;
   /** 진도 (수업 내용 메모) */
   memo?: string;
   /** 과제 내용 (자유 입력) */

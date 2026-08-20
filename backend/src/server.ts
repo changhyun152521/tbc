@@ -44,12 +44,33 @@ async function ensureTeachersMustChangePassword() {
   }
 }
 
+async function migratePeriodNumbers() {
+  const { LessonDay } = await import('./models/LessonDay.model');
+  const lessons = await LessonDay.find({ 'periods.0': { $exists: true } }).exec();
+  let count = 0;
+  for (const lesson of lessons) {
+    let changed = false;
+    lesson.periods.forEach((p, i) => {
+      if (p.periodNumber == null || p.periodNumber < 1) {
+        p.periodNumber = i + 1;
+        changed = true;
+      }
+    });
+    if (changed) {
+      await lesson.save();
+      count++;
+    }
+  }
+  if (count > 0) console.log(`교시 periodNumber 마이그레이션: ${count}개 수업일`);
+}
+
 async function main() {
   await mongoose.connect(dbConfig.uri);
   console.log('MongoDB 연결 성공');
   await dropLegacyVideoWatchProgressIndexes();
   await ensureAdmin();
   await ensureTeachersMustChangePassword();
+  await migratePeriodNumbers();
 
   app.listen(serverConfig.port, () => {
     console.log(`TBC CLASS API 실행 중: http://localhost:${serverConfig.port}`);

@@ -24,6 +24,8 @@ export interface IReviewVideo {
 
 export interface IPeriod {
   _id?: mongoose.Types.ObjectId;
+  /** 1-based 교시 번호 (수업일 내 유일) */
+  periodNumber?: number;
   teacherId: mongoose.Types.ObjectId;
   /** 진도 (수업 내용 메모) */
   memo?: string;
@@ -72,6 +74,7 @@ const reviewVideoSchema = new Schema<IReviewVideo>(
 
 const periodSchema = new Schema<IPeriod>(
   {
+    periodNumber: { type: Number, min: 1 },
     teacherId: { type: Schema.Types.ObjectId, required: true, ref: 'Teacher' },
     memo: { type: String, default: '' },
     homeworkDescription: { type: String, default: '' },

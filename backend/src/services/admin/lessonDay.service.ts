@@ -4,6 +4,7 @@ import type { ILessonDay, IPeriod, IStudentRecord, IReviewVideo } from '../../mo
 import { Class } from '../../models/Class.model';
 import { VideoWatchProgress } from '../../models/VideoWatchProgress.model';
 import { extractYoutubeVideoId } from '../../utils/youtube';
+import { nextPeriodNumber, periodNumberTaken, sortPeriods } from './lessonDay.utils';
 
 export interface ListLessonDaysFilter {
   dateFrom?: string;
@@ -70,7 +71,9 @@ export async function getLessonDayById(id: string): Promise<ILessonDay | null> {
     .populate('periods.teacherId', 'name')
     .populate('periods.records.studentId', 'name')
     .exec();
-  return doc ?? null;
+  if (!doc) return null;
+  doc.periods = sortPeriods(doc.periods as IPeriod[]) as typeof doc.periods;
+  return doc;
 }
 
 export async function getLessonDayClassId(id: string): Promise<string | null> {
@@ -95,7 +98,9 @@ export async function getLessonDayByClassAndDate(classId: string, dateStr: strin
     .populate('periods.teacherId', 'name')
     .populate('periods.records.studentId', 'name')
     .exec();
-  return doc ?? null;
+  if (!doc) return null;
+  doc.periods = sortPeriods(doc.periods as IPeriod[]) as typeof doc.periods;
+  return doc;
 }
 
 export async function updateLessonDay(
@@ -123,10 +128,20 @@ export async function deleteLessonDay(id: string): Promise<boolean> {
   return result != null;
 }
 
-export async function addPeriod(lessonDayId: string, teacherId: string): Promise<ILessonDay | null> {
+export async function addPeriod(
+  lessonDayId: string,
+  teacherId: string,
+  periodNumber?: number
+): Promise<ILessonDay | null | { error: string }> {
   const lesson = await LessonDay.findById(lessonDayId).populate('classId', 'studentIds').exec();
   if (!lesson) return null;
   if (!mongoose.Types.ObjectId.isValid(teacherId)) return null;
+
+  const num = periodNumber ?? nextPeriodNumber(lesson.periods as IPeriod[]);
+  if (num < 1) return { error: '유효한 교시 번호가 아닙니다.' };
+  if (periodNumberTaken(lesson.periods as IPeriod[], num)) {
+    return { error: '이미 등록된 교시 번호입니다.' };
+  }
 
   const classDoc = lesson.classId as { studentIds?: mongoose.Types.ObjectId[] };
   const studentIds = classDoc.studentIds ?? [];
@@ -137,9 +152,30 @@ export async function addPeriod(lessonDayId: string, teacherId: string): Promise
   }));
 
   lesson.periods.push({
+    periodNumber: num,
     teacherId: new mongoose.Types.ObjectId(teacherId),
     records,
   });
+  lesson.periods = sortPeriods(lesson.periods as IPeriod[]) as typeof lesson.periods;
+  await lesson.save();
+  return getLessonDayById(lessonDayId);
+}
+
+export async function movePeriodNumber(
+  lessonDayId: string,
+  periodIndex: number,
+  newPeriodNumber: number
+): Promise<ILessonDay | null | { error: string }> {
+  const lesson = await LessonDay.findById(lessonDayId).exec();
+  if (!lesson) return null;
+  lesson.periods = sortPeriods(lesson.periods as IPeriod[]) as typeof lesson.periods;
+  if (periodIndex < 0 || periodIndex >= lesson.periods.length) return null;
+  if (newPeriodNumber < 1) return { error: '유효한 교시 번호가 아닙니다.' };
+  if (periodNumberTaken(lesson.periods as IPeriod[], newPeriodNumber, periodIndex)) {
+    return { error: '이미 등록된 교시 번호입니다.' };
+  }
+  lesson.periods[periodIndex].periodNumber = newPeriodNumber;
+  lesson.periods = sortPeriods(lesson.periods as IPeriod[]) as typeof lesson.periods;
   await lesson.save();
   return getLessonDayById(lessonDayId);
 }
@@ -147,6 +183,7 @@ export async function addPeriod(lessonDayId: string, teacherId: string): Promise
 export async function removePeriod(lessonDayId: string, periodIndex: number): Promise<ILessonDay | null> {
   const lesson = await LessonDay.findById(lessonDayId).exec();
   if (!lesson) return null;
+  lesson.periods = sortPeriods(lesson.periods as IPeriod[]) as typeof lesson.periods;
   if (periodIndex < 0 || periodIndex >= lesson.periods.length) return null;
 
   lesson.periods.splice(periodIndex, 1);
@@ -159,6 +196,7 @@ export async function updatePeriod(
   periodIndex: number,
   payload: {
     teacherId?: string;
+    periodNumber?: number;
     memo?: string;
     homeworkDescription?: string;
     homeworkDueDate?: string | Date | null;
@@ -169,10 +207,17 @@ export async function updatePeriod(
 ): Promise<ILessonDay | null> {
   const lesson = await LessonDay.findById(lessonDayId).exec();
   if (!lesson) return null;
+  lesson.periods = sortPeriods(lesson.periods as IPeriod[]) as typeof lesson.periods;
   if (periodIndex < 0 || periodIndex >= lesson.periods.length) return null;
 
   const period = lesson.periods[periodIndex];
   if (payload.teacherId != null) period.teacherId = new mongoose.Types.ObjectId(payload.teacherId);
+  if (payload.periodNumber != null && payload.periodNumber >= 1) {
+    if (periodNumberTaken(lesson.periods as IPeriod[], payload.periodNumber, periodIndex)) {
+      return null;
+    }
+    period.periodNumber = payload.periodNumber;
+  }
   if (payload.memo !== undefined) (period as IPeriod & { memo?: string }).memo = payload.memo ?? '';
   if (payload.homeworkDescription !== undefined) (period as IPeriod & { homeworkDescription?: string }).homeworkDescription = payload.homeworkDescription ?? '';
   if (payload.homeworkDueDate !== undefined) {
@@ -238,6 +283,7 @@ export async function updatePeriod(
       parentNote: r.parentNote ?? '',
     }));
   }
+  lesson.periods = sortPeriods(lesson.periods as IPeriod[]) as typeof lesson.periods;
   await lesson.save();
   return getLessonDayById(lessonDayId);
 }

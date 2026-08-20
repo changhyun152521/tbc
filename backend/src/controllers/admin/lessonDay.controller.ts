@@ -1,6 +1,16 @@
 import { Request, Response } from 'express';
 import * as lessonDayService from '../../services/admin/lessonDay.service';
-import { canAccessClass, getAssignedClassIds } from '../../services/teacher/teacherClass.service';
+import {
+  canAccessClass,
+  getAssignedClassIds,
+  getTeacherIdByUserId,
+} from '../../services/teacher/teacherClass.service';
+import {
+  assertPeriodOwnedByTeacher,
+  sanitizeLessonDayDocForTeacher,
+  sortPeriods,
+} from '../../services/admin/lessonDay.utils';
+import type { IPeriod } from '../../models/LessonDay.model';
 import { ApiResponse } from '../../types/api';
 
 function userOf(req: Request): { id: string; role: string } {
@@ -24,6 +34,30 @@ async function denyClass(req: Request, res: Response<ApiResponse>, classId: stri
 async function denyLessonDay(req: Request, res: Response<ApiResponse>, lessonDayId: string): Promise<boolean> {
   const classId = await lessonDayService.getLessonDayClassId(lessonDayId);
   return denyClass(req, res, classId);
+}
+
+function serializeLessonDay(doc: unknown, role: string, myTeacherId: string | null) {
+  const raw =
+    doc && typeof (doc as { toObject?: () => Record<string, unknown> }).toObject === 'function'
+      ? (doc as { toObject: () => Record<string, unknown> }).toObject()
+      : { ...(doc as object) };
+  if (role === 'teacher' && myTeacherId) {
+    return sanitizeLessonDayDocForTeacher(raw, myTeacherId);
+  }
+  return raw;
+}
+
+async function getMyTeacherId(req: Request): Promise<string | null> {
+  const { id, role } = userOf(req);
+  if (role !== 'teacher') return null;
+  const tid = await getTeacherIdByUserId(id);
+  return tid ? tid.toString() : null;
+}
+
+async function sortedPeriodAt(lessonDayId: string, periodIndex: number): Promise<IPeriod | null> {
+  const doc = await lessonDayService.getLessonDayById(lessonDayId);
+  if (!doc || periodIndex < 0 || periodIndex >= doc.periods.length) return null;
+  return sortPeriods(doc.periods as IPeriod[])[periodIndex] ?? null;
 }
 
 export async function createLessonDay(req: Request, res: Response<ApiResponse>): Promise<void> {
@@ -79,7 +113,6 @@ export async function listLessonDays(req: Request, res: Response<ApiResponse>): 
   }
 }
 
-/** 반 ID + 날짜로 해당 날짜 수업일 조회 (수업관리 교실 페이지용) */
 export async function getLessonDayByClassAndDate(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
     const classId = req.query.classId as string | undefined;
@@ -94,7 +127,9 @@ export async function getLessonDayByClassAndDate(req: Request, res: Response<Api
       res.status(200).json({ success: true, data: null });
       return;
     }
-    res.status(200).json({ success: true, data: doc });
+    const { role } = userOf(req);
+    const myTeacherId = await getMyTeacherId(req);
+    res.status(200).json({ success: true, data: serializeLessonDay(doc, role, myTeacherId) });
   } catch (err) {
     const message = err instanceof Error ? err.message : '수업 조회에 실패했습니다.';
     res.status(500).json({ success: false, message });
@@ -109,7 +144,9 @@ export async function getLessonDay(req: Request, res: Response<ApiResponse>): Pr
       res.status(404).json({ success: false, message: '수업을 찾을 수 없습니다.' });
       return;
     }
-    res.status(200).json({ success: true, data: doc });
+    const { role } = userOf(req);
+    const myTeacherId = await getMyTeacherId(req);
+    res.status(200).json({ success: true, data: serializeLessonDay(doc, role, myTeacherId) });
   } catch (err) {
     const message = err instanceof Error ? err.message : '수업 조회에 실패했습니다.';
     res.status(500).json({ success: false, message });
@@ -151,17 +188,37 @@ export async function deleteLessonDay(req: Request, res: Response<ApiResponse>):
 export async function addPeriod(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
     if (await denyLessonDay(req, res, req.params.id)) return;
-    const teacherId = req.body.teacherId;
-    if (!teacherId) {
+    const { role, id: userId } = userOf(req);
+    let teacherId = req.body.teacherId as string | undefined;
+    let periodNumber = req.body.periodNumber != null ? Number(req.body.periodNumber) : undefined;
+
+    if (role === 'teacher') {
+      const myTeacherId = await getTeacherIdByUserId(userId);
+      if (!myTeacherId) {
+        res.status(403).json({ success: false, message: '강사 정보를 찾을 수 없습니다.' });
+        return;
+      }
+      teacherId = myTeacherId.toString();
+      if (periodNumber == null || Number.isNaN(periodNumber) || periodNumber < 1) {
+        res.status(400).json({ success: false, message: 'periodNumber(교시 번호)는 필수입니다.' });
+        return;
+      }
+    } else if (!teacherId) {
       res.status(400).json({ success: false, message: 'teacherId는 필수입니다.' });
       return;
     }
-    const doc = await lessonDayService.addPeriod(req.params.id, teacherId);
-    if (!doc) {
+
+    const result = await lessonDayService.addPeriod(req.params.id, teacherId, periodNumber);
+    if (result && 'error' in result) {
+      res.status(400).json({ success: false, message: result.error });
+      return;
+    }
+    if (!result) {
       res.status(404).json({ success: false, message: '수업을 찾을 수 없습니다.' });
       return;
     }
-    res.status(200).json({ success: true, data: doc });
+    const myTeacherId = await getMyTeacherId(req);
+    res.status(200).json({ success: true, data: serializeLessonDay(result, role, myTeacherId) });
   } catch (err) {
     const message = err instanceof Error ? err.message : '교시 추가에 실패했습니다.';
     res.status(500).json({ success: false, message });
@@ -176,12 +233,22 @@ export async function removePeriod(req: Request, res: Response<ApiResponse>): Pr
       res.status(400).json({ success: false, message: '유효한 periodIndex가 필요합니다.' });
       return;
     }
+    const { role, id: userId } = userOf(req);
+    if (role === 'teacher') {
+      const myTeacherId = await getTeacherIdByUserId(userId);
+      const period = await sortedPeriodAt(req.params.id, periodIndex);
+      if (!myTeacherId || !assertPeriodOwnedByTeacher(period ?? undefined, myTeacherId)) {
+        res.status(403).json({ success: false, message: '본인 교시만 삭제할 수 있습니다.' });
+        return;
+      }
+    }
     const doc = await lessonDayService.removePeriod(req.params.id, periodIndex);
     if (!doc) {
       res.status(404).json({ success: false, message: '수업 또는 교시를 찾을 수 없습니다.' });
       return;
     }
-    res.status(200).json({ success: true, data: doc });
+    const myTeacherId = await getMyTeacherId(req);
+    res.status(200).json({ success: true, data: serializeLessonDay(doc, role, myTeacherId) });
   } catch (err) {
     const message = err instanceof Error ? err.message : '교시 삭제에 실패했습니다.';
     res.status(500).json({ success: false, message });
@@ -196,9 +263,30 @@ export async function updatePeriod(req: Request, res: Response<ApiResponse>): Pr
       res.status(400).json({ success: false, message: '유효한 periodIndex가 필요합니다.' });
       return;
     }
-    const { teacherId, memo, homeworkDescription, homeworkDueDate, reviewVideoUrl, reviewVideos, records } = req.body;
+    const { role, id: userId } = userOf(req);
+    const period = await sortedPeriodAt(req.params.id, periodIndex);
+    if (!period) {
+      res.status(404).json({ success: false, message: '교시를 찾을 수 없습니다.' });
+      return;
+    }
+
+    let { teacherId, memo, homeworkDescription, homeworkDueDate, reviewVideoUrl, reviewVideos, records } = req.body;
+    const periodNumber = req.body.periodNumber != null ? Number(req.body.periodNumber) : undefined;
+
+    if (role === 'teacher') {
+      const myTeacherId = await getTeacherIdByUserId(userId);
+      if (!myTeacherId || !assertPeriodOwnedByTeacher(period, myTeacherId)) {
+        res.status(403).json({ success: false, message: '본인 교시만 수정할 수 있습니다.' });
+        return;
+      }
+      teacherId = undefined;
+      reviewVideos = undefined;
+      reviewVideoUrl = undefined;
+    }
+
     const doc = await lessonDayService.updatePeriod(req.params.id, periodIndex, {
       teacherId,
+      periodNumber: periodNumber != null && !Number.isNaN(periodNumber) ? periodNumber : undefined,
       memo,
       homeworkDescription,
       homeworkDueDate,
@@ -210,9 +298,82 @@ export async function updatePeriod(req: Request, res: Response<ApiResponse>): Pr
       res.status(404).json({ success: false, message: '수업 또는 교시를 찾을 수 없습니다.' });
       return;
     }
-    res.status(200).json({ success: true, data: doc });
+    const myTeacherId = await getMyTeacherId(req);
+    res.status(200).json({ success: true, data: serializeLessonDay(doc, role, myTeacherId) });
   } catch (err) {
     const message = err instanceof Error ? err.message : '교시 수정에 실패했습니다.';
+    res.status(500).json({ success: false, message });
+  }
+}
+
+export async function movePeriod(req: Request, res: Response<ApiResponse>): Promise<void> {
+  try {
+    if (await denyLessonDay(req, res, req.params.id)) return;
+    const periodIndex = Number(req.body.periodIndex);
+    const newPeriodNumber = Number(req.body.periodNumber);
+    if (Number.isNaN(periodIndex) || periodIndex < 0 || Number.isNaN(newPeriodNumber) || newPeriodNumber < 1) {
+      res.status(400).json({ success: false, message: 'periodIndex와 periodNumber가 필요합니다.' });
+      return;
+    }
+    const { role, id: userId } = userOf(req);
+    if (role === 'teacher') {
+      const myTeacherId = await getTeacherIdByUserId(userId);
+      const period = await sortedPeriodAt(req.params.id, periodIndex);
+      if (!myTeacherId || !assertPeriodOwnedByTeacher(period ?? undefined, myTeacherId)) {
+        res.status(403).json({ success: false, message: '본인 교시만 이동할 수 있습니다.' });
+        return;
+      }
+    }
+    const result = await lessonDayService.movePeriodNumber(req.params.id, periodIndex, newPeriodNumber);
+    if (result && 'error' in result) {
+      res.status(400).json({ success: false, message: result.error });
+      return;
+    }
+    if (!result) {
+      res.status(404).json({ success: false, message: '수업 또는 교시를 찾을 수 없습니다.' });
+      return;
+    }
+    const myTeacherId = await getMyTeacherId(req);
+    res.status(200).json({ success: true, data: serializeLessonDay(result, role, myTeacherId) });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '교시 이동에 실패했습니다.';
+    res.status(500).json({ success: false, message });
+  }
+}
+
+export async function updatePeriodReviewVideos(req: Request, res: Response<ApiResponse>): Promise<void> {
+  try {
+    if (await denyLessonDay(req, res, req.params.id)) return;
+    const periodIndex = Number(req.body.periodIndex);
+    if (Number.isNaN(periodIndex) || periodIndex < 0) {
+      res.status(400).json({ success: false, message: '유효한 periodIndex가 필요합니다.' });
+      return;
+    }
+    const { role, id: userId } = userOf(req);
+    const period = await sortedPeriodAt(req.params.id, periodIndex);
+    if (!period) {
+      res.status(404).json({ success: false, message: '교시를 찾을 수 없습니다.' });
+      return;
+    }
+    if (role === 'teacher') {
+      const myTeacherId = await getTeacherIdByUserId(userId);
+      if (!myTeacherId || !assertPeriodOwnedByTeacher(period, myTeacherId)) {
+        res.status(403).json({ success: false, message: '본인 교시의 복습 영상만 수정할 수 있습니다.' });
+        return;
+      }
+    }
+    const { reviewVideos } = req.body;
+    const doc = await lessonDayService.updatePeriod(req.params.id, periodIndex, {
+      reviewVideos: reviewVideos ?? [],
+    });
+    if (!doc) {
+      res.status(404).json({ success: false, message: '수업 또는 교시를 찾을 수 없습니다.' });
+      return;
+    }
+    const myTeacherId = await getMyTeacherId(req);
+    res.status(200).json({ success: true, data: serializeLessonDay(doc, role, myTeacherId) });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '복습 영상 저장에 실패했습니다.';
     res.status(500).json({ success: false, message });
   }
 }
