@@ -293,15 +293,21 @@ export async function notifyTeacherComment(params: {
 
 export async function listNotificationsForUser(
   userId: string,
-  options: { limit?: number; types?: NotificationType[] } = {}
+  options: { limit?: number; page?: number; types?: NotificationType[] } = {}
 ) {
-  if (!mongoose.Types.ObjectId.isValid(userId)) return [];
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return { items: [], total: 0, page: 1, limit: options.limit ?? 20 };
+  }
   const q: Record<string, unknown> = { recipientUserId: new mongoose.Types.ObjectId(userId) };
   if (options.types && options.types.length > 0) q.type = { $in: options.types };
+  const page = Math.max(Number(options.page ?? 1), 1);
   const limit = Math.min(Math.max(options.limit ?? 20, 1), 100);
-  const rows = await Notification.find(q).sort({ createdAt: -1 }).limit(limit * 3).lean().exec();
+  const rows = await Notification.find(q).sort({ createdAt: -1 }).limit(1000).lean().exec();
   const filteredRows = await filterReplyNotificationsForTeacher(userId, rows as NotificationRow[]);
-  return filteredRows.slice(0, limit).map(toNotificationDto);
+  const total = filteredRows.length;
+  const start = (page - 1) * limit;
+  const items = filteredRows.slice(start, start + limit).map(toNotificationDto);
+  return { items, total, page, limit };
 }
 
 export async function getUnreadCount(userId: string) {

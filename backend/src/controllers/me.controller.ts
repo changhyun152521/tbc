@@ -101,6 +101,7 @@ export async function listNotifications(req: Request, res: Response<ApiResponse>
       return;
     }
     const limit = Number(req.query.limit ?? 20);
+    const page = Number(req.query.page ?? 1);
     const rawTypes = typeof req.query.types === 'string' ? req.query.types : '';
     const types = rawTypes
       .split(',')
@@ -110,6 +111,7 @@ export async function listNotifications(req: Request, res: Response<ApiResponse>
       );
     const data = await notificationService.listNotificationsForUser(req.user.id, {
       limit,
+      page,
       types: types.length > 0 ? types : undefined,
     });
     res.status(200).json({ success: true, data });
