@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import type { ClassDetail, ClassStudentItem } from '../types/class';
-import type { LessonDayDetail, AttendanceHomeworkValue, PeriodItem, ReviewVideoItem } from '../types/lesson';
+import type { LessonDayDetail, LessonDayListItem, AttendanceHomeworkValue, PeriodItem, ReviewVideoItem } from '../types/lesson';
 import DateNavigator from '../components/lesson/DateNavigator';
 import PeriodSection from '../components/lesson/PeriodSection';
 import PeriodListTable, { type PeriodRowItem } from '../components/lesson/PeriodListTable';
@@ -11,7 +11,20 @@ import ReviewVideoRegisterModal from '../components/lesson/ReviewVideoRegisterMo
 
 function todayString(): string {
   const d = new Date();
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function lessonDateToYmd(raw: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return String(raw).slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function sortStudentsByName(students: ClassStudentItem[]): ClassStudentItem[] {
@@ -105,6 +118,7 @@ export default function ClassroomPage() {
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [reviewModalPeriodIndex, setReviewModalPeriodIndex] = useState<number | null>(null);
   const [reordering, setReordering] = useState(false);
+  const [markedDates, setMarkedDates] = useState<string[]>([]);
 
   const hasAnyChanges = Object.values(periodHasChanges).some(Boolean);
   const periods = lessonDay?.periods ?? [];
@@ -139,6 +153,26 @@ export default function ClassroomPage() {
     }
   }, [classId]);
 
+  const fetchMarkedDates = useCallback(async () => {
+    if (!classId) return;
+    try {
+      const res = await apiClient.get<{ success: boolean; data: LessonDayListItem[] }>(
+        `/admin/lesson-days?classId=${encodeURIComponent(classId)}`
+      );
+      if (!res.data.success || !Array.isArray(res.data.data)) {
+        setMarkedDates([]);
+        return;
+      }
+      setMarkedDates(
+        res.data.data
+          .filter((row) => (row.periodCount ?? 0) > 0)
+          .map((row) => lessonDateToYmd(String(row.date)))
+      );
+    } catch {
+      setMarkedDates([]);
+    }
+  }, [classId]);
+
   const fetchLessonByDate = useCallback(async () => {
     if (!classId || !date) return;
     setLoadingLesson(true);
@@ -162,6 +196,10 @@ export default function ClassroomPage() {
   useEffect(() => {
     fetchLessonByDate();
   }, [fetchLessonByDate]);
+
+  useEffect(() => {
+    void fetchMarkedDates();
+  }, [fetchMarkedDates, lessonDay?._id, lessonDay?.periods?.length]);
 
   useEffect(() => {
     setPeriodHasChanges({});
@@ -414,7 +452,7 @@ export default function ClassroomPage() {
         )}
 
         <div className="flex flex-wrap items-center gap-2">
-          <DateNavigator value={date} onChange={setDate} />
+          <DateNavigator value={date} onChange={setDate} markedDates={markedDates} />
           {!isTeacher && (
             <>
               <button

@@ -22,16 +22,9 @@ interface PeriodListTableProps {
   adding?: boolean;
 }
 
-function rowClasses(status: PeriodRowStatus, selected: boolean): string {
+function rowClasses(selected: boolean): string {
   const base = 'cursor-pointer transition-colors border-b border-slate-100 last:border-b-0';
-  if (status === 'empty') {
-    return selected
-      ? `${base} bg-slate-100 border-l-[3px] border-l-slate-300`
-      : `${base} bg-white border-l-[3px] border-l-transparent hover:bg-slate-50`;
-  }
-  return selected
-    ? `${base} bg-slate-200 border-l-[3px] border-l-slate-400`
-    : `${base} bg-slate-50 border-l-[3px] border-l-slate-300 hover:bg-slate-100`;
+  return selected ? `${base} bg-slate-50` : `${base} bg-white hover:bg-slate-50`;
 }
 
 function NameBadge({ status }: { status: PeriodRowStatus }) {
@@ -69,11 +62,16 @@ export default function PeriodListTable({
 
   const handleReorder = (row: PeriodRowItem, direction: -1 | 1, e: MouseEvent) => {
     e.stopPropagation();
-    if (!onReorder || row.status === 'empty' || row.periodIndex == null) return;
+    if (!onReorder) return;
     const i = rows.findIndex((r) => r.periodNumber === row.periodNumber);
     const adj = rows[i + direction];
     if (!adj) return;
-    onReorder(row.periodIndex, row.periodNumber, adj.periodNumber);
+
+    const moving = row.status !== 'empty' && row.periodIndex != null ? row : adj;
+    const destination = moving === row ? adj : row;
+    if (moving.status === 'empty' || moving.periodIndex == null) return;
+
+    onReorder(moving.periodIndex, moving.periodNumber, destination.periodNumber);
   };
 
   return (
@@ -106,49 +104,27 @@ export default function PeriodListTable({
           <table className="w-full text-left border-collapse min-w-[240px] text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr className="text-slate-500 text-xs font-semibold">
-                <th className="px-3 py-2.5 w-16 whitespace-nowrap">순서</th>
                 <th className="px-3 py-2.5 w-16 whitespace-nowrap">교시</th>
                 <th className="px-3 py-2.5 whitespace-nowrap">담당</th>
+                <th className="px-3 py-2.5 w-16 whitespace-nowrap text-right">순서</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row, rowIndex) => {
                 const selected = selectedPeriodNumber === row.periodNumber;
-                const canMove = row.status !== 'empty' && row.periodIndex != null && onReorder;
+                const canMove = Boolean(onReorder);
+                const prev = rows[rowIndex - 1];
+                const next = rows[rowIndex + 1];
+                const canUp =
+                  rowIndex > 0 && !(row.status === 'empty' && prev?.status === 'empty');
+                const canDown =
+                  rowIndex < rows.length - 1 && !(row.status === 'empty' && next?.status === 'empty');
                 return (
                   <tr
                     key={row.periodNumber}
                     onClick={() => onSelect(row.periodNumber)}
-                    className={rowClasses(row.status, selected)}
+                    className={rowClasses(selected)}
                   >
-                    <td className="px-2 py-2 whitespace-nowrap">
-                      {canMove ? (
-                        <div className="flex flex-col gap-0.5">
-                          <button
-                            type="button"
-                            disabled={busy || rowIndex === 0}
-                            onClick={(e) => handleReorder(row, -1, e)}
-                            className="w-7 h-6 rounded text-slate-600 hover:bg-white disabled:opacity-25 disabled:hover:bg-transparent"
-                            title="위로"
-                            aria-label={`${row.periodNumber}교시 위로`}
-                          >
-                            ▲
-                          </button>
-                          <button
-                            type="button"
-                            disabled={busy || rowIndex === rows.length - 1}
-                            onClick={(e) => handleReorder(row, 1, e)}
-                            className="w-7 h-6 rounded text-slate-600 hover:bg-white disabled:opacity-25 disabled:hover:bg-transparent"
-                            title="아래로"
-                            aria-label={`${row.periodNumber}교시 아래로`}
-                          >
-                            ▼
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-slate-300 px-2">—</span>
-                      )}
-                    </td>
                     <td className="px-3 py-3 font-semibold text-slate-800 whitespace-nowrap">
                       {row.periodNumber}교시
                     </td>
@@ -160,6 +136,34 @@ export default function PeriodListTable({
                           <span>{row.teacherName || '—'}</span>
                           <NameBadge status={row.status} />
                         </span>
+                      )}
+                    </td>
+                    <td className="px-2 py-2 whitespace-nowrap">
+                      {canMove ? (
+                        <div className="flex flex-col items-end gap-0.5">
+                          <button
+                            type="button"
+                            disabled={busy || !canUp}
+                            onClick={(e) => handleReorder(row, -1, e)}
+                            className="w-7 h-6 rounded text-slate-600 hover:bg-slate-100 disabled:opacity-25 disabled:hover:bg-transparent"
+                            title="위로"
+                            aria-label={`${row.periodNumber}교시 위로`}
+                          >
+                            ▲
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy || !canDown}
+                            onClick={(e) => handleReorder(row, 1, e)}
+                            className="w-7 h-6 rounded text-slate-600 hover:bg-slate-100 disabled:opacity-25 disabled:hover:bg-transparent"
+                            title="아래로"
+                            aria-label={`${row.periodNumber}교시 아래로`}
+                          >
+                            ▼
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-slate-300 px-2 block text-right">—</span>
                       )}
                     </td>
                   </tr>
