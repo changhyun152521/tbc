@@ -56,9 +56,11 @@ interface LessonItem {
   studentReply?: string;
   studentReplyCreatedAt?: string;
   studentReplyUpdatedAt?: string;
+  studentReplyLikedTeacherNames?: string[];
   parentReply?: string;
   parentReplyCreatedAt?: string;
   parentReplyUpdatedAt?: string;
+  parentReplyLikedTeacherNames?: string[];
 }
 
 function toDateOnly(d: string): string {
@@ -341,6 +343,7 @@ export default function LessonHistory() {
                             savedReply={role === 'parent' ? l.parentReply : l.studentReply}
                             savedReplyCreatedAt={role === 'parent' ? l.parentReplyCreatedAt : l.studentReplyCreatedAt}
                             savedReplyUpdatedAt={role === 'parent' ? l.parentReplyUpdatedAt : l.studentReplyUpdatedAt}
+                            likedTeacherNames={role === 'parent' ? l.parentReplyLikedTeacherNames : l.studentReplyLikedTeacherNames}
                             teacherComment={commentText}
                             apiPrefix={apiPrefix}
                             onSaved={(body, savedAt, createdAt) => {

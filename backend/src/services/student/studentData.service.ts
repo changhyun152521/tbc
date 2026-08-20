@@ -142,13 +142,77 @@ function getTeacherName(period: IPeriod & { teacherId?: mongoose.Types.ObjectId 
   return '';
 }
 
+type LessonFlatRow = {
+  _id: string;
+  date: Date;
+  period: string;
+  progress: string;
+  homework: string;
+  homeworkDone: boolean;
+  attendanceStatus: string;
+  homeworkDescription?: string;
+  homeworkDueDate?: string;
+  teacherName?: string;
+  note?: string;
+  parentNote?: string;
+  studentReply?: string;
+  studentReplyCreatedAt?: string;
+  studentReplyUpdatedAt?: string;
+  studentReplyLikedTeacherIds?: string[];
+  studentReplyLikedTeacherNames?: string[];
+  parentReply?: string;
+  parentReplyCreatedAt?: string;
+  parentReplyUpdatedAt?: string;
+  parentReplyLikedTeacherIds?: string[];
+  parentReplyLikedTeacherNames?: string[];
+  lessonDayId: string;
+  periodId: string;
+  hasReviewVideo: boolean;
+};
+
+async function enrichLessonRowsWithLikedTeacherNames<T extends {
+  studentReplyLikedTeacherIds?: string[];
+  parentReplyLikedTeacherIds?: string[];
+}>(
+  items: T[]
+): Promise<(T & { studentReplyLikedTeacherNames: string[]; parentReplyLikedTeacherNames: string[] })[]> {
+  const allIds = new Set<string>();
+  for (const item of items) {
+    for (const id of item.studentReplyLikedTeacherIds ?? []) allIds.add(id);
+    for (const id of item.parentReplyLikedTeacherIds ?? []) allIds.add(id);
+  }
+  if (allIds.size === 0) {
+    return items.map((item) => ({
+      ...item,
+      studentReplyLikedTeacherNames: [],
+      parentReplyLikedTeacherNames: [],
+    }));
+  }
+  const teachers = await Teacher.find({
+    _id: { $in: [...allIds].map((id) => new mongoose.Types.ObjectId(id)) },
+  })
+    .select('name')
+    .lean()
+    .exec();
+  const nameById = new Map(teachers.map((teacher) => [teacher._id.toString(), teacher.name]));
+  return items.map((item) => ({
+    ...item,
+    studentReplyLikedTeacherNames: (item.studentReplyLikedTeacherIds ?? [])
+      .map((id) => nameById.get(id) ?? '')
+      .filter(Boolean),
+    parentReplyLikedTeacherNames: (item.parentReplyLikedTeacherIds ?? [])
+      .map((id) => nameById.get(id) ?? '')
+      .filter(Boolean),
+  }));
+}
+
 /** LessonDay 목록을 해당 학생 기준 진도/과제 행으로 변환 (프론트와 호환되는 형태) */
 function flattenLessonDaysForStudent(
   lessonDays: { _id: mongoose.Types.ObjectId; date: Date; periods: (IPeriod & { teacherId?: mongoose.Types.ObjectId | { name?: string } })[] }[],
   studentId: string
-): { _id: string; date: Date; period: string; progress: string; homework: string; homeworkDone: boolean; attendanceStatus: string; homeworkDescription?: string; homeworkDueDate?: string; teacherName?: string; note?: string; parentNote?: string; studentReply?: string; studentReplyCreatedAt?: string; studentReplyUpdatedAt?: string; parentReply?: string; parentReplyCreatedAt?: string; parentReplyUpdatedAt?: string; lessonDayId: string; periodId: string; hasReviewVideo: boolean }[] {
+): LessonFlatRow[] {
   const sid = studentId;
-  const result: { _id: string; date: Date; period: string; progress: string; homework: string; homeworkDone: boolean; attendanceStatus: string; homeworkDescription?: string; homeworkDueDate?: string; teacherName?: string; note?: string; parentNote?: string; studentReply?: string; studentReplyCreatedAt?: string; studentReplyUpdatedAt?: string; parentReply?: string; parentReplyCreatedAt?: string; parentReplyUpdatedAt?: string; lessonDayId: string; periodId: string; hasReviewVideo: boolean }[] = [];
+  const result: LessonFlatRow[] = [];
   for (const day of lessonDays) {
     const periods = sortPeriods((day.periods || []) as (IPeriod & { teacherId?: mongoose.Types.ObjectId | { name?: string }; _id?: mongoose.Types.ObjectId })[]);
     periods.forEach((period, idx) => {
@@ -182,9 +246,11 @@ function flattenLessonDaysForStudent(
         studentReply: studentReplyStr,
         studentReplyCreatedAt: record?.studentReplyCreatedAt ? new Date(record.studentReplyCreatedAt).toISOString() : undefined,
         studentReplyUpdatedAt: record?.studentReplyUpdatedAt ? new Date(record.studentReplyUpdatedAt).toISOString() : undefined,
+        studentReplyLikedTeacherIds: (record?.studentReplyLikedTeacherIds ?? []).map((id) => id.toString()),
         parentReply: parentReplyStr,
         parentReplyCreatedAt: record?.parentReplyCreatedAt ? new Date(record.parentReplyCreatedAt).toISOString() : undefined,
         parentReplyUpdatedAt: record?.parentReplyUpdatedAt ? new Date(record.parentReplyUpdatedAt).toISOString() : undefined,
+        parentReplyLikedTeacherIds: (record?.parentReplyLikedTeacherIds ?? []).map((id) => id.toString()),
         lessonDayId: day._id.toString(),
         periodId,
         hasReviewVideo: Boolean(((period as { reviewVideos?: { videoId?: string }[] }).reviewVideos ?? []).some((v) => (v.videoId ?? '').trim()) || (period.reviewVideoId ?? '').trim()),
@@ -249,10 +315,14 @@ export async function getDashboard(studentId: string, classIdParam?: string | nu
   const teacherNameById = new Map(teachers.map((teacher) => [teacher._id.toString(), teacher.name]));
   const teacherNames = displayTeacherNamesForUser(classDoc, teacherNameById);
 
-  const recentLessonsFlat = flattenLessonDaysForStudent(lessonDaysRecent, studentId);
+  const recentLessonsFlat = await enrichLessonRowsWithLikedTeacherNames(
+    flattenLessonDaysForStudent(lessonDaysRecent, studentId)
+  );
   const recentLessons = recentLessonsFlat.slice(0, RECENT_LIMIT);
 
-  const allLessonsFlat = flattenLessonDaysForStudent(lessonDaysAll, studentId);
+  const allLessonsFlat = await enrichLessonRowsWithLikedTeacherNames(
+    flattenLessonDaysForStudent(lessonDaysAll, studentId)
+  );
   const homeworkWithContent = allLessonsFlat.filter((l) => l.homework !== '' || l.progress.trim() !== '');
   const homeworkDone = allLessonsFlat.filter((l) => l.homeworkDone === true);
   const attendanceTotal = allLessonsFlat.length;
@@ -289,9 +359,11 @@ export async function getDashboard(studentId: string, classIdParam?: string | nu
     studentReply?: string;
     studentReplyCreatedAt?: string;
     studentReplyUpdatedAt?: string;
+    studentReplyLikedTeacherNames?: string[];
     parentReply?: string;
     parentReplyCreatedAt?: string;
     parentReplyUpdatedAt?: string;
+    parentReplyLikedTeacherNames?: string[];
   }[];
   if (viewAs === 'admin_access') {
     recentComments = allLessonsFlat
@@ -307,9 +379,11 @@ export async function getDashboard(studentId: string, classIdParam?: string | nu
         studentReply: (l.studentReply ?? '').trim(),
         studentReplyCreatedAt: l.studentReplyCreatedAt,
         studentReplyUpdatedAt: l.studentReplyUpdatedAt,
+        studentReplyLikedTeacherNames: l.studentReplyLikedTeacherNames ?? [],
         parentReply: (l.parentReply ?? '').trim(),
         parentReplyCreatedAt: l.parentReplyCreatedAt,
         parentReplyUpdatedAt: l.parentReplyUpdatedAt,
+        parentReplyLikedTeacherNames: l.parentReplyLikedTeacherNames ?? [],
       }))
       .slice(0, 5);
   } else {
@@ -326,9 +400,11 @@ export async function getDashboard(studentId: string, classIdParam?: string | nu
         studentReply: (l.studentReply ?? '').trim(),
         studentReplyCreatedAt: l.studentReplyCreatedAt,
         studentReplyUpdatedAt: l.studentReplyUpdatedAt,
+        studentReplyLikedTeacherNames: l.studentReplyLikedTeacherNames ?? [],
         parentReply: (l.parentReply ?? '').trim(),
         parentReplyCreatedAt: l.parentReplyCreatedAt,
         parentReplyUpdatedAt: l.parentReplyUpdatedAt,
+        parentReplyLikedTeacherNames: l.parentReplyLikedTeacherNames ?? [],
       }))
       .slice(0, 5);
   }
@@ -399,7 +475,7 @@ export async function getLessons(
     .sort({ date: -1 })
     .lean()
     .exec();
-  const lessons = flattenLessonDaysForStudent(lessonDays, studentId);
+  const lessons = await enrichLessonRowsWithLikedTeacherNames(flattenLessonDaysForStudent(lessonDays, studentId));
   return { lessons };
 }
 

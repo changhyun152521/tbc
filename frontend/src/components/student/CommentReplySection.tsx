@@ -7,6 +7,7 @@ interface CommentReplySectionProps {
   savedReply?: string;
   savedReplyCreatedAt?: string;
   savedReplyUpdatedAt?: string;
+  likedTeacherNames?: string[];
   teacherComment?: string;
   apiPrefix: 'student' | 'parent';
   onSaved: (body: string, savedAt: string, createdAt?: string) => void;
@@ -18,6 +19,7 @@ export default function CommentReplySection({
   savedReply,
   savedReplyCreatedAt,
   savedReplyUpdatedAt,
+  likedTeacherNames,
   teacherComment,
   apiPrefix,
   onSaved,
@@ -30,6 +32,10 @@ export default function CommentReplySection({
   const replyText = (savedReply ?? '').trim();
   const hasReply = replyText !== '';
   const isEdited = Boolean(savedReplyCreatedAt && savedReplyUpdatedAt && savedReplyCreatedAt !== savedReplyUpdatedAt);
+  const likeLabel =
+    (likedTeacherNames ?? []).length > 0
+      ? `${(likedTeacherNames ?? []).map((name) => `${name} 선생님`).join(', ')}이 좋아요`
+      : '';
 
   const openModal = () => {
     setDraft(savedReply ?? '');
@@ -60,49 +66,65 @@ export default function CommentReplySection({
 
   return (
     <>
-      <div className="mt-2 flex flex-col items-start gap-1.5">
-        {hasReply && (
-          <p className="text-[12px] text-slate-500 leading-relaxed whitespace-pre-wrap">
-            내 답글: {replyText}
-          </p>
+      <div className="mt-2.5 pl-3 border-l-2 border-slate-200">
+        {hasReply ? (
+          <>
+            <div className="flex items-center gap-1.5 mb-1">
+              <span className="text-[11px] font-medium text-slate-400">답글</span>
+              {isEdited && <span className="text-[10px] text-slate-300">· 수정됨</span>}
+            </div>
+            <p className="text-[13px] text-slate-600 leading-relaxed whitespace-pre-wrap">{replyText}</p>
+            {likeLabel && (
+              <p className="mt-1 text-[11px] text-rose-400/80">{likeLabel}</p>
+            )}
+            <button
+              type="button"
+              onClick={openModal}
+              className="mt-1.5 text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              수정하기
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={openModal}
+            className="text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            답글 남기기
+          </button>
         )}
-        {hasReply && isEdited && <p className="text-[11px] text-slate-400">수정됨</p>}
-        <button
-          type="button"
-          onClick={openModal}
-          className="text-[12px] font-semibold text-slate-500 hover:text-slate-700 transition-colors"
-        >
-          {hasReply ? '수정하기' : '답글 남기기'}
-        </button>
       </div>
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40"
           onClick={closeModal}
         >
           <div
-            className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-md p-5 sm:p-6"
+            className="bg-white rounded-t-2xl sm:rounded-2xl shadow-lg w-full sm:max-w-md p-5 sm:p-6 border border-slate-100"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-labelledby="comment-reply-title"
           >
-            <h2 id="comment-reply-title" className="text-lg font-bold text-slate-950 mb-1">
+            <h2 id="comment-reply-title" className="text-base font-semibold text-slate-800 mb-1">
               {hasReply ? '답글 수정' : '답글 남기기'}
             </h2>
             {teacherComment && (
-              <p className="text-xs text-slate-400 mb-3 line-clamp-2">선생님 코멘트: {teacherComment}</p>
+              <p className="text-[11px] text-slate-400 mb-3 leading-relaxed line-clamp-2">
+                선생님 코멘트 · {teacherComment}
+              </p>
             )}
             <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               rows={4}
               placeholder="답글을 입력해 주세요"
-              className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none resize-y"
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[13px] text-slate-700 leading-relaxed placeholder:text-slate-400 focus:border-slate-300 focus:ring-1 focus:ring-slate-200 outline-none resize-y"
               autoFocus
             />
             {error && (
-              <p className="mt-2 text-sm text-red-600" role="alert">
+              <p className="mt-2 text-xs text-red-600" role="alert">
                 {error}
               </p>
             )}
@@ -111,7 +133,7 @@ export default function CommentReplySection({
                 type="button"
                 onClick={closeModal}
                 disabled={saving}
-                className="flex-1 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 disabled:opacity-50"
+                className="flex-1 py-2.5 border border-slate-100 rounded-xl text-[13px] text-slate-500 hover:bg-slate-50 disabled:opacity-50"
               >
                 취소
               </button>
@@ -119,7 +141,7 @@ export default function CommentReplySection({
                 type="button"
                 onClick={() => void handleSave()}
                 disabled={saving}
-                className="flex-1 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
+                className="flex-1 py-2.5 bg-slate-700 text-white rounded-xl text-[13px] font-medium hover:bg-slate-800 disabled:opacity-50"
               >
                 {saving ? '저장 중...' : '저장'}
               </button>

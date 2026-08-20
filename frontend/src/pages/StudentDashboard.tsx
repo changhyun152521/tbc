@@ -47,9 +47,11 @@ interface DashboardData {
     studentReply?: string;
     studentReplyCreatedAt?: string;
     studentReplyUpdatedAt?: string;
+    studentReplyLikedTeacherNames?: string[];
     parentReply?: string;
     parentReplyCreatedAt?: string;
     parentReplyUpdatedAt?: string;
+    parentReplyLikedTeacherNames?: string[];
   }>;
   /** 관리자 접속 계정으로 로그인 시 true (학생·학부모 코멘트 둘 다 표시) */
   isAdminAccess?: boolean;
@@ -312,6 +314,7 @@ export default function StudentDashboard() {
                       savedReply={role === 'parent' ? c.parentReply : c.studentReply}
                       savedReplyCreatedAt={role === 'parent' ? c.parentReplyCreatedAt : c.studentReplyCreatedAt}
                       savedReplyUpdatedAt={role === 'parent' ? c.parentReplyUpdatedAt : c.studentReplyUpdatedAt}
+                      likedTeacherNames={role === 'parent' ? c.parentReplyLikedTeacherNames : c.studentReplyLikedTeacherNames}
                       teacherComment={c.note}
                       apiPrefix={apiPrefix}
                       onSaved={(body, savedAt, createdAt) => {
