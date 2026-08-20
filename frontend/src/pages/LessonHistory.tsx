@@ -389,9 +389,9 @@ export default function LessonHistory() {
                 {!isAdminAccess && (
                   <>
                     <div className="h-[1px] bg-slate-50" />
-                    <div>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight mb-1">
-                        {role === 'parent' ? '학부모 답글' : '내 답글'}
+                    <div className="rounded-xl bg-slate-50/70 border border-slate-100 px-3 py-2.5">
+                      <p className="text-[11px] text-slate-400 mb-1">
+                        {role === 'parent' ? '학부모 답글' : '답글'}
                       </p>
                       <textarea
                         value={replyDrafts[lessonReplyKey(l)] ?? ''}
@@ -402,17 +402,17 @@ export default function LessonHistory() {
                           }))
                         }
                         rows={3}
-                        placeholder={role === 'parent' ? '학부모 답글을 남겨 주세요' : '궁금한 점이나 전달할 내용을 남겨 주세요'}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none resize-y"
+                        placeholder={role === 'parent' ? '답글을 남겨 주세요' : '답글을 남겨 주세요'}
+                        className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 outline-none resize-y"
                       />
                       <div className="mt-2 flex justify-end">
                         <button
                           type="button"
                           onClick={() => void handleSaveReply(l)}
                           disabled={savingReplyKey === lessonReplyKey(l)}
-                          className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-semibold disabled:opacity-50"
+                          className="text-[12px] font-semibold text-slate-500 hover:text-slate-700 disabled:opacity-50"
                         >
-                          {savingReplyKey === lessonReplyKey(l) ? '저장 중...' : '답글 저장'}
+                          {savingReplyKey === lessonReplyKey(l) ? '저장 중...' : '저장'}
                         </button>
                       </div>
                     </div>

@@ -38,9 +38,15 @@ interface DashboardData {
     _id: string;
     date: string;
     teacherName: string;
+    lessonDayId: string;
+    periodId: string;
     note: string;
     /** 관리자 접속 시에만 내려옴 */
     parentNote?: string;
+    studentReply?: string;
+    studentReplyUpdatedAt?: string;
+    parentReply?: string;
+    parentReplyUpdatedAt?: string;
   }>;
   /** 관리자 접속 계정으로 로그인 시 true (학생·학부모 코멘트 둘 다 표시) */
   isAdminAccess?: boolean;
@@ -64,12 +70,18 @@ function todayDateOnly(): string {
   return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
 }
 
+function commentReplyKey(item: { lessonDayId: string; periodId: string; _id: string }): string {
+  return `${item.lessonDayId}:${item.periodId}:${item._id}`;
+}
+
 export default function StudentDashboard() {
   const { role } = useAuth();
   const { selectedClassId } = useStudentClass();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [savingReplyKey, setSavingReplyKey] = useState<string | null>(null);
 
   const apiPrefix = role === 'parent' ? 'parent' : 'student';
 
@@ -84,14 +96,25 @@ export default function StudentDashboard() {
         if (cancelled) return;
         if (res.data.success && res.data.data) {
           setData(res.data.data);
+          const comments = res.data.data.recentComments ?? [];
+          setReplyDrafts(
+            Object.fromEntries(
+              comments.map((comment) => [
+                commentReplyKey(comment),
+                role === 'parent' ? (comment.parentReply ?? '') : (comment.studentReply ?? ''),
+              ])
+            )
+          );
         } else {
           setData(null);
+          setReplyDrafts({});
         }
       })
       .catch(() => {
         if (!cancelled) {
           setError('대시보드를 불러올 수 없습니다.');
           setData(null);
+          setReplyDrafts({});
         }
       })
       .finally(() => {
@@ -136,6 +159,32 @@ export default function StudentDashboard() {
       return da.localeCompare(db);
     });
   const recentComments = (d.recentComments ?? []).slice(0, 5);
+
+  const handleSaveReply = async (comment: DashboardData['recentComments'][number]) => {
+    const key = commentReplyKey(comment);
+    setSavingReplyKey(key);
+    try {
+      const body = replyDrafts[key] ?? '';
+      await apiClient.post(`/${apiPrefix}/lessons/${comment.lessonDayId}/${comment.periodId}/reply`, { body });
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          recentComments: prev.recentComments.map((item) =>
+            commentReplyKey(item) === key
+              ? role === 'parent'
+                ? { ...item, parentReply: body, parentReplyUpdatedAt: new Date().toISOString() }
+                : { ...item, studentReply: body, studentReplyUpdatedAt: new Date().toISOString() }
+              : item
+          ),
+        };
+      });
+    } catch {
+      setError('답글을 저장할 수 없습니다.');
+    } finally {
+      setSavingReplyKey(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col pt-4 px-6 pb-12 font-sans text-slate-950">
@@ -294,6 +343,30 @@ export default function StudentDashboard() {
                       <span className="text-[10px] text-slate-300 font-medium">{formatDueDateShort(c.date)}</span>
                     </div>
                     <p className="text-[14px] text-slate-700 leading-relaxed font-medium">&quot;{c.note}&quot;</p>
+                    <div className="mt-1 rounded-xl bg-slate-50 border border-slate-100 px-3 py-2">
+                      <textarea
+                        value={replyDrafts[commentReplyKey(c)] ?? ''}
+                        onChange={(e) =>
+                          setReplyDrafts((prev) => ({
+                            ...prev,
+                            [commentReplyKey(c)]: e.target.value,
+                          }))
+                        }
+                        rows={2}
+                        placeholder={role === 'parent' ? '학부모 답글' : '답글 남기기'}
+                        className="w-full bg-transparent text-[12px] text-slate-600 placeholder:text-slate-400 outline-none resize-none"
+                      />
+                      <div className="mt-1 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => void handleSaveReply(c)}
+                          disabled={savingReplyKey === commentReplyKey(c)}
+                          className="text-[11px] font-semibold text-slate-500 hover:text-slate-700 disabled:opacity-50"
+                        >
+                          {savingReplyKey === commentReplyKey(c) ? '저장 중...' : '저장'}
+                        </button>
+                      </div>
+                    </div>
                     {i !== recentComments.length - 1 && <div className="mt-4 h-[1px] bg-slate-50 w-full" />}
                   </div>
                 ))

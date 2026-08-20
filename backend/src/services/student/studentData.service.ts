@@ -256,7 +256,19 @@ export async function getDashboard(studentId: string, classIdParam?: string | nu
     .slice(0, 50);
 
   // 기간 제한 없이 날짜 최신순으로 코멘트 있는 행만 5개
-  let recentComments: { _id: string; date: string; teacherName: string; note: string; parentNote?: string }[];
+  let recentComments: {
+    _id: string;
+    date: string;
+    teacherName: string;
+    lessonDayId: string;
+    periodId: string;
+    note: string;
+    parentNote?: string;
+    studentReply?: string;
+    studentReplyUpdatedAt?: string;
+    parentReply?: string;
+    parentReplyUpdatedAt?: string;
+  }[];
   if (viewAs === 'admin_access') {
     recentComments = allLessonsFlat
       .filter((l) => ((l.note ?? '').trim() !== '' || (l.parentNote ?? '').trim() !== ''))
@@ -264,8 +276,14 @@ export async function getDashboard(studentId: string, classIdParam?: string | nu
         _id: l._id,
         date: typeof l.date === 'string' ? l.date : (l.date as Date).toISOString?.() ?? String(l.date),
         teacherName: l.teacherName ?? '',
+        lessonDayId: l.lessonDayId,
+        periodId: l.periodId,
         note: (l.note ?? '').trim(),
         parentNote: (l.parentNote ?? '').trim(),
+        studentReply: (l.studentReply ?? '').trim(),
+        studentReplyUpdatedAt: l.studentReplyUpdatedAt,
+        parentReply: (l.parentReply ?? '').trim(),
+        parentReplyUpdatedAt: l.parentReplyUpdatedAt,
       }))
       .slice(0, 5);
   } else {
@@ -276,7 +294,13 @@ export async function getDashboard(studentId: string, classIdParam?: string | nu
         _id: l._id,
         date: typeof l.date === 'string' ? l.date : (l.date as Date).toISOString?.() ?? String(l.date),
         teacherName: l.teacherName ?? '',
+        lessonDayId: l.lessonDayId,
+        periodId: l.periodId,
         note: ((l[commentField] ?? '') as string).trim(),
+        studentReply: (l.studentReply ?? '').trim(),
+        studentReplyUpdatedAt: l.studentReplyUpdatedAt,
+        parentReply: (l.parentReply ?? '').trim(),
+        parentReplyUpdatedAt: l.parentReplyUpdatedAt,
       }))
       .slice(0, 5);
   }
