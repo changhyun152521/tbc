@@ -277,8 +277,8 @@ export default function NotificationBell() {
             onClick={() => setOpen(false)}
             aria-label="알림 닫기"
           />
-          <div className="fixed inset-x-0 bottom-0 z-40 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[360px]">
-            <div className="bg-white rounded-t-3xl sm:rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
+          <div className="absolute right-0 top-[calc(100%+8px)] z-40 w-[min(360px,calc(100vw-1.5rem))]">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-bold text-slate-900">알림</p>
@@ -293,7 +293,7 @@ export default function NotificationBell() {
                   모두 읽음
                 </button>
               </div>
-              <div className="max-h-[320px] overflow-y-auto">
+              <div className="max-h-[min(320px,55vh)] overflow-y-auto">
                 {loading ? (
                   <div className="p-6 text-center text-sm text-slate-400">불러오는 중...</div>
                 ) : items.length === 0 ? (

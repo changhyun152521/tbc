@@ -14,6 +14,14 @@ interface CommentReplySectionProps {
   onDeleted?: () => void;
 }
 
+function HeartIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 21s-6.7-4.35-9.33-7.4C.6 11.2 1.1 7.7 3.7 6.1c1.7-1.05 3.9-.7 5.3.7L12 9.1l3-2.3c1.4-1.4 3.6-1.75 5.3-.7 2.6 1.6 3.1 5.1.03 7.5C18.7 16.65 12 21 12 21z" />
+    </svg>
+  );
+}
+
 export default function CommentReplySection({
   lessonDayId,
   periodId,
@@ -35,10 +43,7 @@ export default function CommentReplySection({
   const replyText = (savedReply ?? '').trim();
   const hasReply = replyText !== '';
   const isEdited = Boolean(savedReplyCreatedAt && savedReplyUpdatedAt && savedReplyCreatedAt !== savedReplyUpdatedAt);
-  const likeLabel =
-    (likedTeacherNames ?? []).length > 0
-      ? `${(likedTeacherNames ?? []).map((name) => `${name} 선생님`).join(', ')}이 좋아요`
-      : '';
+  const hasLike = (likedTeacherNames ?? []).length > 0;
   const busy = saving || deleting;
 
   const openModal = () => {
@@ -87,32 +92,33 @@ export default function CommentReplySection({
     <>
       <div className="mt-2.5 pl-3 border-l-2 border-slate-200">
         {hasReply ? (
-          <>
-            <div className="flex items-center gap-1.5 mb-1">
-              <span className="text-[11px] font-medium text-slate-400">답글</span>
-              {isEdited && <span className="text-[10px] text-slate-300">· 수정됨</span>}
-            </div>
-            <p className="text-[13px] text-slate-600 leading-relaxed whitespace-pre-wrap">{replyText}</p>
-            {likeLabel && <p className="mt-1 text-[11px] text-rose-400/80">{likeLabel}</p>}
-            <div className="mt-1.5 flex items-center gap-3">
-              <button
-                type="button"
-                onClick={openModal}
-                disabled={busy}
-                className="text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
-              >
-                수정하기
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleDelete()}
-                disabled={busy}
-                className="text-[11px] font-medium text-slate-400 hover:text-rose-500 transition-colors disabled:opacity-50"
-              >
-                {deleting ? '삭제 중...' : '삭제하기'}
-              </button>
-            </div>
-          </>
+          <p className="text-[13px] text-slate-600 leading-relaxed">
+            <span className="font-medium text-slate-400">답글</span>
+            <span className="mx-1.5 text-slate-300">·</span>
+            <span className="whitespace-pre-wrap">{replyText}</span>
+            {isEdited && <span className="ml-1 text-[10px] text-slate-300">수정됨</span>}
+            {hasLike && (
+              <span className="inline-flex align-middle ml-1.5 text-rose-400" title="좋아요">
+                <HeartIcon className="w-3.5 h-3.5" />
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={openModal}
+              disabled={busy}
+              className="ml-2 text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
+            >
+              수정
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleDelete()}
+              disabled={busy}
+              className="ml-1.5 text-[11px] font-medium text-slate-400 hover:text-rose-500 transition-colors disabled:opacity-50"
+            >
+              {deleting ? '삭제 중...' : '삭제'}
+            </button>
+          </p>
         ) : (
           <button
             type="button"
