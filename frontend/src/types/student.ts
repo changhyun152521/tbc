@@ -10,6 +10,8 @@ export interface StudentListItem {
   classCount?: number;
   /** 관리자 목록에서만 내려옴 — 학생 본인 계정 최근 접속 */
   lastAccessAt?: string | null;
+  /** 관리자 목록에서만 내려옴 — 학부모 계정 최근 접속 */
+  parentLastAccessAt?: string | null;
 }
 
 export interface StudentFormValues {
