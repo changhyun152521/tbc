@@ -31,6 +31,7 @@ function ChevronRightIcon({ size = 24, className }: { size?: number; className?:
   );
 }
 import { apiClient } from '../api/client';
+import CommentReplySection from '../components/student/CommentReplySection';
 import { useAuth } from '../contexts/AuthContext';
 import { useStudentClass } from '../contexts/StudentClassContext';
 
@@ -87,10 +88,6 @@ function todayDateOnly(): string {
   return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
 }
 
-function lessonReplyKey(item: LessonItem): string {
-  return `${item.lessonDayId ?? item._id}:${item.periodId ?? item.period}`;
-}
-
 export default function LessonHistory() {
   const { role } = useAuth();
   const { selectedClassId } = useStudentClass();
@@ -101,9 +98,6 @@ export default function LessonHistory() {
   const [videoBlockedOpen, setVideoBlockedOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
-  const [savingReplyKey, setSavingReplyKey] = useState<string | null>(null);
-
   const canWatchReviewVideo = role === 'student' && !isAdminAccess;
   const videoBlockedMessage =
     role === 'parent'
@@ -130,24 +124,14 @@ export default function LessonHistory() {
             const d = res.data.data;
             const lessons = Array.isArray(d.lessons) ? d.lessons : [];
             setList(lessons);
-            setReplyDrafts(
-              Object.fromEntries(
-                lessons.map((lesson) => [
-                  lessonReplyKey(lesson),
-                  role === 'parent' ? (lesson.parentReply ?? '') : (lesson.studentReply ?? ''),
-                ])
-              )
-            );
             setIsAdminAccess(Boolean(d.isAdminAccess));
           } else {
             setList([]);
-            setReplyDrafts({});
           }
         })
         .catch(() => {
           setError('진도/과제를 불러올 수 없습니다.');
           setList([]);
-          setReplyDrafts({});
         })
         .finally(() => setLoading(false));
     },
@@ -178,27 +162,17 @@ export default function LessonHistory() {
           setSelectedDate(latestDay);
           const filtered = lessons.filter((l) => toDateOnly(l.date) === latestDay);
           setList(filtered);
-          setReplyDrafts(
-            Object.fromEntries(
-              filtered.map((lesson) => [
-                lessonReplyKey(lesson),
-                role === 'parent' ? (lesson.parentReply ?? '') : (lesson.studentReply ?? ''),
-              ])
-            )
-          );
         } else {
           setIsAdminAccess(Boolean(d?.isAdminAccess));
           setAvailableDates([]);
           setSelectedDate(today);
           setList([]);
-          setReplyDrafts({});
         }
       })
       .catch(() => {
         setError('진도/과제를 불러올 수 없습니다.');
         setAvailableDates([]);
         setList([]);
-        setReplyDrafts({});
         setSelectedDate(todayDateOnly());
       })
       .finally(() => setLoading(false));
@@ -212,29 +186,6 @@ export default function LessonHistory() {
     if (!next) return;
     setSelectedDate(next);
     fetchForDate(next);
-  };
-
-  const handleSaveReply = async (lesson: LessonItem) => {
-    if (!lesson.lessonDayId || !lesson.periodId) return;
-    const key = lessonReplyKey(lesson);
-    setSavingReplyKey(key);
-    try {
-      const body = replyDrafts[key] ?? '';
-      await apiClient.post(`/${apiPrefix}/lessons/${lesson.lessonDayId}/${lesson.periodId}/reply`, { body });
-      setList((prev) =>
-        prev.map((item) =>
-          lessonReplyKey(item) === key
-            ? role === 'parent'
-              ? { ...item, parentReply: body, parentReplyUpdatedAt: new Date().toISOString() }
-              : { ...item, studentReply: body, studentReplyUpdatedAt: new Date().toISOString() }
-            : item
-        )
-      );
-    } catch {
-      setError('답글을 저장할 수 없습니다.');
-    } finally {
-      setSavingReplyKey(null);
-    }
   };
 
   const sortedPeriods = [...list].sort((a, b) => Number(a.period) - Number(b.period));
@@ -381,43 +332,30 @@ export default function LessonHistory() {
                       <div>
                         <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight mb-1">{commentLabel}</p>
                         <p className="text-sm text-slate-600 leading-relaxed font-medium whitespace-pre-wrap">{commentText}</p>
+                        {l.lessonDayId && l.periodId && (
+                          <CommentReplySection
+                            lessonDayId={l.lessonDayId}
+                            periodId={l.periodId}
+                            savedReply={role === 'parent' ? l.parentReply : l.studentReply}
+                            teacherComment={commentText}
+                            apiPrefix={apiPrefix}
+                            onSaved={(body) => {
+                              setList((prev) =>
+                                prev.map((item) =>
+                                  item.lessonDayId === l.lessonDayId && item.periodId === l.periodId
+                                    ? role === 'parent'
+                                      ? { ...item, parentReply: body, parentReplyUpdatedAt: new Date().toISOString() }
+                                      : { ...item, studentReply: body, studentReplyUpdatedAt: new Date().toISOString() }
+                                    : item
+                                )
+                              );
+                            }}
+                          />
+                        )}
                       </div>
                     </>
                   ) : null;
                 })()}
-
-                {!isAdminAccess && (
-                  <>
-                    <div className="h-[1px] bg-slate-50" />
-                    <div className="rounded-xl bg-slate-50/70 border border-slate-100 px-3 py-2.5">
-                      <p className="text-[11px] text-slate-400 mb-1">
-                        {role === 'parent' ? '학부모 답글' : '답글'}
-                      </p>
-                      <textarea
-                        value={replyDrafts[lessonReplyKey(l)] ?? ''}
-                        onChange={(e) =>
-                          setReplyDrafts((prev) => ({
-                            ...prev,
-                            [lessonReplyKey(l)]: e.target.value,
-                          }))
-                        }
-                        rows={3}
-                        placeholder={role === 'parent' ? '답글을 남겨 주세요' : '답글을 남겨 주세요'}
-                        className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 outline-none resize-y"
-                      />
-                      <div className="mt-2 flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => void handleSaveReply(l)}
-                          disabled={savingReplyKey === lessonReplyKey(l)}
-                          className="text-[12px] font-semibold text-slate-500 hover:text-slate-700 disabled:opacity-50"
-                        >
-                          {savingReplyKey === lessonReplyKey(l) ? '저장 중...' : '저장'}
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
 
                 {/* 출결/과제 상태: 홈 스타일 */}
                 <div className="grid grid-cols-2 gap-3 pt-2">
