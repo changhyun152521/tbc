@@ -339,6 +339,7 @@ export async function notifyReplyLike(params: {
   date: string;
   studentId: string;
   studentName: string;
+  teacherId: string;
   teacherName: string;
   replyPreview: string;
   channel: 'student' | 'parent';
@@ -359,6 +360,7 @@ export async function notifyReplyLike(params: {
       studentName: params.studentName,
       channel: params.channel,
       replyPreview: clipText(params.replyPreview),
+      teacherId: params.teacherId,
       teacherName: params.teacherName,
     },
     excludeUserId: params.actorUserId ?? null,
@@ -392,6 +394,82 @@ export async function deleteNotificationsForReply(params: {
           : { 'payload.studentId': params.studentId }),
       },
     ],
+  }).exec();
+}
+
+/** 특정 교시 관련 알림 전부 삭제 */
+export async function deleteNotificationsForPeriod(lessonDayId: string, periodId: string) {
+  if (!lessonDayId || !periodId) return;
+  await Notification.deleteMany({
+    'payload.lessonDayId': lessonDayId,
+    'payload.periodId': periodId,
+  }).exec();
+}
+
+/** 수업일(LessonDay) 관련 알림 전부 삭제 */
+export async function deleteNotificationsForLessonDay(lessonDayId: string) {
+  if (!lessonDayId) return;
+  await Notification.deleteMany({
+    'payload.lessonDayId': lessonDayId,
+  }).exec();
+}
+
+/** 반 관련 알림 전부 삭제 */
+export async function deleteNotificationsForClass(classId: string) {
+  if (!classId) return;
+  await Notification.deleteMany({
+    'payload.classId': classId,
+  }).exec();
+}
+
+/** 학생 관련 알림 + 해당 계정으로 받은 알림 삭제 */
+export async function deleteNotificationsForStudent(params: {
+  studentId: string;
+  recipientUserIds?: string[];
+}) {
+  const ops: Promise<unknown>[] = [];
+  if (params.studentId) {
+    ops.push(
+      Notification.deleteMany({
+        'payload.studentId': params.studentId,
+      }).exec()
+    );
+  }
+  const recipientIds = (params.recipientUserIds ?? []).filter((id) =>
+    mongoose.Types.ObjectId.isValid(id)
+  );
+  if (recipientIds.length > 0) {
+    ops.push(
+      Notification.deleteMany({
+        recipientUserId: {
+          $in: recipientIds.map((id) => new mongoose.Types.ObjectId(id)),
+        },
+      }).exec()
+    );
+  }
+  if (ops.length > 0) await Promise.all(ops);
+}
+
+/** 좋아요 취소 시 해당 강사의 reply_like 알림 삭제 */
+export async function deleteReplyLikeNotification(params: {
+  lessonDayId: string;
+  periodId: string;
+  studentId: string;
+  channel: 'student' | 'parent';
+  teacherId: string;
+  teacherName?: string;
+}) {
+  const orMatch: Record<string, unknown>[] = [];
+  if (params.teacherId) orMatch.push({ 'payload.teacherId': params.teacherId });
+  if (params.teacherName?.trim()) orMatch.push({ 'payload.teacherName': params.teacherName.trim() });
+  if (orMatch.length === 0) return;
+  await Notification.deleteMany({
+    type: 'reply_like',
+    'payload.lessonDayId': params.lessonDayId,
+    'payload.periodId': params.periodId,
+    'payload.studentId': params.studentId,
+    'payload.channel': params.channel,
+    $or: orMatch,
   }).exec();
 }
 
@@ -634,11 +712,21 @@ export async function toggleReplyLike(params: {
         date: lesson.date instanceof Date ? lesson.date.toISOString().slice(0, 10) : String(lesson.date).slice(0, 10),
         studentId: params.studentId,
         studentName: student?.name ?? '-',
+        teacherId: teacher._id.toString(),
         teacherName: teacher.name,
         replyPreview: replyBody,
         channel: params.channel,
       });
     }
+  } else {
+    await deleteReplyLikeNotification({
+      lessonDayId: params.lessonDayId,
+      periodId: params.periodId,
+      studentId: params.studentId,
+      channel: params.channel,
+      teacherId: teacher._id.toString(),
+      teacherName: teacher.name,
+    });
   }
 
   return {

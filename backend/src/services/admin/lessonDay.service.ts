@@ -7,7 +7,7 @@ import { Teacher } from '../../models/Teacher.model';
 import { VideoWatchProgress } from '../../models/VideoWatchProgress.model';
 import { extractYoutubeVideoId } from '../../utils/youtube';
 import { nextPeriodNumber, periodNumberTaken, sortPeriods } from './lessonDay.utils';
-import { notifyLessonUpdate } from '../notification.service';
+import { notifyLessonUpdate, deleteNotificationsForPeriod, deleteNotificationsForLessonDay } from '../notification.service';
 
 export interface ListLessonDaysFilter {
   dateFrom?: string;
@@ -128,6 +128,9 @@ export async function updateLessonDay(
 export async function deleteLessonDay(id: string): Promise<boolean> {
   if (!mongoose.Types.ObjectId.isValid(id)) return false;
   const result = await LessonDay.findByIdAndDelete(id);
+  if (result) {
+    await deleteNotificationsForLessonDay(id);
+  }
   return result != null;
 }
 
@@ -193,8 +196,13 @@ export async function removePeriod(lessonDayId: string, periodIndex: number): Pr
   lesson.periods = sortPeriods(lesson.periods as IPeriod[]) as typeof lesson.periods;
   if (periodIndex < 0 || periodIndex >= lesson.periods.length) return null;
 
+  const removed = lesson.periods[periodIndex];
+  const periodId = removed._id?.toString() ?? '';
   lesson.periods.splice(periodIndex, 1);
   await lesson.save();
+  if (periodId) {
+    await deleteNotificationsForPeriod(lessonDayId, periodId);
+  }
   return getLessonDayById(lessonDayId);
 }
 

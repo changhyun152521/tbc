@@ -4,6 +4,9 @@ import { IClass } from '../../models/Class.model';
 import { Student } from '../../models/Student.model';
 import { LessonDay } from '../../models/LessonDay.model';
 import { Test } from '../../models/Test.model';
+import { Announcement } from '../../models/Announcement.model';
+import { AnnouncementDismissal } from '../../models/AnnouncementDismissal.model';
+import { deleteNotificationsForClass, deleteNotificationsForLessonDay } from '../notification.service';
 
 export interface CreateClassInput {
   name: string;
@@ -129,6 +132,25 @@ export async function updateClass(id: string, input: UpdateClassInput): Promise<
 }
 
 export async function deleteClass(id: string): Promise<boolean> {
+  if (!mongoose.Types.ObjectId.isValid(id)) return false;
+  const classObjId = new mongoose.Types.ObjectId(id);
+
+  const lessonDays = await LessonDay.find({ classId: classObjId }).select('_id').lean().exec();
+  const lessonDayIds = lessonDays.map((d) => d._id.toString());
+
+  const announcements = await Announcement.find({ classId: classObjId }).select('_id').lean().exec();
+  const announcementIds = announcements.map((a) => a._id);
+
+  await Promise.all([
+    deleteNotificationsForClass(id),
+    ...lessonDayIds.map((lessonDayId) => deleteNotificationsForLessonDay(lessonDayId)),
+    LessonDay.deleteMany({ classId: classObjId }).exec(),
+    announcementIds.length > 0
+      ? AnnouncementDismissal.deleteMany({ announcementId: { $in: announcementIds } }).exec()
+      : Promise.resolve(),
+    Announcement.deleteMany({ classId: classObjId }).exec(),
+  ]);
+
   const result = await Class.findByIdAndDelete(id);
   return result != null;
 }

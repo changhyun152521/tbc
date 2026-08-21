@@ -6,6 +6,7 @@ import { Teacher } from '../../models/Teacher.model';
 import { User } from '../../models/User.model';
 import { isYyyyMmDd, kstToday } from '../../utils/dateKst';
 import { notifyAnnouncementCreated } from '../notification.service';
+import { Notification } from '../../models/Notification.model';
 
 export interface AnnouncementInput {
   title: string;
@@ -87,7 +88,10 @@ export async function deleteAnnouncement(id: string): Promise<boolean> {
   if (!mongoose.Types.ObjectId.isValid(id)) return false;
   const result = await Announcement.findByIdAndDelete(id).exec();
   if (result) {
-    await AnnouncementDismissal.deleteMany({ announcementId: result._id }).exec();
+    await Promise.all([
+      AnnouncementDismissal.deleteMany({ announcementId: result._id }).exec(),
+      Notification.deleteMany({ 'payload.announcementId': id }).exec(),
+    ]);
   }
   return result != null;
 }

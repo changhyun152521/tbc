@@ -4,6 +4,8 @@ import { User } from '../../models/User.model';
 import { Student } from '../../models/Student.model';
 import { Class } from '../../models/Class.model';
 import { IStudent } from '../../models/Student.model';
+import { LessonDay } from '../../models/LessonDay.model';
+import { deleteNotificationsForStudent } from '../notification.service';
 
 const SALT_ROUNDS = 10;
 
@@ -342,10 +344,35 @@ export async function deleteStudent(id: string): Promise<boolean> {
   if (!student) return false;
 
   const sid = student._id;
-  await Class.updateMany(
-    { studentIds: sid },
-    { $pull: { studentIds: sid } }
-  ).exec();
+  const recipientUserIds = [
+    student.userId?.toString() ?? '',
+    student.parentUserId?.toString() ?? '',
+    student.adminAccessUserId?.toString() ?? '',
+  ].filter(Boolean);
+
+  await Class.updateMany({ studentIds: sid }, { $pull: { studentIds: sid } }).exec();
+
+  // 수업 기록·답글 목록에서 제거
+  const lessons = await LessonDay.find({ 'periods.records.studentId': sid }).exec();
+  for (const lesson of lessons) {
+    let changed = false;
+    for (const period of lesson.periods ?? []) {
+      const before = (period.records ?? []).length;
+      period.records = (period.records ?? []).filter(
+        (r) => r.studentId?.toString() !== sid.toString()
+      ) as typeof period.records;
+      if ((period.records ?? []).length !== before) changed = true;
+    }
+    if (changed) {
+      lesson.markModified('periods');
+      await lesson.save();
+    }
+  }
+
+  await deleteNotificationsForStudent({
+    studentId: id,
+    recipientUserIds,
+  });
 
   const toDelete: mongoose.Types.ObjectId[] = [student.userId, student.parentUserId];
   if (student.adminAccessUserId) toDelete.push(student.adminAccessUserId);
