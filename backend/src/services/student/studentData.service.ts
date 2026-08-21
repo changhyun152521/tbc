@@ -159,13 +159,29 @@ function displayTeacherNamesForUser(
 }
 
 /** period.teacherId가 populate된 경우 name 추출 */
-function getTeacherName(period: IPeriod & { teacherId?: mongoose.Types.ObjectId | { name?: string } }): string {
+function getTeacherName(period: IPeriod & { teacherId?: mongoose.Types.ObjectId | { name?: string; _id?: mongoose.Types.ObjectId } }): string {
   const t = period.teacherId;
   if (!t) return '';
   if (typeof t === 'object' && t !== null && 'name' in t && typeof (t as { name?: string }).name === 'string') {
     return (t as { name: string }).name;
   }
   return '';
+}
+
+function getTeacherId(period: IPeriod & { teacherId?: mongoose.Types.ObjectId | { _id?: mongoose.Types.ObjectId } }): string {
+  const t = period.teacherId as unknown;
+  if (!t) return '';
+  if (typeof t === 'object' && t !== null && '_id' in t) {
+    const id = (t as { _id?: { toString(): string } })._id;
+    return id?.toString() ?? '';
+  }
+  return String(t);
+}
+
+/** 담당 교시 강사가 좋아요에 있으면 이름/ID 목록 맨 앞으로 */
+function prioritizePeriodTeacherIds(ids: string[], periodTeacherId?: string | null): string[] {
+  if (!periodTeacherId || !ids.includes(periodTeacherId)) return ids;
+  return [periodTeacherId, ...ids.filter((id) => id !== periodTeacherId)];
 }
 
 type LessonFlatRow = {
@@ -179,6 +195,7 @@ type LessonFlatRow = {
   homeworkDescription?: string;
   homeworkDueDate?: string;
   teacherName?: string;
+  periodTeacherId?: string;
   note?: string;
   parentNote?: string;
   studentReply?: string;
@@ -199,6 +216,7 @@ type LessonFlatRow = {
 async function enrichLessonRowsWithLikedTeacherNames<T extends {
   studentReplyLikedTeacherIds?: string[];
   parentReplyLikedTeacherIds?: string[];
+  periodTeacherId?: string;
 }>(
   items: T[]
 ): Promise<(T & { studentReplyLikedTeacherNames: string[]; parentReplyLikedTeacherNames: string[] })[]> {
@@ -223,10 +241,16 @@ async function enrichLessonRowsWithLikedTeacherNames<T extends {
   const nameById = new Map(teachers.map((teacher) => [teacher._id.toString(), teacher.name]));
   return items.map((item) => ({
     ...item,
-    studentReplyLikedTeacherNames: (item.studentReplyLikedTeacherIds ?? [])
+    studentReplyLikedTeacherNames: prioritizePeriodTeacherIds(
+      item.studentReplyLikedTeacherIds ?? [],
+      item.periodTeacherId
+    )
       .map((id) => nameById.get(id) ?? '')
       .filter(Boolean),
-    parentReplyLikedTeacherNames: (item.parentReplyLikedTeacherIds ?? [])
+    parentReplyLikedTeacherNames: prioritizePeriodTeacherIds(
+      item.parentReplyLikedTeacherIds ?? [],
+      item.periodTeacherId
+    )
       .map((id) => nameById.get(id) ?? '')
       .filter(Boolean),
   }));
@@ -267,6 +291,7 @@ function flattenLessonDaysForStudent(
         homeworkDescription: (p.homeworkDescription ?? '').trim() || undefined,
         homeworkDueDate: dueDate,
         teacherName: getTeacherName(period) || undefined,
+        periodTeacherId: getTeacherId(period) || undefined,
         note: noteStr,
         parentNote: parentNoteStr,
         studentReply: studentReplyStr,

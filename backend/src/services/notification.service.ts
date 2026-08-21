@@ -7,6 +7,11 @@ import { Student } from '../models/Student.model';
 import { Teacher } from '../models/Teacher.model';
 import { User } from '../models/User.model';
 
+function prioritizePeriodTeacherIds(ids: string[], periodTeacherId?: string | null): string[] {
+  if (!periodTeacherId || !ids.includes(periodTeacherId)) return ids;
+  return [periodTeacherId, ...ids.filter((id) => id !== periodTeacherId)];
+}
+
 function clipText(input: string, max = 80): string {
   const trimmed = input.trim().replace(/\s+/g, ' ');
   if (trimmed.length <= max) return trimmed;
@@ -533,7 +538,9 @@ export async function listReplyInboxForUser(
       studentName: studentNameById.get(item.studentId) ?? '-',
       likedByMe: teacher ? item.likedTeacherIds.includes(teacher._id.toString()) : false,
       likeCount: item.likedTeacherIds.length,
-      likedTeacherNames: item.likedTeacherIds.map((id) => teacherNameById.get(id) ?? '').filter(Boolean),
+      likedTeacherNames: prioritizePeriodTeacherIds(item.likedTeacherIds, item.periodTeacherId)
+        .map((id) => teacherNameById.get(id) ?? '')
+        .filter(Boolean),
     }))
     .sort((a, b) => (b.replyUpdatedAt ?? b.replyCreatedAt ?? '').localeCompare(a.replyUpdatedAt ?? a.replyCreatedAt ?? ''));
 
@@ -592,7 +599,10 @@ export async function toggleReplyLike(params: {
   record[likeField] = Array.from(likedIds).map((id) => new mongoose.Types.ObjectId(id)) as never;
   await lesson.save();
 
-  const likedTeacherIds = Array.from(likedIds);
+  const likedTeacherIds = prioritizePeriodTeacherIds(
+    Array.from(likedIds),
+    period.teacherId?.toString() ?? null
+  );
   let likedTeacherNames: string[] = [];
   if (likedTeacherIds.length > 0) {
     const likedTeachers = await Teacher.find({
@@ -601,7 +611,8 @@ export async function toggleReplyLike(params: {
       .select('name')
       .lean()
       .exec();
-    likedTeacherNames = likedTeachers.map((row) => row.name);
+    const nameById = new Map(likedTeachers.map((row) => [row._id.toString(), row.name]));
+    likedTeacherNames = likedTeacherIds.map((id) => nameById.get(id) ?? '').filter(Boolean);
   }
 
   if (nowLiked) {
