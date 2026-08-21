@@ -328,6 +328,31 @@ export async function notifyTeacherComment(params: {
   });
 }
 
+function buildReplyLikeBody(teacherNames: string[]): string {
+  if (teacherNames.length === 0) return '답글에 좋아요가 있습니다.';
+  if (teacherNames.length === 1) {
+    return `${teacherNames[0]} 선생님이 회원님의 답글에 좋아요를 눌렀습니다.`;
+  }
+  return `${teacherNames[0]} 선생님 외 ${teacherNames.length - 1}명이 회원님의 답글에 좋아요를 눌렀습니다.`;
+}
+
+function replyLikeMatchFilter(params: {
+  recipientUserId: string;
+  lessonDayId: string;
+  periodId: string;
+  studentId: string;
+  channel: 'student' | 'parent';
+}) {
+  return {
+    recipientUserId: new mongoose.Types.ObjectId(params.recipientUserId),
+    type: 'reply_like' as const,
+    'payload.lessonDayId': params.lessonDayId,
+    'payload.periodId': params.periodId,
+    'payload.studentId': params.studentId,
+    'payload.channel': params.channel,
+  };
+}
+
 export async function notifyReplyLike(params: {
   actorUserId?: string | null;
   recipientUserId: string;
@@ -341,29 +366,100 @@ export async function notifyReplyLike(params: {
   studentName: string;
   teacherId: string;
   teacherName: string;
+  periodTeacherId?: string | null;
   replyPreview: string;
   channel: 'student' | 'parent';
 }) {
   if (!mongoose.Types.ObjectId.isValid(params.recipientUserId)) return;
-  await createForRecipients([params.recipientUserId], {
+  if (params.actorUserId && params.actorUserId === params.recipientUserId) return;
+
+  const baseFilter = replyLikeMatchFilter({
+    recipientUserId: params.recipientUserId,
+    lessonDayId: params.lessonDayId,
+    periodId: params.periodId,
+    studentId: params.studentId,
+    channel: params.channel,
+  });
+
+  // 읽지 않은 동일 답글 좋아요 알림만 합침 (이미 읽은 뒤에는 새 알림)
+  const unreadList = await Notification.find({ ...baseFilter, readAt: null })
+    .sort({ createdAt: -1 })
+    .exec();
+
+  const collectTeacherIds = (rows: { payload?: Record<string, unknown> }[]): string[] => {
+    const ids: string[] = [];
+    for (const row of rows) {
+      const payload = row.payload ?? {};
+      const listed = payload.likedTeacherIds;
+      if (Array.isArray(listed)) {
+        for (const id of listed) {
+          if (typeof id === 'string' && id) ids.push(id);
+        }
+      }
+      if (typeof payload.teacherId === 'string' && payload.teacherId) ids.push(payload.teacherId);
+    }
+    return uniqStrings(ids);
+  };
+
+  const mergedIds = prioritizePeriodTeacherIds(
+    uniqStrings([...collectTeacherIds(unreadList), params.teacherId]),
+    params.periodTeacherId ?? null
+  );
+
+  const teachers =
+    mergedIds.length > 0
+      ? await Teacher.find({
+          _id: { $in: mergedIds.map((id) => new mongoose.Types.ObjectId(id)) },
+        })
+          .select('name')
+          .lean()
+          .exec()
+      : [];
+  const nameById = new Map(teachers.map((t) => [t._id.toString(), t.name]));
+  const likedTeacherNames = mergedIds.map((id) => nameById.get(id) ?? '').filter(Boolean);
+  const leadName = likedTeacherNames[0] || params.teacherName;
+  const body = buildReplyLikeBody(likedTeacherNames.length > 0 ? likedTeacherNames : [params.teacherName]);
+
+  const payload = {
+    classId: params.classId,
+    className: params.className,
+    lessonDayId: params.lessonDayId,
+    periodId: params.periodId,
+    periodNumber: params.periodNumber,
+    date: params.date,
+    studentId: params.studentId,
+    studentName: params.studentName,
+    channel: params.channel,
+    replyPreview: clipText(params.replyPreview),
+    teacherId: params.teacherId,
+    teacherName: leadName,
+    periodTeacherId: params.periodTeacherId ?? '',
+    likedTeacherIds: mergedIds,
+    likedTeacherNames,
+  };
+
+  if (unreadList.length > 0) {
+    const primary = unreadList[0];
+    primary.title = '답글 좋아요';
+    primary.body = body;
+    primary.payload = payload;
+    primary.createdAt = new Date();
+    await primary.save();
+    if (unreadList.length > 1) {
+      await Notification.deleteMany({
+        _id: { $in: unreadList.slice(1).map((row) => row._id) },
+      }).exec();
+    }
+    return;
+  }
+
+  await Notification.create({
+    recipientUserId: new mongoose.Types.ObjectId(params.recipientUserId),
     type: 'reply_like',
     title: '답글 좋아요',
-    body: `${params.teacherName} 선생님이 회원님의 답글에 좋아요를 눌렀습니다.`,
-    payload: {
-      classId: params.classId,
-      className: params.className,
-      lessonDayId: params.lessonDayId,
-      periodId: params.periodId,
-      periodNumber: params.periodNumber,
-      date: params.date,
-      studentId: params.studentId,
-      studentName: params.studentName,
-      channel: params.channel,
-      replyPreview: clipText(params.replyPreview),
-      teacherId: params.teacherId,
-      teacherName: params.teacherName,
-    },
-    excludeUserId: params.actorUserId ?? null,
+    body,
+    payload,
+    readAt: null,
   });
 }
 
@@ -450,7 +546,7 @@ export async function deleteNotificationsForStudent(params: {
   if (ops.length > 0) await Promise.all(ops);
 }
 
-/** 좋아요 취소 시 해당 강사의 reply_like 알림 삭제 */
+/** 좋아요 취소 시: 읽지 않은 합쳐진 알림에서 해당 강사만 제거, 없으면 개별 알림 삭제 */
 export async function deleteReplyLikeNotification(params: {
   lessonDayId: string;
   periodId: string;
@@ -458,9 +554,69 @@ export async function deleteReplyLikeNotification(params: {
   channel: 'student' | 'parent';
   teacherId: string;
   teacherName?: string;
+  recipientUserId?: string | null;
+  periodTeacherId?: string | null;
 }) {
+  const recipientId = params.recipientUserId;
+  if (recipientId && mongoose.Types.ObjectId.isValid(recipientId)) {
+    const unread = await Notification.findOne({
+      ...replyLikeMatchFilter({
+        recipientUserId: recipientId,
+        lessonDayId: params.lessonDayId,
+        periodId: params.periodId,
+        studentId: params.studentId,
+        channel: params.channel,
+      }),
+      readAt: null,
+    })
+      .sort({ createdAt: -1 })
+      .exec();
+
+    if (unread) {
+      const payload = (unread.payload ?? {}) as Record<string, unknown>;
+      let ids: string[] = [];
+      if (Array.isArray(payload.likedTeacherIds)) {
+        ids = payload.likedTeacherIds.filter((id): id is string => typeof id === 'string' && Boolean(id));
+      }
+      if (ids.length === 0 && typeof payload.teacherId === 'string') {
+        ids = [payload.teacherId];
+      }
+      const nextIds = prioritizePeriodTeacherIds(
+        ids.filter((id) => id !== params.teacherId),
+        params.periodTeacherId ?? (typeof payload.periodTeacherId === 'string' ? payload.periodTeacherId : null)
+      );
+
+      if (nextIds.length === 0) {
+        await unread.deleteOne();
+      } else {
+        const teachers = await Teacher.find({
+          _id: { $in: nextIds.map((id) => new mongoose.Types.ObjectId(id)) },
+        })
+          .select('name')
+          .lean()
+          .exec();
+        const nameById = new Map(teachers.map((t) => [t._id.toString(), t.name]));
+        const likedTeacherNames = nextIds.map((id) => nameById.get(id) ?? '').filter(Boolean);
+        unread.body = buildReplyLikeBody(likedTeacherNames);
+        unread.payload = {
+          ...payload,
+          likedTeacherIds: nextIds,
+          likedTeacherNames,
+          teacherId: nextIds[0],
+          teacherName: likedTeacherNames[0] ?? '',
+        };
+        await unread.save();
+      }
+      return;
+    }
+  }
+
+  // 레거시(개별 알림) 또는 수신자 미지정: teacherId/teacherName으로 삭제
   const orMatch: Record<string, unknown>[] = [];
-  if (params.teacherId) orMatch.push({ 'payload.teacherId': params.teacherId });
+  if (params.teacherId) {
+    orMatch.push({ 'payload.teacherId': params.teacherId });
+    orMatch.push({ 'payload.likedTeacherIds': params.teacherId });
+  }
   if (params.teacherName?.trim()) orMatch.push({ 'payload.teacherName': params.teacherName.trim() });
   if (orMatch.length === 0) return;
   await Notification.deleteMany({
@@ -714,11 +870,15 @@ export async function toggleReplyLike(params: {
         studentName: student?.name ?? '-',
         teacherId: teacher._id.toString(),
         teacherName: teacher.name,
+        periodTeacherId: period.teacherId?.toString() ?? null,
         replyPreview: replyBody,
         channel: params.channel,
       });
     }
   } else {
+    const student = await Student.findById(params.studentId).select('userId parentUserId').lean().exec();
+    const recipientUserId =
+      params.channel === 'student' ? student?.userId?.toString() ?? null : student?.parentUserId?.toString() ?? null;
     await deleteReplyLikeNotification({
       lessonDayId: params.lessonDayId,
       periodId: params.periodId,
@@ -726,6 +886,8 @@ export async function toggleReplyLike(params: {
       channel: params.channel,
       teacherId: teacher._id.toString(),
       teacherName: teacher.name,
+      recipientUserId,
+      periodTeacherId: period.teacherId?.toString() ?? null,
     });
   }
 
