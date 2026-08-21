@@ -40,6 +40,11 @@ export interface ListStudentsQuery {
   search?: string; // 이름, 학교, 학생 전화번호, 학부모 전화번호 통합 검색
   page?: number;
   limit?: number;
+  /**
+   * Class.studentIds 기준으로 목록 제한.
+   * 빈 배열이면 결과 없음. undefined면 학생 ID로 제한하지 않음.
+   */
+  studentIds?: string[];
   /** 관리자만 true — 학생 본인 계정 최근 접속 시각 포함 */
   includeLastAccess?: boolean;
   /** 관리자·강사 true — 학부모 계정 최근 접속 시각 포함 */
@@ -150,10 +155,25 @@ export async function createStudent(input: CreateStudentInput): Promise<IStudent
 }
 
 export async function listStudents(query: ListStudentsQuery): Promise<ListStudentsResult> {
+  const page = Math.max(1, Number(query.page) || 1);
+  const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
+  const skip = (page - 1) * limit;
+
+  if (query.studentIds != null && query.studentIds.length === 0) {
+    return { list: [], total: 0, page, limit, totalPages: 1 };
+  }
+
   const filter: Record<string, unknown> = {};
   if (query.name?.trim()) filter.name = { $regex: query.name.trim(), $options: 'i' };
   if (query.grade?.trim()) filter.grade = query.grade.trim();
-  if (query.classId?.trim() && mongoose.Types.ObjectId.isValid(query.classId.trim())) {
+  if (query.studentIds != null) {
+    filter._id = {
+      $in: query.studentIds
+        .filter((id) => mongoose.Types.ObjectId.isValid(id))
+        .map((id) => new mongoose.Types.ObjectId(id)),
+    };
+  } else if (query.classId?.trim() && mongoose.Types.ObjectId.isValid(query.classId.trim())) {
+    // 하위 호환: Student.classId (레거시). 신규 필터는 studentIds(Class.studentIds) 권장.
     filter.classId = new mongoose.Types.ObjectId(query.classId.trim());
   }
   if (query.search?.trim()) {
@@ -165,10 +185,6 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
       { parentPhone: { $regex: term, $options: 'i' } },
     ];
   }
-
-  const page = Math.max(1, Number(query.page) || 1);
-  const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
-  const skip = (page - 1) * limit;
 
   const [list, total] = await Promise.all([
     Student.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('adminAccessUserId', 'loginId').lean().exec(),

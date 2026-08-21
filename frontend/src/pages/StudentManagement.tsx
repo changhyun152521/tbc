@@ -22,6 +22,7 @@ interface ListResponse {
 
 export default function StudentManagement() {
   const { role } = useAuth();
+  const isTeacher = role === 'teacher';
   const showStudentLastAccess = role === 'admin';
   const showParentLastAccess = role === 'admin' || role === 'teacher';
   const [list, setList] = useState<StudentListItem[]>([]);
@@ -30,6 +31,9 @@ export default function StudentManagement() {
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
   const [grade, setGrade] = useState('');
+  /** ''=전체, 'my'=내 반 전체, 그 외=반 ID */
+  const [classFilter, setClassFilter] = useState('');
+  const [classOptions, setClassOptions] = useState<{ _id: string; name: string }[]>([]);
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -50,6 +54,23 @@ export default function StudentManagement() {
     return () => clearTimeout(t);
   }, [search]);
 
+  useEffect(() => {
+    let cancelled = false;
+    apiClient
+      .get<{ success: boolean; data: { _id: string; name: string }[] }>('/admin/classes')
+      .then((res) => {
+        if (cancelled) return;
+        const raw = res.data.success && Array.isArray(res.data.data) ? res.data.data : [];
+        setClassOptions(raw.map((c) => ({ _id: c._id, name: c.name })));
+      })
+      .catch(() => {
+        if (!cancelled) setClassOptions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const fetchList = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -57,6 +78,11 @@ export default function StudentManagement() {
       const params = new URLSearchParams();
       if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
       if (grade) params.set('grade', grade);
+      if (classFilter === 'my') {
+        params.set('myClasses', '1');
+      } else if (classFilter) {
+        params.set('classId', classFilter);
+      }
       params.set('page', String(page));
       params.set('limit', String(PAGE_SIZE));
       const res = await apiClient.get<{ success: boolean; data: ListResponse }>(`/admin/students?${params}`);
@@ -71,11 +97,15 @@ export default function StudentManagement() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, grade, page]);
+  }, [debouncedSearch, grade, classFilter, page]);
 
   useEffect(() => {
     fetchList();
   }, [fetchList]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, grade, classFilter]);
 
   const handleToggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -188,7 +218,7 @@ export default function StudentManagement() {
     URL.revokeObjectURL(a.href);
   };
 
-  const hasFilter = Boolean(debouncedSearch.trim() || grade);
+  const hasFilter = Boolean(debouncedSearch.trim() || grade || classFilter);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col pt-6 px-4 sm:px-6 lg:px-10 pb-12">
@@ -222,6 +252,10 @@ export default function StudentManagement() {
             grade={grade}
             onSearchChange={setSearch}
             onGradeChange={setGrade}
+            classFilter={classFilter}
+            onClassFilterChange={setClassFilter}
+            classOptions={classOptions}
+            showMyClassesOption={isTeacher}
           />
         </div>
 

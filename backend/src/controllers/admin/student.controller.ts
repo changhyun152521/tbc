@@ -1,8 +1,47 @@
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
+import mongoose from 'mongoose';
 import * as studentService from '../../services/admin/student.service';
-import { getAssignedStudentIds } from '../../services/teacher/teacherClass.service';
+import { Class } from '../../models/Class.model';
+import {
+  canAccessClass,
+  getAssignedStudentIds,
+} from '../../services/teacher/teacherClass.service';
 import { ApiResponse } from '../../types/api';
+
+async function resolveStudentIdsFilter(
+  role: string | undefined,
+  userId: string,
+  classId: unknown,
+  myClasses: unknown
+): Promise<{ studentIds?: string[]; error?: string; status?: number }> {
+  const wantMyClasses = myClasses === '1' || myClasses === 'true';
+  const classIdStr = typeof classId === 'string' ? classId.trim() : '';
+
+  if (wantMyClasses) {
+    if (role !== 'teacher') {
+      return { error: '내 반 필터는 강사만 사용할 수 있습니다.', status: 403 };
+    }
+    return { studentIds: await getAssignedStudentIds(userId) };
+  }
+
+  if (!classIdStr) return {};
+
+  if (!mongoose.Types.ObjectId.isValid(classIdStr)) {
+    return { error: '올바른 반 ID가 아닙니다.', status: 400 };
+  }
+
+  if (role === 'teacher') {
+    const ok = await canAccessClass(classIdStr, userId, role);
+    if (!ok) return { error: '이 반에 대한 권한이 없습니다.', status: 403 };
+  }
+
+  const classDoc = await Class.findById(classIdStr).select('studentIds').lean().exec();
+  if (!classDoc) return { error: '반을 찾을 수 없습니다.', status: 404 };
+  return {
+    studentIds: (classDoc.studentIds ?? []).map((id) => id.toString()),
+  };
+}
 
 export async function createStudent(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
@@ -51,9 +90,16 @@ export async function createStudent(req: Request, res: Response<ApiResponse>): P
 
 export async function listStudents(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
-    const { name, grade, classId, search, page, limit } = req.query;
+    const { name, grade, classId, search, page, limit, myClasses } = req.query;
     const role = req.user?.role;
     const userId = req.user?.id ?? '';
+
+    const scope = await resolveStudentIdsFilter(role, userId, classId, myClasses);
+    if (scope.error) {
+      res.status(scope.status ?? 400).json({ success: false, message: scope.error });
+      return;
+    }
+
     let parentLastAccessStudentIds: string[] | null | undefined;
     if (role === 'teacher') {
       parentLastAccessStudentIds = await getAssignedStudentIds(userId);
@@ -63,10 +109,10 @@ export async function listStudents(req: Request, res: Response<ApiResponse>): Pr
     const result = await studentService.listStudents({
       name: name as string,
       grade: grade as string,
-      classId: classId as string,
       search: search as string,
       page: page != null ? parseInt(String(page), 10) : undefined,
       limit: limit != null ? parseInt(String(limit), 10) : undefined,
+      studentIds: scope.studentIds,
       includeLastAccess: role === 'admin',
       includeParentLastAccess: role === 'admin' || role === 'teacher',
       parentLastAccessStudentIds,
