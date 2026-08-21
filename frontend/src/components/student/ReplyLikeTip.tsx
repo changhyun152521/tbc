@@ -12,6 +12,7 @@ export default function ReplyLikeTip({ names }: { names?: string[] }) {
   const likedNames = names ?? [];
   const [likeTipOpen, setLikeTipOpen] = useState(false);
   const likeTipRef = useRef<HTMLSpanElement | null>(null);
+  const likeCount = likedNames.length;
 
   const likeTipText =
     likedNames.length === 1
@@ -44,10 +45,11 @@ export default function ReplyLikeTip({ names }: { names?: string[] }) {
       <button
         type="button"
         onClick={() => setLikeTipOpen((prev) => !prev)}
-        className="inline-flex items-center text-sky-500 hover:text-sky-600 transition-colors"
+        className="inline-flex items-center gap-1 text-sky-500 hover:text-sky-600 transition-colors"
         aria-label="좋아요 정보 보기"
       >
         <ThumbsUpIcon className="w-3.5 h-3.5" />
+        {likeCount > 0 && <span className="text-[11px] font-semibold tabular-nums">{likeCount}</span>}
       </button>
       {likeTipOpen && (
         <span className="absolute left-0 bottom-[calc(100%+6px)] z-20 w-max max-w-[min(220px,calc(100vw-2rem))] rounded-lg bg-slate-800 px-2.5 py-1.5 text-[11px] leading-snug text-white shadow-lg sm:left-1/2 sm:-translate-x-1/2">

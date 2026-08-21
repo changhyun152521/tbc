@@ -17,6 +17,7 @@ interface ReplyInboxItem {
   date: string;
   studentId: string;
   studentName: string;
+  periodTeacherName?: string;
   channel: 'student' | 'parent';
   replyBody: string;
   replyCreatedAt?: string;
@@ -141,13 +142,17 @@ export default function ReplyInboxSection() {
                           {item.className}
                           {item.date ? ` · ${item.date}` : ''}
                           {item.periodNumber ? ` · ${item.periodNumber}교시` : ''}
+                          {item.periodTeacherName ? ` · ${item.periodTeacherName}T` : ''}
                         </p>
                         {item.replyUpdatedAt && item.replyCreatedAt && item.replyUpdatedAt !== item.replyCreatedAt && (
                           <p className="mt-1 text-[11px] text-slate-400">수정됨</p>
                         )}
-                        {item.likedTeacherNames.length > 0 && (
+                        {item.likeCount > 0 && (
                           <p className="mt-1 text-[11px] text-slate-400">
-                            좋아요 {item.likeCount} · {item.likedTeacherNames.join(', ')}
+                            좋아요 {item.likeCount}
+                            {item.likedTeacherNames.length > 0
+                              ? ` · ${item.likedTeacherNames.join(', ')}`
+                              : ''}
                           </p>
                         )}
                       </Link>
@@ -166,7 +171,9 @@ export default function ReplyInboxSection() {
                                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                             }`}
                           >
-                            {item.likedByMe ? '좋아요 취소' : '좋아요'}
+                            {item.likedByMe
+                              ? `좋아요 취소${item.likeCount > 0 ? ` (${item.likeCount})` : ''}`
+                              : `좋아요${item.likeCount > 0 ? ` (${item.likeCount})` : ''}`}
                           </button>
                         )}
                       </div>

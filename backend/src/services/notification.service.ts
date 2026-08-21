@@ -48,19 +48,9 @@ async function getClassRecipientUserIds(classId: string): Promise<string[]> {
   ]);
 }
 
-async function getReplyRecipientUserIds(classId: string, teacherId?: string | null): Promise<string[]> {
-  if (!mongoose.Types.ObjectId.isValid(classId)) return [];
-  const [targetTeacher, admins] = await Promise.all([
-    teacherId && mongoose.Types.ObjectId.isValid(teacherId)
-      ? Teacher.findById(teacherId).select('userId').lean().exec()
-      : null,
-    User.find({ role: 'admin' }).select('_id').lean().exec(),
-  ]);
-
-  return uniqStrings([
-    targetTeacher?.userId?.toString() ?? '',
-    ...admins.map((u) => u._id.toString()),
-  ]);
+async function getReplyRecipientUserIds(classId: string, _teacherId?: string | null): Promise<string[]> {
+  // 같은 반 강사 전원 + 관리자 (교시 담당만이 아님)
+  return getClassTeacherAndAdminUserIds(classId);
 }
 
 /** 반 소속 강사 + 관리자 (공지 등) */
@@ -124,7 +114,12 @@ async function filterNotificationsForTeacher(userId: string, rows: NotificationR
   if (!teacher) return rows;
 
   const classScopedRows = rows.filter(
-    (row) => row.type === 'lesson_update' || row.type === 'test_created' || row.type === 'announcement_created'
+    (row) =>
+      row.type === 'lesson_update' ||
+      row.type === 'test_created' ||
+      row.type === 'announcement_created' ||
+      row.type === 'student_reply' ||
+      row.type === 'parent_reply'
   );
   const classIds = uniqStrings(
     classScopedRows.map((row) => (typeof row.payload?.classId === 'string' ? row.payload.classId : ''))
@@ -142,39 +137,16 @@ async function filterNotificationsForTeacher(userId: string, rows: NotificationR
     allowedClassIds = new Set(classes.map((c) => c._id.toString()));
   }
 
-  const replyRows = rows.filter((row) => row.type === 'student_reply' || row.type === 'parent_reply');
-  const lessonDayIds = uniqStrings(
-    replyRows.map((row) => {
-      const lessonDayId = row.payload?.lessonDayId;
-      return typeof lessonDayId === 'string' ? lessonDayId : '';
-    })
-  ).filter((id) => mongoose.Types.ObjectId.isValid(id));
-
-  const ownsPeriod = new Set<string>();
-  if (lessonDayIds.length > 0) {
-    const lessonDays = await LessonDay.find({ _id: { $in: lessonDayIds.map((id) => new mongoose.Types.ObjectId(id)) } })
-      .select('periods')
-      .lean()
-      .exec();
-
-    for (const day of lessonDays) {
-      for (const period of day.periods ?? []) {
-        if (period.teacherId?.toString() !== teacher._id.toString() || !period._id) continue;
-        ownsPeriod.add(`${day._id.toString()}:${period._id.toString()}`);
-      }
-    }
-  }
-
   return rows.filter((row) => {
-    if (row.type === 'lesson_update' || row.type === 'test_created' || row.type === 'announcement_created') {
+    if (
+      row.type === 'lesson_update' ||
+      row.type === 'test_created' ||
+      row.type === 'announcement_created' ||
+      row.type === 'student_reply' ||
+      row.type === 'parent_reply'
+    ) {
       const classId = typeof row.payload?.classId === 'string' ? row.payload.classId : '';
       return Boolean(classId && allowedClassIds.has(classId));
-    }
-    if (row.type === 'student_reply' || row.type === 'parent_reply') {
-      const lessonDayId = typeof row.payload?.lessonDayId === 'string' ? row.payload.lessonDayId : '';
-      const periodId = typeof row.payload?.periodId === 'string' ? row.payload.periodId : '';
-      if (!lessonDayId || !periodId) return false;
-      return ownsPeriod.has(`${lessonDayId}:${periodId}`);
     }
     return true;
   });
@@ -458,6 +430,8 @@ export async function listReplyInboxForUser(
     date: string;
     studentId: string;
     studentName: string;
+    periodTeacherId: string;
+    periodTeacherName: string;
     channel: ReplyInboxChannel;
     replyBody: string;
     replyCreatedAt?: string;
@@ -469,12 +443,15 @@ export async function listReplyInboxForUser(
   for (const lesson of lessons) {
     for (let idx = 0; idx < (lesson.periods ?? []).length; idx += 1) {
       const period = lesson.periods[idx];
-      const rawTeacherId = period.teacherId as mongoose.Types.ObjectId | { _id?: mongoose.Types.ObjectId } | undefined;
+      const rawTeacherId = period.teacherId as mongoose.Types.ObjectId | { _id?: mongoose.Types.ObjectId; name?: string } | undefined;
       const periodTeacherId =
         typeof rawTeacherId === 'object' && rawTeacherId !== null && '_id' in rawTeacherId
           ? rawTeacherId._id?.toString() ?? ''
           : rawTeacherId?.toString() ?? '';
-      if (role === 'teacher' && periodTeacherId !== teacher!._id.toString()) continue;
+      const periodTeacherName =
+        typeof rawTeacherId === 'object' && rawTeacherId !== null && 'name' in rawTeacherId
+          ? (rawTeacherId.name ?? '').trim()
+          : '';
       if (periodTeacherId) teacherIds.add(periodTeacherId);
       const periodId = period._id?.toString() ?? '';
       if (!periodId) continue;
@@ -492,6 +469,8 @@ export async function listReplyInboxForUser(
             date: lesson.date instanceof Date ? lesson.date.toISOString().slice(0, 10) : String(lesson.date).slice(0, 10),
             studentId,
             studentName: '',
+            periodTeacherId,
+            periodTeacherName,
             channel: 'student',
             replyBody: (record.studentReply ?? '').trim(),
             replyCreatedAt: record.studentReplyCreatedAt ? new Date(record.studentReplyCreatedAt).toISOString() : undefined,
@@ -510,6 +489,8 @@ export async function listReplyInboxForUser(
             date: lesson.date instanceof Date ? lesson.date.toISOString().slice(0, 10) : String(lesson.date).slice(0, 10),
             studentId,
             studentName: '',
+            periodTeacherId,
+            periodTeacherName,
             channel: 'parent',
             replyBody: (record.parentReply ?? '').trim(),
             replyCreatedAt: record.parentReplyCreatedAt ? new Date(record.parentReplyCreatedAt).toISOString() : undefined,
@@ -546,8 +527,12 @@ export async function listReplyInboxForUser(
   const items = rawItems
     .map((item) => ({
       ...item,
+      periodTeacherName:
+        item.periodTeacherName ||
+        (item.periodTeacherId ? teacherNameById.get(item.periodTeacherId) ?? '' : ''),
       studentName: studentNameById.get(item.studentId) ?? '-',
       likedByMe: teacher ? item.likedTeacherIds.includes(teacher._id.toString()) : false,
+      likeCount: item.likedTeacherIds.length,
       likedTeacherNames: item.likedTeacherIds.map((id) => teacherNameById.get(id) ?? '').filter(Boolean),
     }))
     .sort((a, b) => (b.replyUpdatedAt ?? b.replyCreatedAt ?? '').localeCompare(a.replyUpdatedAt ?? a.replyCreatedAt ?? ''));
@@ -583,7 +568,14 @@ export async function toggleReplyLike(params: {
   const lesson = await LessonDay.findById(params.lessonDayId).exec();
   if (!lesson) return { ok: false, message: '수업을 찾을 수 없습니다.' };
   const period = (lesson.periods ?? []).find((row) => row._id?.toString() === params.periodId);
-  if (!period || period.teacherId?.toString() !== teacher._id.toString()) {
+  if (!period) {
+    return { ok: false, message: '교시를 찾을 수 없습니다.' };
+  }
+  const classDocForAccess = await Class.findById(lesson.classId).select('teacherIds').lean().exec();
+  const isClassTeacher = Boolean(
+    classDocForAccess?.teacherIds?.some((id) => id.toString() === teacher._id.toString())
+  );
+  if (!isClassTeacher) {
     return { ok: false, message: '해당 답글에 대한 권한이 없습니다.' };
   }
   const record = (period.records ?? []).find((row) => row.studentId?.toString() === params.studentId);
