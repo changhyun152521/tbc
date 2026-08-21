@@ -32,11 +32,15 @@ export async function login(req: Request, res: Response<ApiResponse>): Promise<v
     }
     const { loginId, password } = req.body;
     const result = await authService.login(loginId, password);
-    if (!result) {
+    if (!result.ok) {
+      if (result.reason === 'no_class') {
+        res.status(403).json({ success: false, message: result.message });
+        return;
+      }
       res.status(401).json({ success: false, message: '로그인 ID 또는 비밀번호가 올바르지 않습니다.' });
       return;
     }
-    res.status(200).json({ success: true, data: result });
+    res.status(200).json({ success: true, data: result.data });
   } catch (err) {
     console.error('[login] 500 에러:', err);
     const message = err instanceof Error ? err.message : '로그인에 실패했습니다.';

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import * as studentService from '../../services/admin/student.service';
+import { getAssignedStudentIds } from '../../services/teacher/teacherClass.service';
 import { ApiResponse } from '../../types/api';
 
 export async function createStudent(req: Request, res: Response<ApiResponse>): Promise<void> {
@@ -52,6 +53,13 @@ export async function listStudents(req: Request, res: Response<ApiResponse>): Pr
   try {
     const { name, grade, classId, search, page, limit } = req.query;
     const role = req.user?.role;
+    const userId = req.user?.id ?? '';
+    let parentLastAccessStudentIds: string[] | null | undefined;
+    if (role === 'teacher') {
+      parentLastAccessStudentIds = await getAssignedStudentIds(userId);
+    } else {
+      parentLastAccessStudentIds = null;
+    }
     const result = await studentService.listStudents({
       name: name as string,
       grade: grade as string,
@@ -61,6 +69,7 @@ export async function listStudents(req: Request, res: Response<ApiResponse>): Pr
       limit: limit != null ? parseInt(String(limit), 10) : undefined,
       includeLastAccess: role === 'admin',
       includeParentLastAccess: role === 'admin' || role === 'teacher',
+      parentLastAccessStudentIds,
     });
     res.status(200).json({ success: true, data: result });
   } catch (err) {

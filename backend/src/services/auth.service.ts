@@ -1,6 +1,9 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import { User } from '../models/User.model';
+import { Student } from '../models/Student.model';
+import { Class } from '../models/Class.model';
 import { jwtConfig } from '../config';
 import { JwtPayload } from '../types/api';
 import { touchLastAccess } from './lastAccess.service';
@@ -10,17 +13,57 @@ export interface LoginResult {
   user: { id: string; role: string; name: string; mustChangePassword?: boolean };
 }
 
+export type LoginOutcome =
+  | { ok: true; data: LoginResult }
+  | { ok: false; reason: 'invalid' }
+  | { ok: false; reason: 'no_class'; message: string };
+
+const NO_CLASS_MESSAGE = '소속된 반이 없습니다. 관리자에게 문의해 주세요.';
+
+/**
+ * 학생·학부모·관리접속: Class.studentIds에 한 반이라도 있어야 로그인 가능.
+ * admin·teacher는 검사하지 않음.
+ */
+async function hasClassMembership(userId: string, role: string): Promise<boolean> {
+  if (role !== 'student' && role !== 'parent') return true;
+  if (!mongoose.Types.ObjectId.isValid(userId)) return false;
+  const uid = new mongoose.Types.ObjectId(userId);
+
+  let studentId: mongoose.Types.ObjectId | null = null;
+  if (role === 'parent') {
+    const student = await Student.findOne({ parentUserId: uid }).select('_id').lean().exec();
+    studentId = student?._id ?? null;
+  } else {
+    const byMain = await Student.findOne({ userId: uid }).select('_id').lean().exec();
+    if (byMain) {
+      studentId = byMain._id;
+    } else {
+      const byAdmin = await Student.findOne({ adminAccessUserId: uid }).select('_id').lean().exec();
+      studentId = byAdmin?._id ?? null;
+    }
+  }
+  if (!studentId) return false;
+
+  const count = await Class.countDocuments({ studentIds: studentId }).exec();
+  return count > 0;
+}
+
 /**
  * 기획 문서 기준 4역할(admin, teacher, student, parent) 공통 로그인.
  * 학생/학부모는 관리자 등록 시 전화번호로 ID·비밀번호 자동 설정된 계정으로도 로그인 가능.
  */
 /** 로그인 ID는 가공 없이 DB에 저장된 값과 일치해야 함 (전화번호 그대로 사용 시 동일 문자열로 로그인). */
-export async function login(loginId: string, password: string): Promise<LoginResult | null> {
+export async function login(loginId: string, password: string): Promise<LoginOutcome> {
   const user = await User.findOne({ loginId }).exec();
-  if (!user) return null;
+  if (!user) return { ok: false, reason: 'invalid' };
 
   const match = await bcrypt.compare(password, user.passwordHash);
-  if (!match) return null;
+  if (!match) return { ok: false, reason: 'invalid' };
+
+  const allowed = await hasClassMembership(user._id.toString(), user.role);
+  if (!allowed) {
+    return { ok: false, reason: 'no_class', message: NO_CLASS_MESSAGE };
+  }
 
   await touchLastAccess(user._id.toString());
 
@@ -31,12 +74,15 @@ export async function login(loginId: string, password: string): Promise<LoginRes
     { expiresIn: jwtConfig.expiresIn } as jwt.SignOptions
   );
   return {
-    token,
-    user: {
-      id: user._id.toString(),
-      role: user.role,
-      name: user.name,
-      mustChangePassword: user.mustChangePassword === true,
+    ok: true,
+    data: {
+      token,
+      user: {
+        id: user._id.toString(),
+        role: user.role,
+        name: user.name,
+        mustChangePassword: user.mustChangePassword === true,
+      },
     },
   };
 }
@@ -60,9 +106,6 @@ export async function findLoginId(
   const normalizedPhone = normalizePhone(phone);
 
   if (!trimmedName || !normalizedPhone) return null;
-
-  const { User } = await import('../models/User.model');
-  const { Student } = await import('../models/Student.model');
 
   const students = await Student.find({ name: trimmedName }).lean().exec();
   const student = students.find((s) => {

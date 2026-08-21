@@ -44,6 +44,11 @@ export interface ListStudentsQuery {
   includeLastAccess?: boolean;
   /** 관리자·강사 true — 학부모 계정 최근 접속 시각 포함 */
   includeParentLastAccess?: boolean;
+  /**
+   * 강사일 때: 학부모 접속은 이 학생 ID들에만 채움.
+   * undefined/null이면 includeParentLastAccess 대상 전원(관리자).
+   */
+  parentLastAccessStudentIds?: string[] | null;
 }
 
 export interface ListStudentsResult {
@@ -198,10 +203,19 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
 
   let enrichedList = withClassCountAndAdminId;
   if (query.includeLastAccess || query.includeParentLastAccess) {
+    const parentAccessAllowed =
+      query.parentLastAccessStudentIds == null
+        ? null
+        : new Set(query.parentLastAccessStudentIds.map(String));
+
     const userIds = enrichedList.flatMap((row) => {
       const ids: mongoose.Types.ObjectId[] = [];
       if (query.includeLastAccess && row.userId) ids.push(row.userId);
-      if (query.includeParentLastAccess && row.parentUserId) ids.push(row.parentUserId);
+      const canSeeParentAccess =
+        query.includeParentLastAccess &&
+        row.parentUserId &&
+        (parentAccessAllowed == null || parentAccessAllowed.has(String(row._id)));
+      if (canSeeParentAccess && row.parentUserId) ids.push(row.parentUserId);
       return ids;
     });
     const users =
@@ -209,15 +223,25 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
         ? await User.find({ _id: { $in: userIds } }).select('_id lastAccessAt').lean().exec()
         : [];
     const accessByUserId = new Map(users.map((u) => [u._id.toString(), u.lastAccessAt ?? null]));
-    enrichedList = enrichedList.map((row) => ({
-      ...row,
-      ...(query.includeLastAccess
-        ? { lastAccessAt: row.userId ? accessByUserId.get(String(row.userId)) ?? null : null }
-        : {}),
-      ...(query.includeParentLastAccess
-        ? { parentLastAccessAt: row.parentUserId ? accessByUserId.get(String(row.parentUserId)) ?? null : null }
-        : {}),
-    }));
+    enrichedList = enrichedList.map((row) => {
+      const canSeeParentAccess =
+        query.includeParentLastAccess &&
+        (parentAccessAllowed == null || parentAccessAllowed.has(String(row._id)));
+      return {
+        ...row,
+        ...(query.includeLastAccess
+          ? { lastAccessAt: row.userId ? accessByUserId.get(String(row.userId)) ?? null : null }
+          : {}),
+        ...(query.includeParentLastAccess
+          ? {
+              parentLastAccessAt:
+                canSeeParentAccess && row.parentUserId
+                  ? accessByUserId.get(String(row.parentUserId)) ?? null
+                  : null,
+            }
+          : {}),
+      };
+    });
   }
 
   return {

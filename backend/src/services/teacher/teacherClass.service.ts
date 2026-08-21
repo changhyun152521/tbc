@@ -73,3 +73,17 @@ export async function getAssignedClassIds(
   const classes = await Class.find({ teacherIds: teacherId }).select('_id').lean().exec();
   return classes.map((c) => c._id as mongoose.Types.ObjectId);
 }
+
+/** 강사 담당 반에 속한 학생 ID 목록 (Class.studentIds 합집합). 강사가 아니면 []. */
+export async function getAssignedStudentIds(userId: string): Promise<string[]> {
+  const teacherId = await getTeacherIdByUserId(userId);
+  if (!teacherId) return [];
+  const classes = await Class.find({ teacherIds: teacherId }).select('studentIds').lean().exec();
+  const ids = new Set<string>();
+  for (const c of classes) {
+    for (const sid of c.studentIds ?? []) {
+      ids.add(sid.toString());
+    }
+  }
+  return [...ids];
+}
