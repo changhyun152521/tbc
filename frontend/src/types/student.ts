@@ -12,6 +12,8 @@ export interface StudentListItem {
   lastAccessAt?: string | null;
   /** 관리자·강사 목록에서 내려올 수 있음 — 학부모 계정 최근 접속 */
   parentLastAccessAt?: string | null;
+  /** 강사: 담당 반이 아닌 학생은 true → UI에서 '-' 표시 */
+  parentLastAccessHidden?: boolean;
 }
 
 export interface StudentFormValues {

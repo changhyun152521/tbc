@@ -233,12 +233,17 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
           ? { lastAccessAt: row.userId ? accessByUserId.get(String(row.userId)) ?? null : null }
           : {}),
         ...(query.includeParentLastAccess
-          ? {
-              parentLastAccessAt:
-                canSeeParentAccess && row.parentUserId
+          ? canSeeParentAccess
+            ? {
+                parentLastAccessAt: row.parentUserId
                   ? accessByUserId.get(String(row.parentUserId)) ?? null
                   : null,
-            }
+                parentLastAccessHidden: false,
+              }
+            : {
+                parentLastAccessAt: null,
+                parentLastAccessHidden: true,
+              }
           : {}),
       };
     });

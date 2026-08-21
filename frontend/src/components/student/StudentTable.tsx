@@ -93,7 +93,7 @@ export default function StudentTable({
                 )}
                 {showParentLastAccess && (
                   <td className="p-3 text-slate-500 whitespace-nowrap" title={row.parentLastAccessAt ?? undefined}>
-                    {formatLastAccess(row.parentLastAccessAt)}
+                    {row.parentLastAccessHidden ? '-' : formatLastAccess(row.parentLastAccessAt)}
                   </td>
                 )}
                 <td className="p-3 text-center whitespace-nowrap shrink-0">
