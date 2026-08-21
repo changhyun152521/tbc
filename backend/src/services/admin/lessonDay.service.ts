@@ -348,8 +348,9 @@ export async function updatePeriod(
     periodNumber,
     date: lessonDate,
     teacherName: teacherDoc?.name ?? '',
-    hasMemoChange: newMemo !== oldMemo && newMemo !== '',
-    hasHomeworkChange: newHomeworkDescription !== oldHomeworkDescription && newHomeworkDescription !== '',
+    // 최초 작성(빈 값 → 내용)일 때만 알림. 이후 수정은 알림 없음.
+    hasMemoChange: oldMemo === '' && newMemo !== '',
+    hasHomeworkChange: oldHomeworkDescription === '' && newHomeworkDescription !== '',
   });
   return getLessonDayById(lessonDayId);
 }
