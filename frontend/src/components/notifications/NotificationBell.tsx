@@ -78,11 +78,11 @@ function NotificationListModal({ open, onClose, onItemRead, onReadAll }: Notific
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center p-0 bg-slate-900/50 sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-t-2xl shadow-xl w-full max-h-[85vh] flex flex-col sm:rounded-2xl sm:max-w-lg sm:max-h-[80vh]"
+        className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-labelledby="notification-modal-title"
