@@ -8,6 +8,7 @@ interface ActiveTeacherAnnouncement {
 }
 
 const POPUP_SESSION_KEY = 'tbc_teacher_popups_shown';
+const HIDE_FOREVER = '9999-12-31';
 
 function markPopupsShownThisLogin() {
   sessionStorage.setItem(POPUP_SESSION_KEY, '1');
@@ -53,12 +54,12 @@ export default function TeacherAnnouncementPopups() {
 
   const current = announcements[0];
 
-  const closeAnnouncement = async (hideToday: boolean) => {
+  const closeAnnouncement = async (mode: 'confirm' | 'today' | 'forever') => {
     if (!current) return;
-    if (hideToday) {
+    if (mode === 'today' || mode === 'forever') {
       try {
         await apiClient.post(`/admin/teacher-announcements/${current._id}/dismiss`, {
-          hideUntil: todayYmd(),
+          hideUntil: mode === 'forever' ? HIDE_FOREVER : todayYmd(),
         });
       } catch {
         // continue
@@ -80,21 +81,30 @@ export default function TeacherAnnouncementPopups() {
         <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">관리자 전용</p>
         <h2 className="text-lg font-bold text-slate-950 mb-3">{current.title}</h2>
         <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed mb-6">{current.body}</p>
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex flex-col gap-2">
           <button
             type="button"
-            onClick={() => void closeAnnouncement(true)}
-            className="flex-1 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700"
+            onClick={() => void closeAnnouncement('forever')}
+            className="w-full py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700"
           >
-            오늘 하루 보지 않기
+            앞으로 계속 보지 않기
           </button>
-          <button
-            type="button"
-            onClick={() => void closeAnnouncement(false)}
-            className="flex-1 py-2.5 bg-slate-950 text-white rounded-lg text-sm font-semibold"
-          >
-            확인
-          </button>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              type="button"
+              onClick={() => void closeAnnouncement('today')}
+              className="flex-1 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700"
+            >
+              오늘 하루 보지 않기
+            </button>
+            <button
+              type="button"
+              onClick={() => void closeAnnouncement('confirm')}
+              className="flex-1 py-2.5 bg-slate-950 text-white rounded-lg text-sm font-semibold"
+            >
+              확인
+            </button>
+          </div>
         </div>
       </div>
     </div>
