@@ -242,6 +242,8 @@ export default function StudentDashboard() {
           </div>
         </div>
 
+        <RecentAbsenceReviewSection enabled={showAbsenceReview} />
+
         {/* 댓글형 코멘트: 관리자 접속 시 학생/학부모 코멘트 박스 분리, 그 외는 기존처럼 */}
         {d.isAdminAccess ? (
           <div className="space-y-6">
@@ -404,8 +406,6 @@ export default function StudentDashboard() {
             </div>
           </div>
         )}
-
-        <RecentAbsenceReviewSection enabled={showAbsenceReview} />
       </div>
     </div>
   );
