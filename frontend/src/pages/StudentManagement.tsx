@@ -23,7 +23,7 @@ interface ListResponse {
 export default function StudentManagement() {
   const { role } = useAuth();
   const isTeacher = role === 'teacher';
-  const showStudentLastAccess = role === 'admin';
+  const showStudentLastAccess = role === 'admin' || role === 'teacher';
   const showParentLastAccess = role === 'admin' || role === 'teacher';
   const [list, setList] = useState<StudentListItem[]>([]);
   const [, setTotal] = useState(0);

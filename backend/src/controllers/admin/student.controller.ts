@@ -100,11 +100,11 @@ export async function listStudents(req: Request, res: Response<ApiResponse>): Pr
       return;
     }
 
-    let parentLastAccessStudentIds: string[] | null | undefined;
+    let assignedStudentIds: string[] | null | undefined;
     if (role === 'teacher') {
-      parentLastAccessStudentIds = await getAssignedStudentIds(userId);
+      assignedStudentIds = await getAssignedStudentIds(userId);
     } else {
-      parentLastAccessStudentIds = null;
+      assignedStudentIds = null;
     }
     const result = await studentService.listStudents({
       name: name as string,
@@ -113,9 +113,10 @@ export async function listStudents(req: Request, res: Response<ApiResponse>): Pr
       page: page != null ? parseInt(String(page), 10) : undefined,
       limit: limit != null ? parseInt(String(limit), 10) : undefined,
       studentIds: scope.studentIds,
-      includeLastAccess: role === 'admin',
+      includeLastAccess: role === 'admin' || role === 'teacher',
       includeParentLastAccess: role === 'admin' || role === 'teacher',
-      parentLastAccessStudentIds,
+      lastAccessStudentIds: assignedStudentIds,
+      parentLastAccessStudentIds: assignedStudentIds,
     });
     res.status(200).json({ success: true, data: result });
   } catch (err) {

@@ -87,8 +87,8 @@ export default function StudentTable({
                 <td className="p-3 text-slate-600 font-medium whitespace-nowrap">{row.adminAccessLoginId ?? '-'}</td>
                 <td className="p-3 text-slate-500 whitespace-nowrap">{row.classCount != null ? `${row.classCount}개 반 소속` : '-'}</td>
                 {showStudentLastAccess && (
-                  <td className="p-3 text-slate-500 whitespace-nowrap" title={row.lastAccessAt ?? undefined}>
-                    {formatLastAccess(row.lastAccessAt)}
+                  <td className="p-3 text-slate-500 whitespace-nowrap" title={row.lastAccessHidden ? undefined : row.lastAccessAt ?? undefined}>
+                    {row.lastAccessHidden ? '-' : formatLastAccess(row.lastAccessAt)}
                   </td>
                 )}
                 {showParentLastAccess && (

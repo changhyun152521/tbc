@@ -47,10 +47,15 @@ export interface ListStudentsQuery {
    * 빈 배열이면 결과 없음. undefined면 학생 ID로 제한하지 않음.
    */
   studentIds?: string[];
-  /** 관리자만 true — 학생 본인 계정 최근 접속 시각 포함 */
+  /** 관리자·강사 true — 학생 본인 계정 최근 접속 시각 포함 */
   includeLastAccess?: boolean;
   /** 관리자·강사 true — 학부모 계정 최근 접속 시각 포함 */
   includeParentLastAccess?: boolean;
+  /**
+   * 강사일 때: 학생 접속은 이 학생 ID들에만 채움.
+   * undefined/null이면 includeLastAccess 대상 전원(관리자).
+   */
+  lastAccessStudentIds?: string[] | null;
   /**
    * 강사일 때: 학부모 접속은 이 학생 ID들에만 채움.
    * undefined/null이면 includeParentLastAccess 대상 전원(관리자).
@@ -221,6 +226,10 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
 
   let enrichedList = withClassCountAndAdminId;
   if (query.includeLastAccess || query.includeParentLastAccess) {
+    const studentAccessAllowed =
+      query.lastAccessStudentIds == null
+        ? null
+        : new Set(query.lastAccessStudentIds.map(String));
     const parentAccessAllowed =
       query.parentLastAccessStudentIds == null
         ? null
@@ -228,7 +237,11 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
 
     const userIds = enrichedList.flatMap((row) => {
       const ids: mongoose.Types.ObjectId[] = [];
-      if (query.includeLastAccess && row.userId) ids.push(row.userId);
+      const canSeeStudentAccess =
+        query.includeLastAccess &&
+        row.userId &&
+        (studentAccessAllowed == null || studentAccessAllowed.has(String(row._id)));
+      if (canSeeStudentAccess && row.userId) ids.push(row.userId);
       const canSeeParentAccess =
         query.includeParentLastAccess &&
         row.parentUserId &&
@@ -242,13 +255,24 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
         : [];
     const accessByUserId = new Map(users.map((u) => [u._id.toString(), u.lastAccessAt ?? null]));
     enrichedList = enrichedList.map((row) => {
+      const canSeeStudentAccess =
+        query.includeLastAccess &&
+        (studentAccessAllowed == null || studentAccessAllowed.has(String(row._id)));
       const canSeeParentAccess =
         query.includeParentLastAccess &&
         (parentAccessAllowed == null || parentAccessAllowed.has(String(row._id)));
       return {
         ...row,
         ...(query.includeLastAccess
-          ? { lastAccessAt: row.userId ? accessByUserId.get(String(row.userId)) ?? null : null }
+          ? canSeeStudentAccess
+            ? {
+                lastAccessAt: row.userId ? accessByUserId.get(String(row.userId)) ?? null : null,
+                lastAccessHidden: false,
+              }
+            : {
+                lastAccessAt: null,
+                lastAccessHidden: true,
+              }
           : {}),
         ...(query.includeParentLastAccess
           ? canSeeParentAccess
@@ -272,7 +296,9 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
       classCount: number;
       adminAccessLoginId: string | null;
       lastAccessAt?: Date | null;
+      lastAccessHidden?: boolean;
       parentLastAccessAt?: Date | null;
+      parentLastAccessHidden?: boolean;
     })[],
     total,
     page,
