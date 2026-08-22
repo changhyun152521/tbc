@@ -285,6 +285,9 @@ export async function updatePeriod(
     });
     const newVideoIds = new Set(newVideos.map((v) => v.videoId));
     period.reviewVideos = newVideos;
+    if (newVideos.some((v) => (v.videoId ?? '').trim())) {
+      (period as IPeriod & { reviewVideosRegisteredAt?: Date }).reviewVideosRegisteredAt = new Date();
+    }
     // 삭제된 영상의 시청 기록 제거
     if (period._id) {
       const removedVideoIds = [...oldVideoIds].filter((id) => id && !newVideoIds.has(id));
@@ -306,6 +309,9 @@ export async function updatePeriod(
     const oldId = (period.reviewVideoId ?? '').trim();
     period.reviewVideoUrl = url;
     period.reviewVideoId = newId;
+    if (newId) {
+      (period as IPeriod & { reviewVideosRegisteredAt?: Date }).reviewVideosRegisteredAt = new Date();
+    }
     if (period._id && oldId !== newId) {
       await VideoWatchProgress.deleteMany({
         lessonDayId: lesson._id,

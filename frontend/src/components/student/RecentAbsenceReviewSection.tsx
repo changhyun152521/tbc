@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { useStudentClass } from '../../contexts/StudentClassContext';
 
-export interface AbsenceReviewItem {
+export interface ReviewVideoListItem {
   lessonDayId: string;
   periodId: string;
   className: string;
@@ -12,6 +12,7 @@ export interface AbsenceReviewItem {
   teacherName: string;
   maxPercent: number;
   videoCount: number;
+  registeredAt?: string;
 }
 
 const INITIAL_COUNT = 5;
@@ -41,7 +42,7 @@ interface RecentAbsenceReviewSectionProps {
 export default function RecentAbsenceReviewSection({ enabled }: RecentAbsenceReviewSectionProps) {
   const navigate = useNavigate();
   const { selectedClassId } = useStudentClass();
-  const [items, setItems] = useState<AbsenceReviewItem[]>([]);
+  const [items, setItems] = useState<ReviewVideoListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
@@ -55,7 +56,7 @@ export default function RecentAbsenceReviewSection({ enabled }: RecentAbsenceRev
     setExpanded(false);
     const params = selectedClassId ? { classId: selectedClassId } : {};
     apiClient
-      .get<{ success: boolean; data: AbsenceReviewItem[] }>('/student/review-videos/absence', { params })
+      .get<{ success: boolean; data: ReviewVideoListItem[] }>('/student/review-videos/recent', { params })
       .then((res) => {
         if (cancelled) return;
         setItems(res.data.success && Array.isArray(res.data.data) ? res.data.data : []);
@@ -77,7 +78,7 @@ export default function RecentAbsenceReviewSection({ enabled }: RecentAbsenceRev
   const visibleItems = expanded ? items : items.slice(0, INITIAL_COUNT);
   const hasMore = items.length > INITIAL_COUNT;
 
-  const openLesson = (item: AbsenceReviewItem) => {
+  const openLesson = (item: ReviewVideoListItem) => {
     const q = new URLSearchParams({ date: item.date, period: String(item.period) });
     if (selectedClassId) q.set('classId', selectedClassId);
     navigate(`/student/lessons?${q.toString()}`);
@@ -87,14 +88,14 @@ export default function RecentAbsenceReviewSection({ enabled }: RecentAbsenceRev
     <div className="bg-white border border-slate-100 rounded-[20px] p-4 sm:p-6 shadow-sm">
       <h2 className="font-bold text-slate-800 mb-1 flex items-center gap-2 text-sm sm:text-base">
         <span>🎬</span>
-        결석 수업 복습 영상
+        결석/복습 영상
       </h2>
-      <p className="text-[11px] text-slate-400 mb-4 sm:mb-6">결석한 수업 중 등록된 복습 영상입니다. 탭하면 해당 수업일·교시로 이동합니다.</p>
+      <p className="text-[11px] text-slate-400 mb-4 sm:mb-6">최근 등록된 복습 영상입니다. 탭하면 해당 수업일·교시로 이동합니다.</p>
 
       {loading ? (
         <p className="text-slate-400 text-xs sm:text-sm font-medium py-2">로딩 중...</p>
       ) : items.length === 0 ? (
-        <p className="text-slate-400 text-xs sm:text-sm font-medium py-2">등록된 결석 복습 영상이 없습니다.</p>
+        <p className="text-slate-400 text-xs sm:text-sm font-medium py-2">등록된 복습 영상이 없습니다.</p>
       ) : (
         <>
           <ul className="space-y-2">

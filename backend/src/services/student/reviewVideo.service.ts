@@ -11,7 +11,7 @@ import { periodDisplayNumber } from '../admin/lessonDay.utils';
 const COMPLETE_PERCENT = 90;
 const PENDING_DAYS = 14;
 
-export interface AbsenceReviewVideoItem {
+export interface ReviewVideoListItem {
   lessonDayId: string;
   periodId: string;
   className: string;
@@ -20,7 +20,11 @@ export interface AbsenceReviewVideoItem {
   teacherName: string;
   maxPercent: number;
   videoCount: number;
+  registeredAt: string;
 }
+
+/** @deprecated use ReviewVideoListItem */
+export type AbsenceReviewVideoItem = ReviewVideoListItem;
 
 function periodIdOf(period: IPeriod & { _id?: mongoose.Types.ObjectId }): string {
   return period._id ? period._id.toString() : '';
@@ -296,10 +300,10 @@ export async function upsertProgress(input: {
   return { maxPercent, watchedSec, playTimeSec, completed, totalPercent: totals.totalPercent };
 }
 
-export async function listAbsenceReviewForStudent(
+async function collectReviewVideoItems(
   studentId: string,
-  options: { classId?: string | null; days?: number | null } = {}
-): Promise<AbsenceReviewVideoItem[]> {
+  options: { classId?: string | null; days?: number | null; onlyAbsence?: boolean } = {}
+): Promise<ReviewVideoListItem[]> {
   const from =
     options.days != null
       ? (() => {
@@ -343,29 +347,47 @@ export async function listAbsenceReviewForStudent(
       : [];
   const teacherNameById = new Map(teacherDocs.map((t) => [t._id.toString(), t.name]));
 
-  const items: AbsenceReviewVideoItem[] = [];
+  const items: ReviewVideoListItem[] = [];
 
   for (const day of days) {
+    const dayUpdatedAt =
+      day.updatedAt instanceof Date
+        ? day.updatedAt.toISOString()
+        : day.updatedAt
+          ? new Date(day.updatedAt as string).toISOString()
+          : null;
     const periods = (day.periods || []) as (IPeriod & {
       _id?: mongoose.Types.ObjectId;
       teacherId?: mongoose.Types.ObjectId | { name?: string };
+      reviewVideosRegisteredAt?: Date;
     })[];
     periods.forEach((period, idx) => {
       const reviewVideos = getReviewVideos(period);
       if (reviewVideos.length === 0) return;
-      const record = (period.records || []).find((r: IStudentRecord) => r.studentId?.toString() === studentId);
-      if ((record?.attendance ?? '') !== 'X') return;
+      if (options.onlyAbsence) {
+        const record = (period.records || []).find((r: IStudentRecord) => r.studentId?.toString() === studentId);
+        if ((record?.attendance ?? '') !== 'X') return;
+      }
       const pid = periodIdOf(period);
       if (!pid) return;
+      const lessonDate =
+        day.date instanceof Date ? day.date.toISOString().slice(0, 10) : String(day.date).slice(0, 10);
+      const registeredAt =
+        period.reviewVideosRegisteredAt instanceof Date
+          ? period.reviewVideosRegisteredAt.toISOString()
+          : period.reviewVideosRegisteredAt
+            ? new Date(period.reviewVideosRegisteredAt).toISOString()
+            : dayUpdatedAt ?? `${lessonDate}T00:00:00.000Z`;
       items.push({
         lessonDayId: day._id.toString(),
         periodId: pid,
         className: classNameById.get(day.classId.toString()) ?? '',
-        date: day.date instanceof Date ? day.date.toISOString().slice(0, 10) : String(day.date).slice(0, 10),
+        date: lessonDate,
         period: periodDisplayNumber(period, idx),
         teacherName: resolveTeacherName(period, teacherNameById),
         maxPercent: 0,
         videoCount: reviewVideos.length,
+        registeredAt,
       });
     });
   }
@@ -407,13 +429,23 @@ export async function listAbsenceReviewForStudent(
       return { ...i, maxPercent: totals.totalPercent };
     })
     .sort((a, b) => {
+      const byRegistered = b.registeredAt.localeCompare(a.registeredAt);
+      if (byRegistered !== 0) return byRegistered;
       if (a.date !== b.date) return b.date.localeCompare(a.date);
       return a.period - b.period;
     });
 }
 
+/** 대시보드: 출결 무관, 최근 등록된 복습 영상 전체 */
+export async function listRecentReviewVideosForStudent(
+  studentId: string,
+  classId?: string | null
+): Promise<ReviewVideoListItem[]> {
+  return collectReviewVideoItems(studentId, { classId, days: null, onlyAbsence: false });
+}
+
 export async function listPendingForStudent(studentId: string) {
-  const items = await listAbsenceReviewForStudent(studentId, { days: PENDING_DAYS });
+  const items = await collectReviewVideoItems(studentId, { days: PENDING_DAYS, onlyAbsence: true });
   return items.filter((i) => i.maxPercent < COMPLETE_PERCENT);
 }
 

@@ -49,6 +49,8 @@ export interface IPeriod {
   reviewVideoUrl?: string;
   /** @deprecated 단일 영상 ID (하위 호환용) */
   reviewVideoId?: string;
+  /** 복습 영상 최종 등록·수정 시각 (대시보드 최근 목록 정렬용) */
+  reviewVideosRegisteredAt?: Date;
   records: IStudentRecord[];
 }
 
@@ -100,6 +102,7 @@ const periodSchema = new Schema<IPeriod>(
     reviewVideos: { type: [reviewVideoSchema], default: [] },
     reviewVideoUrl: { type: String, default: '', trim: true },
     reviewVideoId: { type: String, default: '', trim: true },
+    reviewVideosRegisteredAt: { type: Date, required: false },
     records: { type: [studentRecordSchema], default: [] },
   },
   { _id: true }
