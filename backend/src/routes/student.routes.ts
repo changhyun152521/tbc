@@ -24,6 +24,7 @@ router.post(
 );
 
 router.get('/review-videos/pending', reviewVideoController.listPending);
+router.get('/review-videos/absence', reviewVideoController.listAbsenceReview);
 router.put('/review-videos/progress', reviewVideoController.putProgress);
 router.get(
   '/review-videos/:lessonDayId/:periodId',

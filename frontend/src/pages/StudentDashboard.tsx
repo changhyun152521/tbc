@@ -4,6 +4,7 @@ import { BookOpenIcon } from '../components/ui/Icons';
 import { apiClient } from '../api/client';
 import CommentReplySection from '../components/student/CommentReplySection';
 import ReplyLikeTip from '../components/student/ReplyLikeTip';
+import RecentAbsenceReviewSection from '../components/student/RecentAbsenceReviewSection';
 import { useAuth } from '../contexts/AuthContext';
 import { useStudentClass } from '../contexts/StudentClassContext';
 
@@ -151,6 +152,7 @@ export default function StudentDashboard() {
       return da.localeCompare(db);
     });
   const recentComments = (d.recentComments ?? []).slice(0, 5);
+  const showAbsenceReview = role === 'student' && !d.isAdminAccess;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col pt-4 px-6 pb-12 font-sans text-slate-950">
@@ -402,6 +404,8 @@ export default function StudentDashboard() {
             </div>
           </div>
         )}
+
+        <RecentAbsenceReviewSection enabled={showAbsenceReview} />
       </div>
     </div>
   );

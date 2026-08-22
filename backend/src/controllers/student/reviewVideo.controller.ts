@@ -84,6 +84,19 @@ export async function listPending(req: Request, res: Response<ApiResponse>): Pro
   }
 }
 
+export async function listAbsenceReview(req: Request, res: Response<ApiResponse>): Promise<void> {
+  try {
+    const studentId = await requireRealStudent(req, res);
+    if (!studentId) return;
+    const classId = typeof req.query.classId === 'string' ? req.query.classId : undefined;
+    const list = await reviewVideoService.listAbsenceReviewForStudent(studentId, { classId, days: null });
+    res.status(200).json({ success: true, data: list });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '결석 복습 영상 조회에 실패했습니다.';
+    res.status(500).json({ success: false, message });
+  }
+}
+
 export async function getClassWatchStats(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
     const classId = req.params.classId;

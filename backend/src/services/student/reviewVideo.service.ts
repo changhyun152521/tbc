@@ -11,6 +11,17 @@ import { periodDisplayNumber } from '../admin/lessonDay.utils';
 const COMPLETE_PERCENT = 90;
 const PENDING_DAYS = 14;
 
+export interface AbsenceReviewVideoItem {
+  lessonDayId: string;
+  periodId: string;
+  className: string;
+  date: string;
+  period: number;
+  teacherName: string;
+  maxPercent: number;
+  videoCount: number;
+}
+
 function periodIdOf(period: IPeriod & { _id?: mongoose.Types.ObjectId }): string {
   return period._id ? period._id.toString() : '';
 }
@@ -285,20 +296,32 @@ export async function upsertProgress(input: {
   return { maxPercent, watchedSec, playTimeSec, completed, totalPercent: totals.totalPercent };
 }
 
-export async function listPendingForStudent(studentId: string) {
-  const from = new Date();
-  from.setDate(from.getDate() - PENDING_DAYS);
-  from.setHours(0, 0, 0, 0);
+export async function listAbsenceReviewForStudent(
+  studentId: string,
+  options: { classId?: string | null; days?: number | null } = {}
+): Promise<AbsenceReviewVideoItem[]> {
+  const from =
+    options.days != null
+      ? (() => {
+          const d = new Date();
+          d.setDate(d.getDate() - options.days!);
+          d.setHours(0, 0, 0, 0);
+          return d;
+        })()
+      : null;
 
-  const classIds = await studentDataService.getStudentClasses(studentId);
+  let classIds = await studentDataService.getStudentClasses(studentId);
+  if (options.classId && mongoose.Types.ObjectId.isValid(options.classId)) {
+    classIds = classIds.filter((c) => c._id.toString() === options.classId);
+  }
   if (classIds.length === 0) return [];
   const ids = classIds.map((c) => c._id);
   const classNameById = new Map(classIds.map((c) => [c._id.toString(), c.name]));
 
-  const days = await LessonDay.find({
-    classId: { $in: ids },
-    date: { $gte: from },
-  })
+  const dayFilter: Record<string, unknown> = { classId: { $in: ids } };
+  if (from) dayFilter.date = { $gte: from };
+
+  const days = await LessonDay.find(dayFilter)
     .populate('periods.teacherId', 'name')
     .sort({ date: -1 })
     .lean()
@@ -320,17 +343,7 @@ export async function listPendingForStudent(studentId: string) {
       : [];
   const teacherNameById = new Map(teacherDocs.map((t) => [t._id.toString(), t.name]));
 
-  const items: {
-    lessonDayId: string;
-    periodId: string;
-    className: string;
-    date: string;
-    period: number;
-    teacherName: string;
-    attendance: string;
-    maxPercent: number;
-    videoCount: number;
-  }[] = [];
+  const items: AbsenceReviewVideoItem[] = [];
 
   for (const day of days) {
     const periods = (day.periods || []) as (IPeriod & {
@@ -351,7 +364,6 @@ export async function listPendingForStudent(studentId: string) {
         date: day.date instanceof Date ? day.date.toISOString().slice(0, 10) : String(day.date).slice(0, 10),
         period: periodDisplayNumber(period, idx),
         teacherName: resolveTeacherName(period, teacherNameById),
-        attendance: 'X',
         maxPercent: 0,
         videoCount: reviewVideos.length,
       });
@@ -394,11 +406,15 @@ export async function listPendingForStudent(studentId: string) {
       const totals = aggregatePeriodWatch(periodVideos.get(key) ?? [], progressByPeriod.get(key) ?? []);
       return { ...i, maxPercent: totals.totalPercent };
     })
-    .filter((i) => i.maxPercent < COMPLETE_PERCENT)
     .sort((a, b) => {
       if (a.date !== b.date) return b.date.localeCompare(a.date);
       return a.period - b.period;
     });
+}
+
+export async function listPendingForStudent(studentId: string) {
+  const items = await listAbsenceReviewForStudent(studentId, { days: PENDING_DAYS });
+  return items.filter((i) => i.maxPercent < COMPLETE_PERCENT);
 }
 
 export async function getClassWatchStats(
