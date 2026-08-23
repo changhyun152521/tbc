@@ -20,6 +20,8 @@ export interface StudentListItem {
   parentLastAccessAt?: string | null;
   /** 강사: 담당 반이 아닌 학생은 true → UI에서 '-' 표시 */
   parentLastAccessHidden?: boolean;
+  /** 강사: 담당 반이 아닌 학생은 미리보기 불가 */
+  previewAllowed?: boolean;
 }
 
 export interface StudentFormValues {

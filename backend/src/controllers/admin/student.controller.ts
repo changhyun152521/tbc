@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 import * as studentService from '../../services/admin/student.service';
+import * as authService from '../../services/auth.service';
 import { Class } from '../../models/Class.model';
 import {
   canAccessClass,
@@ -116,6 +117,7 @@ export async function listStudents(req: Request, res: Response<ApiResponse>): Pr
       includeLastAccess: role === 'admin' || role === 'teacher',
       includeParentLastAccess: role === 'admin' || role === 'teacher',
       includeLoginIds: role === 'admin',
+      includePreviewAllowed: role === 'admin' || role === 'teacher',
       lastAccessStudentIds: assignedStudentIds,
       parentLastAccessStudentIds: assignedStudentIds,
     });
@@ -182,6 +184,31 @@ export async function deleteStudent(req: Request, res: Response<ApiResponse>): P
     res.status(200).json({ success: true, message: '삭제되었습니다.' });
   } catch (err) {
     const message = err instanceof Error ? err.message : '학생 삭제에 실패했습니다.';
+    res.status(500).json({ success: false, message });
+  }
+}
+
+export async function createPreviewSession(req: Request, res: Response<ApiResponse>): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, message: errors.array()[0].msg });
+      return;
+    }
+    const view = req.body.view as 'student' | 'parent';
+    const result = await authService.createPreviewSession(
+      req.params.id,
+      view,
+      req.user?.id ?? '',
+      req.user?.role ?? ''
+    );
+    if ('error' in result) {
+      res.status(result.status).json({ success: false, message: result.error });
+      return;
+    }
+    res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '미리보기 세션 생성에 실패했습니다.';
     res.status(500).json({ success: false, message });
   }
 }

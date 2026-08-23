@@ -19,7 +19,7 @@ export function authenticate(req: Request, res: Response<ApiResponse>, next: Nex
   const token = authHeader.slice(7);
   try {
     const decoded = jwt.verify(token, jwtConfig.secret) as JwtPayload;
-    req.user = { id: decoded.sub, role: decoded.role };
+    req.user = { id: decoded.sub, role: decoded.role, preview: decoded.preview === true };
     touchLastAccessIfNeeded(decoded.sub);
     next();
   } catch {

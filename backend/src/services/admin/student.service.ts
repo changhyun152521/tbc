@@ -49,6 +49,8 @@ export interface ListStudentsQuery {
   studentIds?: string[];
   /** 관리자만 true — 학생/학부모 loginId 포함 */
   includeLoginIds?: boolean;
+  /** 관리자·강사 — 미리보기 버튼 노출 여부 */
+  includePreviewAllowed?: boolean;
   /** 관리자·강사 true — 학생 본인 계정 최근 접속 시각 포함 */
   includeLastAccess?: boolean;
   /** 관리자·강사 true — 학부모 계정 최근 접속 시각 포함 */
@@ -258,6 +260,16 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
   );
 
   let enrichedList = withClassCountAndAdminId;
+  if (query.includePreviewAllowed) {
+    let allowedSet: Set<string> | null = null;
+    if (query.lastAccessStudentIds != null) {
+      allowedSet = new Set(query.lastAccessStudentIds.map(String));
+    }
+    enrichedList = enrichedList.map((row) => ({
+      ...row,
+      previewAllowed: allowedSet == null ? true : allowedSet.has(String(row._id)),
+    }));
+  }
   const toUserObjectId = (ref: unknown): mongoose.Types.ObjectId | null => {
     if (!ref) return null;
     if (ref instanceof mongoose.Types.ObjectId) return ref;
@@ -343,6 +355,7 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
       adminAccessLoginId: string | null;
       studentLoginId?: string | null;
       parentLoginId?: string | null;
+      previewAllowed?: boolean;
       lastAccessAt?: Date | null;
       lastAccessHidden?: boolean;
       parentLastAccessAt?: Date | null;

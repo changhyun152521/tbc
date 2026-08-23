@@ -82,7 +82,7 @@ function commentReplyKey(item: { lessonDayId: string; periodId: string; _id: str
 }
 
 export default function StudentDashboard() {
-  const { role } = useAuth();
+  const { role, isPreviewMode } = useAuth();
   const { selectedClassId } = useStudentClass();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -153,6 +153,7 @@ export default function StudentDashboard() {
     });
   const recentComments = (d.recentComments ?? []).slice(0, 5);
   const showAbsenceReview = role === 'student' && !d.isAdminAccess;
+  const replyReadOnly = isPreviewMode;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col pt-4 px-6 pb-12 font-sans text-slate-950">
@@ -354,6 +355,7 @@ export default function StudentDashboard() {
                       likedTeacherNames={role === 'parent' ? c.parentReplyLikedTeacherNames : c.studentReplyLikedTeacherNames}
                       teacherComment={c.note}
                       apiPrefix={apiPrefix}
+                      readOnly={replyReadOnly}
                       onSaved={(body, savedAt, createdAt) => {
                         const key = commentReplyKey(c);
                         setData((prev) => {

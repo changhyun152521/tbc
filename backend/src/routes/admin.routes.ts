@@ -43,6 +43,14 @@ router.put(
 );
 router.delete('/students/:id', mongoId(), studentController.deleteStudent);
 router.post(
+  '/students/:id/preview-session',
+  [
+    param('id').isMongoId().withMessage('올바른 ID가 아닙니다.'),
+    body('view').isIn(['student', 'parent']).withMessage('view는 student 또는 parent 여야 합니다.'),
+  ],
+  studentController.createPreviewSession
+);
+router.post(
   '/students/:id/reset-credentials',
   adminOnly,
   [

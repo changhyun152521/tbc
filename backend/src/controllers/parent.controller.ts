@@ -141,6 +141,10 @@ export async function listActiveAnnouncements(req: Request, res: Response<ApiRes
 
 export async function dismissAnnouncement(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
+    if (req.user?.preview) {
+      res.status(403).json({ success: false, message: '미리보기 모드에서는 저장할 수 없습니다.' });
+      return;
+    }
     const userId = getUserId(req);
     const hideUntil = typeof req.body.hideUntil === 'string' ? req.body.hideUntil : kstToday();
     const result = await announcementService.dismissAnnouncement(userId, req.params.id, hideUntil);
@@ -157,6 +161,13 @@ export async function dismissAnnouncement(req: Request, res: Response<ApiRespons
 
 export async function saveReply(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
+    if (req.user?.preview) {
+      res.status(403).json({
+        success: false,
+        message: '미리보기 모드에서는 답글을 작성할 수 없습니다. 학부모 본인 계정으로 로그인해 주세요.',
+      });
+      return;
+    }
     const studentId = await getChildStudentIdByParentUserId(getUserId(req));
     if (!studentId) {
       res.status(404).json({ success: false, message: '연결된 자녀 정보를 찾을 수 없습니다.' });

@@ -15,6 +15,9 @@ interface StudentTableProps {
   showParentLastAccess?: boolean;
   showLoginIds?: boolean;
   showResetCredentials?: boolean;
+  showPreviewButtons?: boolean;
+  previewLoadingKey?: string | null;
+  onPreview?: (studentId: string, view: 'student' | 'parent') => void;
 }
 
 export default function StudentTable({
@@ -29,6 +32,9 @@ export default function StudentTable({
   showParentLastAccess = false,
   showLoginIds = false,
   showResetCredentials = false,
+  showPreviewButtons = false,
+  previewLoadingKey = null,
+  onPreview,
 }: StudentTableProps) {
   const allSelected = list.length > 0 && list.every((s) => selectedIds.has(s._id));
   const someSelected = list.some((s) => selectedIds.has(s._id));
@@ -42,7 +48,7 @@ export default function StudentTable({
 
   const accessColumnCount = (showStudentLastAccess ? 1 : 0) + (showParentLastAccess ? 1 : 0);
   const loginColumnCount = showLoginIds ? 2 : 0;
-  const colSpan = 9 + accessColumnCount + loginColumnCount;
+  const colSpan = 9 + accessColumnCount + loginColumnCount + (showPreviewButtons ? 0 : 0);
 
   const handleReset = async (row: StudentListItem, target: 'student' | 'parent' | 'both') => {
     const label =
@@ -99,7 +105,7 @@ export default function StudentTable({
             <th className="p-3 min-w-[88px] whitespace-nowrap">소속 반</th>
             {showStudentLastAccess && <th className="p-3 min-w-[96px] whitespace-nowrap">학생 접속</th>}
             {showParentLastAccess && <th className="p-3 min-w-[96px] whitespace-nowrap">학부모 접속</th>}
-            <th className="p-3 min-w-[120px] text-center whitespace-nowrap">관리</th>
+            <th className="p-3 min-w-[168px] text-center whitespace-nowrap">관리</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 text-[14px]">
@@ -144,31 +150,55 @@ export default function StudentTable({
                   </td>
                 )}
                 <td className="p-3 text-center whitespace-nowrap shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => onEdit(row._id)}
-                    className="text-slate-400 hover:text-slate-950 mr-2"
-                  >
-                    수정
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDelete(row._id)}
-                    className="text-slate-400 hover:text-red-600 mr-2"
-                  >
-                    삭제
-                  </button>
-                  {showResetCredentials && (
-                    <button
-                      type="button"
-                      disabled={resettingId != null}
-                      onClick={() => void handleReset(row, 'both')}
-                      className="text-slate-400 hover:text-amber-700 disabled:opacity-50"
-                      title="학생·학부모 계정을 전화번호로 초기화"
-                    >
-                      {resettingId?.startsWith(row._id) ? '초기화중' : '초기화'}
-                    </button>
-                  )}
+                  <div className="flex flex-col items-center gap-1">
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => onEdit(row._id)}
+                        className="text-slate-400 hover:text-slate-950 mr-2"
+                      >
+                        수정
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDelete(row._id)}
+                        className="text-slate-400 hover:text-red-600 mr-2"
+                      >
+                        삭제
+                      </button>
+                      {showResetCredentials && (
+                        <button
+                          type="button"
+                          disabled={resettingId != null}
+                          onClick={() => void handleReset(row, 'both')}
+                          className="text-slate-400 hover:text-amber-700 disabled:opacity-50"
+                          title="학생·학부모 계정을 전화번호로 초기화"
+                        >
+                          {resettingId?.startsWith(row._id) ? '초기화중' : '초기화'}
+                        </button>
+                      )}
+                    </div>
+                    {showPreviewButtons && row.previewAllowed !== false && onPreview && (
+                      <div className="flex flex-wrap justify-center gap-x-2 gap-y-0.5">
+                        <button
+                          type="button"
+                          disabled={previewLoadingKey != null}
+                          onClick={() => onPreview(row._id, 'student')}
+                          className="text-[12px] text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                        >
+                          {previewLoadingKey === `${row._id}-student` ? '이동중…' : '학생 화면'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={previewLoadingKey != null}
+                          onClick={() => onPreview(row._id, 'parent')}
+                          className="text-[12px] text-violet-600 hover:text-violet-800 disabled:opacity-50"
+                        >
+                          {previewLoadingKey === `${row._id}-parent` ? '이동중…' : '학부모 화면'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))

@@ -115,9 +115,23 @@ export async function getMonthlyStatistics(req: Request, res: Response<ApiRespon
 
 export async function saveReply(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
+    if (req.user?.preview) {
+      res.status(403).json({
+        success: false,
+        message: '미리보기 모드에서는 답글을 작성할 수 없습니다. 학생·학부모 본인 계정으로 로그인해 주세요.',
+      });
+      return;
+    }
     const info = await studentDataService.getStudentIdAndAccessType(getUserId(req));
     if (!info) {
       res.status(404).json({ success: false, message: '학생 정보를 찾을 수 없습니다.' });
+      return;
+    }
+    if (info.isAdminAccess) {
+      res.status(403).json({
+        success: false,
+        message: '답글은 학생 본인 계정으로 로그인해야 작성할 수 있습니다.',
+      });
       return;
     }
     const body = typeof req.body.body === 'string' ? req.body.body : '';

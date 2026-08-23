@@ -13,6 +13,9 @@ interface CommentReplySectionProps {
   apiPrefix: 'student' | 'parent';
   onSaved: (body: string, savedAt?: string, createdAt?: string) => void;
   onDeleted?: () => void;
+  /** 미리보기·관리 접속 등 읽기 전용 */
+  readOnly?: boolean;
+  readOnlyMessage?: string;
 }
 
 export default function CommentReplySection({
@@ -26,6 +29,8 @@ export default function CommentReplySection({
   apiPrefix,
   onSaved,
   onDeleted,
+  readOnly = false,
+  readOnlyMessage = '답글은 학생·학부모 본인 계정으로 로그인해야 작성할 수 있습니다.',
 }: CommentReplySectionProps) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
@@ -84,15 +89,19 @@ export default function CommentReplySection({
   return (
     <>
       {!hasReply ? (
-        <div className="mt-2">
-          <button
-            type="button"
-            onClick={openModal}
-            className="text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors"
-          >
-            답글 남기기
-          </button>
-        </div>
+        readOnly ? (
+          <p className="mt-2 text-[11px] text-slate-400 leading-relaxed">{readOnlyMessage}</p>
+        ) : (
+          <div className="mt-2">
+            <button
+              type="button"
+              onClick={openModal}
+              className="text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              답글 남기기
+            </button>
+          </div>
+        )
       ) : (
         <div className="mt-2.5 pl-3 border-l-2 border-slate-200">
           <div className="text-[13px] text-slate-600 leading-relaxed whitespace-pre-wrap">
@@ -104,22 +113,26 @@ export default function CommentReplySection({
 
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
             {hasLike && <ReplyLikeTip names={likedTeacherNames} />}
-            <button
-              type="button"
-              onClick={openModal}
-              disabled={busy}
-              className="text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
-            >
-              수정
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleDelete()}
-              disabled={busy}
-              className="text-[11px] font-medium text-slate-400 hover:text-rose-500 transition-colors disabled:opacity-50"
-            >
-              {deleting ? '삭제 중...' : '삭제'}
-            </button>
+            {!readOnly && (
+              <>
+                <button
+                  type="button"
+                  onClick={openModal}
+                  disabled={busy}
+                  className="text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
+                >
+                  수정
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleDelete()}
+                  disabled={busy}
+                  className="text-[11px] font-medium text-slate-400 hover:text-rose-500 transition-colors disabled:opacity-50"
+                >
+                  {deleting ? '삭제 중...' : '삭제'}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

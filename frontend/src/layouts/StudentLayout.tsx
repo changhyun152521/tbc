@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { StudentClassProvider, useStudentClass } from '../contexts/StudentClassContext';
@@ -56,7 +56,8 @@ function UserIcon(_: { active: boolean }) {
 const ACTIVE_COLOR = '#2563EB'; // blue-600
 
 function StudentLayoutContent() {
-  const { name, role, logout, mustChangePassword, setMustChangePassword } = useAuth();
+  const navigate = useNavigate();
+  const { name, role, logout, mustChangePassword, setMustChangePassword, isPreviewMode, exitPreview } = useAuth();
   const location = useLocation();
   const { selectedClassName, isLoading, needsClassSelection, classes, setShowClassSelect } = useStudentClass();
   const [isAdminAccess, setIsAdminAccess] = useState(false);
@@ -99,13 +100,27 @@ function StudentLayoutContent() {
     );
   }
 
-  if (mustChangePassword && !isAdminAccess && location.pathname !== '/student/profile') {
+  if (mustChangePassword && !isAdminAccess && !isPreviewMode && location.pathname !== '/student/profile') {
     return <Navigate to="/student/profile" replace />;
   }
 
-  if (needsClassSelection && !(mustChangePassword && !isAdminAccess)) {
+  if (needsClassSelection && !(mustChangePassword && !isAdminAccess && !isPreviewMode)) {
     return <ClassSelect />;
   }
+
+  const handleExitPreview = () => {
+    const restored = exitPreview();
+    navigate(restored ? '/admin/students' : '/login', { replace: true });
+  };
+
+  const handleLogoutClick = () => {
+    if (isPreviewMode) {
+      handleExitPreview();
+      return;
+    }
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   return (
     <>
@@ -170,9 +185,9 @@ function StudentLayoutContent() {
               </span>
               <button
                 type="button"
-                onClick={() => logout()}
+                onClick={handleLogoutClick}
                 className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                title="로그아웃"
+                title={isPreviewMode ? '관리 화면으로 돌아가기' : '로그아웃'}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -181,8 +196,27 @@ function StudentLayoutContent() {
             </div>
           </header>
 
+          {isPreviewMode && (
+            <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shrink-0">
+              <p className="text-sm text-amber-900">
+                <span className="font-semibold">미리보기 모드</span>
+                <span className="hidden sm:inline"> — </span>
+                <span className="block sm:inline mt-0.5 sm:mt-0 text-amber-800">
+                  화면 확인만 가능합니다. 복습 영상·답글·정보 변경은 본인 계정으로 로그인해야 이용할 수 있습니다.
+                </span>
+              </p>
+              <button
+                type="button"
+                onClick={handleExitPreview}
+                className="shrink-0 px-3 py-1.5 rounded-lg bg-amber-900 text-white text-xs font-semibold hover:bg-amber-950"
+              >
+                관리 화면으로 돌아가기
+              </button>
+            </div>
+          )}
+
           <main className="flex-1 p-4 sm:p-6 lg:p-8">
-            {accessReady && location.pathname === '/student/dashboard' && (
+            {accessReady && location.pathname === '/student/dashboard' && !isPreviewMode && (
               <StudentPopups isAdminAccess={isAdminAccess} />
             )}
             <motion.div

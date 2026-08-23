@@ -118,3 +118,69 @@ export async function findLoginId(
   const user = await User.findById(userId).select('loginId').lean().exec();
   return user?.loginId ?? null;
 }
+
+const PREVIEW_TOKEN_EXPIRES = '2h';
+
+/**
+ * 관리자·강사 → 학생/학부모 화면 미리보기용 단기 JWT.
+ * preview=true 로 쓰기 API 차단.
+ */
+export async function createPreviewSession(
+  studentId: string,
+  view: 'student' | 'parent',
+  actorUserId: string,
+  actorRole: string
+): Promise<
+  | { token: string; user: { id: string; role: string; name: string }; studentName: string }
+  | { error: string; status: number }
+> {
+  if (!mongoose.Types.ObjectId.isValid(studentId)) {
+    return { error: '올바른 학생 ID가 아닙니다.', status: 400 };
+  }
+  if (actorRole === 'teacher') {
+    const { getAssignedStudentIds } = await import('./teacher/teacherClass.service');
+    const assigned = await getAssignedStudentIds(actorUserId);
+    if (!assigned.includes(studentId)) {
+      return { error: '담당 반 학생만 미리보기할 수 있습니다.', status: 403 };
+    }
+  } else if (actorRole !== 'admin') {
+    return { error: '미리보기 권한이 없습니다.', status: 403 };
+  }
+
+  const { ensureAdminAccessUser } = await import('./admin/student.service');
+  await ensureAdminAccessUser(studentId);
+
+  const student = await Student.findById(studentId)
+    .select('name userId parentUserId adminAccessUserId')
+    .exec();
+  if (!student) return { error: '학생을 찾을 수 없습니다.', status: 404 };
+
+  let targetUserId: mongoose.Types.ObjectId | undefined;
+  let role: 'student' | 'parent';
+  let displayName: string;
+
+  if (view === 'student') {
+    targetUserId = student.adminAccessUserId;
+    role = 'student';
+    displayName = student.name.trim();
+  } else {
+    targetUserId = student.parentUserId;
+    role = 'parent';
+    displayName = `${student.name.trim()} 학부모`;
+  }
+  if (!targetUserId) {
+    return { error: '미리보기 계정을 찾을 수 없습니다.', status: 404 };
+  }
+
+  const user = await User.findById(targetUserId).exec();
+  if (!user) return { error: '미리보기 계정을 찾을 수 없습니다.', status: 404 };
+
+  const payload: JwtPayload = { sub: user._id.toString(), role, preview: true };
+  const token = jwt.sign(payload, jwtConfig.secret, { expiresIn: PREVIEW_TOKEN_EXPIRES } as jwt.SignOptions);
+
+  return {
+    token,
+    user: { id: user._id.toString(), role, name: displayName },
+    studentName: student.name.trim(),
+  };
+}

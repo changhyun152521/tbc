@@ -94,7 +94,7 @@ function todayDateOnly(): string {
 }
 
 export default function LessonHistory() {
-  const { role } = useAuth();
+  const { role, isPreviewMode } = useAuth();
   const { selectedClassId, setSelectedClassId } = useStudentClass();
   const [searchParams] = useSearchParams();
   const [selectedDate, setSelectedDate] = useState<string>(todayDateOnly());
@@ -105,6 +105,7 @@ export default function LessonHistory() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const canWatchReviewVideo = role === 'student' && !isAdminAccess;
+  const replyReadOnly = isPreviewMode;
   const videoBlockedMessage =
     role === 'parent'
       ? '복습 영상은 학생 회원만 시청할 수 있습니다. 자녀의 학생 계정으로 로그인해 주세요.'
@@ -383,6 +384,7 @@ export default function LessonHistory() {
                             likedTeacherNames={role === 'parent' ? l.parentReplyLikedTeacherNames : l.studentReplyLikedTeacherNames}
                             teacherComment={commentText}
                             apiPrefix={apiPrefix}
+                            readOnly={replyReadOnly}
                             onSaved={(body, savedAt, createdAt) => {
                               setList((prev) =>
                                 prev.map((item) =>

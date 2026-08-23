@@ -15,6 +15,7 @@ export async function getMe(req: Request, res: Response<ApiResponse>): Promise<v
       res.status(404).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
       return;
     }
+    if (req.user.preview) profile.isPreview = true;
     res.status(200).json({ success: true, data: profile });
   } catch (err) {
     const message = err instanceof Error ? err.message : '내정보 조회에 실패했습니다.';
@@ -24,6 +25,10 @@ export async function getMe(req: Request, res: Response<ApiResponse>): Promise<v
 
 export async function updatePassword(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
+    if (req.user?.preview) {
+      res.status(403).json({ success: false, message: '미리보기 모드에서는 변경할 수 없습니다.' });
+      return;
+    }
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       res.status(400).json({ success: false, message: errors.array()[0].msg });
@@ -48,6 +53,10 @@ export async function updatePassword(req: Request, res: Response<ApiResponse>): 
 
 export async function completeInitialCredentials(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
+    if (req.user?.preview) {
+      res.status(403).json({ success: false, message: '미리보기 모드에서는 변경할 수 없습니다.' });
+      return;
+    }
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       res.status(400).json({ success: false, message: errors.array()[0].msg });
@@ -79,6 +88,10 @@ export async function completeInitialCredentials(req: Request, res: Response<Api
 
 export async function updateLoginId(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
+    if (req.user?.preview) {
+      res.status(403).json({ success: false, message: '미리보기 모드에서는 변경할 수 없습니다.' });
+      return;
+    }
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       res.status(400).json({ success: false, message: errors.array()[0].msg });
@@ -103,6 +116,10 @@ export async function updateLoginId(req: Request, res: Response<ApiResponse>): P
 
 export async function updatePhone(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
+    if (req.user?.preview) {
+      res.status(403).json({ success: false, message: '미리보기 모드에서는 변경할 수 없습니다.' });
+      return;
+    }
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       res.status(400).json({ success: false, message: errors.array()[0].msg });

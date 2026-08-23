@@ -11,6 +11,7 @@ interface MeProfile {
   phone: string;
   mustChangePassword?: boolean;
   isAdminAccess?: boolean;
+  isPreview?: boolean;
 }
 
 export default function StudentProfile() {
@@ -62,7 +63,8 @@ export default function StudentProfile() {
   const [setupNewLoginId, setSetupNewLoginId] = useState('');
   const [setupSubmitting, setSetupSubmitting] = useState(false);
 
-  const mustChange = profile?.mustChangePassword === true && !profile?.isAdminAccess;
+  const mustChange = profile?.mustChangePassword === true && !profile?.isAdminAccess && !profile?.isPreview;
+  const readOnlyProfile = profile?.isPreview === true || profile?.isAdminAccess === true;
 
   const handleSetupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -253,6 +255,14 @@ export default function StudentProfile() {
       {header}
 
       <div className="max-w-lg mx-auto w-full space-y-6">
+        {readOnlyProfile && (
+          <div className="p-4 bg-slate-100 border border-slate-200 text-slate-700 rounded-2xl text-sm" role="status">
+            {profile.isPreview
+              ? '미리보기 모드입니다. 계정 정보는 확인만 가능하며 변경할 수 없습니다.'
+              : '관리 접속 계정입니다. 계정 정보 변경은 학생·학부모 본인 계정으로 로그인해 주세요.'}
+          </div>
+        )}
+
         {mustChange && (
           <div className="p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl text-sm" role="alert">
             <p className="font-semibold">아이디·비밀번호 변경이 필요합니다</p>
@@ -285,7 +295,7 @@ export default function StudentProfile() {
           </dl>
         </section>
 
-        {mustChange ? (
+        {!readOnlyProfile && (mustChange ? (
           <section className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100">
             <h2 className="text-[17px] font-bold text-slate-800 mb-5">아이디·비밀번호 설정</h2>
             <form onSubmit={handleSetupSubmit} className="space-y-4">
@@ -422,7 +432,7 @@ export default function StudentProfile() {
               </form>
             </section>
           </>
-        )}
+        ))}
       </div>
     </div>
   );

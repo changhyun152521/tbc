@@ -22,6 +22,8 @@ export interface MeProfile {
   teacherId?: string;
   /** true이면 로그인 후 비밀번호 변경 유도 */
   mustChangePassword?: boolean;
+  /** 관리자·강사 미리보기 세션 */
+  isPreview?: boolean;
 }
 
 function toMeProfile(user: IUser, isAdminAccess?: boolean): MeProfile {

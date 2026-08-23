@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import type { StudentListItem, StudentFormValues } from '../types/student';
@@ -21,12 +22,14 @@ interface ListResponse {
 }
 
 export default function StudentManagement() {
-  const { role } = useAuth();
+  const navigate = useNavigate();
+  const { role, enterPreview } = useAuth();
   const isTeacher = role === 'teacher';
   const showStudentLastAccess = role === 'admin' || role === 'teacher';
   const showParentLastAccess = role === 'admin' || role === 'teacher';
   const showLoginIds = role === 'admin';
   const showResetCredentials = role === 'admin';
+  const showPreviewButtons = role === 'admin' || role === 'teacher';
   const [list, setList] = useState<StudentListItem[]>([]);
   const [, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -50,6 +53,7 @@ export default function StudentManagement() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const [excelBulkOpen, setExcelBulkOpen] = useState(false);
+  const [previewLoadingKey, setPreviewLoadingKey] = useState<string | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
@@ -222,6 +226,24 @@ export default function StudentManagement() {
 
   const hasFilter = Boolean(debouncedSearch.trim() || grade || classFilter);
 
+  const handlePreview = async (studentId: string, view: 'student' | 'parent') => {
+    setPreviewLoadingKey(`${studentId}-${view}`);
+    try {
+      await enterPreview(studentId, view);
+      navigate('/student/dashboard');
+    } catch (err: unknown) {
+      const msg =
+        typeof (err as { response?: { data?: { message?: string } } })?.response?.data?.message === 'string'
+          ? (err as { response: { data: { message: string } } }).response.data.message
+          : err instanceof Error
+            ? err.message
+            : '미리보기를 시작할 수 없습니다.';
+      window.alert(msg);
+    } finally {
+      setPreviewLoadingKey(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col pt-6 px-4 sm:px-6 lg:px-10 pb-12">
       <div className="w-full max-w-6xl mx-auto">
@@ -283,6 +305,9 @@ export default function StudentManagement() {
               showParentLastAccess={showParentLastAccess}
               showLoginIds={showLoginIds}
               showResetCredentials={showResetCredentials}
+              showPreviewButtons={showPreviewButtons}
+              previewLoadingKey={previewLoadingKey}
+              onPreview={(id, view) => void handlePreview(id, view)}
             />
           )}
         </div>
