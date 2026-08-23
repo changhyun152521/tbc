@@ -20,7 +20,9 @@ export function authenticate(req: Request, res: Response<ApiResponse>, next: Nex
   try {
     const decoded = jwt.verify(token, jwtConfig.secret) as JwtPayload;
     req.user = { id: decoded.sub, role: decoded.role, preview: decoded.preview === true };
-    touchLastAccessIfNeeded(decoded.sub);
+    if (decoded.preview !== true) {
+      touchLastAccessIfNeeded(decoded.sub);
+    }
     next();
   } catch {
     res.status(401).json({ success: false, message: '유효하지 않거나 만료된 토큰입니다.' });
