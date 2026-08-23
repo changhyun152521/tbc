@@ -58,8 +58,8 @@ export default function StudentProfile() {
   const [newPassword, setNewPassword] = useState('');
   const [newLoginId, setNewLoginId] = useState('');
   const [newPhone, setNewPhone] = useState('');
-  const [setupCurrentPassword, setSetupCurrentPassword] = useState('');
   const [setupNewPassword, setSetupNewPassword] = useState('');
+  const [setupConfirmPassword, setSetupConfirmPassword] = useState('');
   const [setupNewLoginId, setSetupNewLoginId] = useState('');
   const [setupSubmitting, setSetupSubmitting] = useState(false);
 
@@ -69,8 +69,12 @@ export default function StudentProfile() {
   const handleSetupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSetupMsg(null);
-    if (!setupNewLoginId.trim() || !setupCurrentPassword || !setupNewPassword.trim()) {
-      setSetupMsg({ type: 'err', text: '새 아이디, 현재 비밀번호, 새 비밀번호를 모두 입력해 주세요.' });
+    if (!setupNewLoginId.trim() || !setupNewPassword.trim() || !setupConfirmPassword.trim()) {
+      setSetupMsg({ type: 'err', text: '새 로그인 아이디, 새 비밀번호, 새 비밀번호 확인을 모두 입력해 주세요.' });
+      return;
+    }
+    if (setupNewPassword.trim() !== setupConfirmPassword.trim()) {
+      setSetupMsg({ type: 'err', text: '새 비밀번호 확인이 일치하지 않습니다.' });
       return;
     }
     setSetupSubmitting(true);
@@ -78,16 +82,16 @@ export default function StudentProfile() {
       const res = await apiClient.put<{ success: boolean; message?: string; data?: { loginId?: string } }>(
         '/me/initial-credentials',
         {
-          currentPassword: setupCurrentPassword,
           newPassword: setupNewPassword.trim(),
+          confirmPassword: setupConfirmPassword.trim(),
           newLoginId: setupNewLoginId.trim(),
         }
       );
       if (res.data.success) {
         setSetupMsg({ type: 'ok', text: '아이디와 비밀번호가 변경되었습니다. 이제 서비스를 이용할 수 있습니다.' });
         setMustChangePassword(false);
-        setSetupCurrentPassword('');
         setSetupNewPassword('');
+        setSetupConfirmPassword('');
         setSetupNewLoginId('');
         if (profile) {
           setProfile({
@@ -305,21 +309,21 @@ export default function StudentProfile() {
                 value={setupNewLoginId}
                 onChange={(e) => setSetupNewLoginId(e.target.value)}
                 className={inputClass}
-                autoComplete="username"
+                autoComplete="off"
               />
               <input
                 type="password"
-                placeholder="현재 비밀번호 (초기: 전화번호)"
-                value={setupCurrentPassword}
-                onChange={(e) => setSetupCurrentPassword(e.target.value)}
-                className={inputClass}
-                autoComplete="current-password"
-              />
-              <input
-                type="password"
-                placeholder="새 비밀번호"
+                placeholder="새 로그인 비밀번호"
                 value={setupNewPassword}
                 onChange={(e) => setSetupNewPassword(e.target.value)}
+                className={inputClass}
+                autoComplete="new-password"
+              />
+              <input
+                type="password"
+                placeholder="새 비밀번호 확인"
+                value={setupConfirmPassword}
+                onChange={(e) => setSetupConfirmPassword(e.target.value)}
                 className={inputClass}
                 autoComplete="new-password"
               />

@@ -40,8 +40,8 @@ router.put(
 router.put(
   '/initial-credentials',
   [
-    body('currentPassword').notEmpty().withMessage('현재 비밀번호는 필수입니다.'),
     body('newPassword').notEmpty().withMessage('새 비밀번호는 필수입니다.'),
+    body('confirmPassword').notEmpty().withMessage('새 비밀번호 확인은 필수입니다.'),
     body('newLoginId').trim().notEmpty().withMessage('새 로그인 ID는 필수입니다.'),
   ],
   meController.completeInitialCredentials

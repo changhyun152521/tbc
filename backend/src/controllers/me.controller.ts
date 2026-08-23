@@ -67,8 +67,8 @@ export async function completeInitialCredentials(req: Request, res: Response<Api
       return;
     }
     const result = await meService.completeInitialCredentials(req.user.id, {
-      currentPassword: String(req.body.currentPassword ?? ''),
       newPassword: String(req.body.newPassword ?? ''),
+      confirmPassword: String(req.body.confirmPassword ?? ''),
       newLoginId: String(req.body.newLoginId ?? ''),
     });
     if (!result.ok) {
