@@ -25,6 +25,8 @@ export default function StudentManagement() {
   const isTeacher = role === 'teacher';
   const showStudentLastAccess = role === 'admin' || role === 'teacher';
   const showParentLastAccess = role === 'admin' || role === 'teacher';
+  const showLoginIds = role === 'admin';
+  const showResetCredentials = role === 'admin';
   const [list, setList] = useState<StudentListItem[]>([]);
   const [, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -276,8 +278,11 @@ export default function StudentManagement() {
               onToggleSelectAll={handleToggleSelectAll}
               onEdit={openEdit}
               onDelete={openDelete}
+              onResetDone={fetchList}
               showStudentLastAccess={showStudentLastAccess}
               showParentLastAccess={showParentLastAccess}
+              showLoginIds={showLoginIds}
+              showResetCredentials={showResetCredentials}
             />
           )}
         </div>

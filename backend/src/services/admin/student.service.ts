@@ -47,6 +47,8 @@ export interface ListStudentsQuery {
    * 빈 배열이면 결과 없음. undefined면 학생 ID로 제한하지 않음.
    */
   studentIds?: string[];
+  /** 관리자만 true — 학생/학부모 loginId 포함 */
+  includeLoginIds?: boolean;
   /** 관리자·강사 true — 학생 본인 계정 최근 접속 시각 포함 */
   includeLastAccess?: boolean;
   /** 관리자·강사 true — 학부모 계정 최근 접속 시각 포함 */
@@ -105,6 +107,7 @@ export async function ensureAdminAccessUser(studentId: string): Promise<void> {
     passwordHash: await hashPassword(ADMIN_ACCESS_PASSWORD),
     name: student.name,
     phone: '',
+    mustChangePassword: false,
   });
   student.adminAccessUserId = adminAccessUser._id;
   await student.save();
@@ -129,6 +132,7 @@ export async function createStudent(input: CreateStudentInput): Promise<IStudent
       passwordHash: await hashPassword(studentPassword),
       name: input.name.trim(),
       phone: input.studentPhone,
+      mustChangePassword: true,
     }),
     User.create({
       role: 'parent',
@@ -136,6 +140,7 @@ export async function createStudent(input: CreateStudentInput): Promise<IStudent
       passwordHash: await hashPassword(parentPassword),
       name: `${input.name.trim()} 학부모`,
       phone: input.parentPhone,
+      mustChangePassword: true,
     }),
     User.create({
       role: 'student',
@@ -143,6 +148,7 @@ export async function createStudent(input: CreateStudentInput): Promise<IStudent
       passwordHash: await hashPassword(ADMIN_ACCESS_PASSWORD),
       name: input.name.trim(),
       phone: '',
+      mustChangePassword: false,
     }),
   ]);
 
@@ -193,15 +199,23 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
     ];
   }
 
+  const populateFields = query.includeLoginIds
+    ? [
+        { path: 'userId', select: 'loginId' },
+        { path: 'parentUserId', select: 'loginId' },
+        { path: 'adminAccessUserId', select: 'loginId' },
+      ]
+    : [{ path: 'adminAccessUserId', select: 'loginId' }];
+
   const [list, total] = await Promise.all([
-    Student.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('adminAccessUserId', 'loginId').lean().exec(),
+    Student.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate(populateFields).lean().exec(),
     Student.countDocuments(filter).exec(),
   ]);
 
   type LeanStudentWithPopulatedAdmin = Record<string, unknown> & {
     _id: mongoose.Types.ObjectId;
-    userId?: mongoose.Types.ObjectId;
-    parentUserId?: mongoose.Types.ObjectId;
+    userId?: mongoose.Types.ObjectId | { loginId?: string };
+    parentUserId?: mongoose.Types.ObjectId | { loginId?: string };
     adminAccessUserId?: { loginId: string } | null;
   };
   const withClassCountAndAdminId = await Promise.all(
@@ -220,11 +234,41 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
         }
       }
       const classCount = await Class.countDocuments({ studentIds: doc._id }).exec();
-      return { ...doc, classCount, adminAccessLoginId };
+      const studentLoginId =
+        query.includeLoginIds &&
+        doc.userId &&
+        typeof doc.userId === 'object' &&
+        'loginId' in doc.userId
+          ? (doc.userId as { loginId?: string }).loginId ?? null
+          : undefined;
+      const parentLoginId =
+        query.includeLoginIds &&
+        doc.parentUserId &&
+        typeof doc.parentUserId === 'object' &&
+        'loginId' in doc.parentUserId
+          ? (doc.parentUserId as { loginId?: string }).loginId ?? null
+          : undefined;
+      return {
+        ...doc,
+        classCount,
+        adminAccessLoginId,
+        ...(query.includeLoginIds ? { studentLoginId, parentLoginId } : {}),
+      };
     })
   );
 
   let enrichedList = withClassCountAndAdminId;
+  const toUserObjectId = (ref: unknown): mongoose.Types.ObjectId | null => {
+    if (!ref) return null;
+    if (ref instanceof mongoose.Types.ObjectId) return ref;
+    if (typeof ref === 'object' && ref !== null && '_id' in ref) {
+      return (ref as { _id: mongoose.Types.ObjectId })._id;
+    }
+    if (typeof ref === 'string' && mongoose.Types.ObjectId.isValid(ref)) {
+      return new mongoose.Types.ObjectId(ref);
+    }
+    return null;
+  };
   if (query.includeLastAccess || query.includeParentLastAccess) {
     const studentAccessAllowed =
       query.lastAccessStudentIds == null
@@ -239,14 +283,14 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
       const ids: mongoose.Types.ObjectId[] = [];
       const canSeeStudentAccess =
         query.includeLastAccess &&
-        row.userId &&
         (studentAccessAllowed == null || studentAccessAllowed.has(String(row._id)));
-      if (canSeeStudentAccess && row.userId) ids.push(row.userId);
+      const studentUid = toUserObjectId(row.userId);
+      if (canSeeStudentAccess && studentUid) ids.push(studentUid);
       const canSeeParentAccess =
         query.includeParentLastAccess &&
-        row.parentUserId &&
         (parentAccessAllowed == null || parentAccessAllowed.has(String(row._id)));
-      if (canSeeParentAccess && row.parentUserId) ids.push(row.parentUserId);
+      const parentUid = toUserObjectId(row.parentUserId);
+      if (canSeeParentAccess && parentUid) ids.push(parentUid);
       return ids;
     });
     const users =
@@ -261,12 +305,14 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
       const canSeeParentAccess =
         query.includeParentLastAccess &&
         (parentAccessAllowed == null || parentAccessAllowed.has(String(row._id)));
+      const studentUid = toUserObjectId(row.userId);
+      const parentUid = toUserObjectId(row.parentUserId);
       return {
         ...row,
         ...(query.includeLastAccess
           ? canSeeStudentAccess
             ? {
-                lastAccessAt: row.userId ? accessByUserId.get(String(row.userId)) ?? null : null,
+                lastAccessAt: studentUid ? accessByUserId.get(studentUid.toString()) ?? null : null,
                 lastAccessHidden: false,
               }
             : {
@@ -277,8 +323,8 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
         ...(query.includeParentLastAccess
           ? canSeeParentAccess
             ? {
-                parentLastAccessAt: row.parentUserId
-                  ? accessByUserId.get(String(row.parentUserId)) ?? null
+                parentLastAccessAt: parentUid
+                  ? accessByUserId.get(parentUid.toString()) ?? null
                   : null,
                 parentLastAccessHidden: false,
               }
@@ -295,6 +341,8 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
     list: enrichedList as unknown as (IStudent & {
       classCount: number;
       adminAccessLoginId: string | null;
+      studentLoginId?: string | null;
+      parentLoginId?: string | null;
       lastAccessAt?: Date | null;
       lastAccessHidden?: boolean;
       parentLastAccessAt?: Date | null;
@@ -363,6 +411,57 @@ export async function updateStudent(id: string, input: UpdateStudentInput): Prom
 
   await Promise.all([student.save(), studentUser.save(), parentUser.save()]);
   return getStudentById(id);
+}
+
+/**
+ * 학생/학부모 계정 초기화: loginId·password를 전화번호로, mustChangePassword=true
+ */
+export async function resetCredentials(
+  studentId: string,
+  target: 'student' | 'parent' | 'both'
+): Promise<{ ok: true } | { ok: false; message: string; status: number }> {
+  if (!mongoose.Types.ObjectId.isValid(studentId)) {
+    return { ok: false, message: '올바른 학생 ID가 아닙니다.', status: 400 };
+  }
+  const student = await Student.findById(studentId).exec();
+  if (!student) return { ok: false, message: '학생을 찾을 수 없습니다.', status: 404 };
+
+  const resetOne = async (
+    userId: mongoose.Types.ObjectId | undefined,
+    phone: string,
+    label: string
+  ): Promise<{ ok: true } | { ok: false; message: string; status: number }> => {
+    if (!userId) return { ok: false, message: `${label} 계정을 찾을 수 없습니다.`, status: 404 };
+    const phoneTrim = String(phone ?? '').trim();
+    if (!phoneTrim) {
+      return { ok: false, message: `${label} 전화번호가 없어 초기화할 수 없습니다.`, status: 400 };
+    }
+    const existing = await User.findOne({ loginId: phoneTrim }).exec();
+    if (existing && existing._id.toString() !== userId.toString()) {
+      return {
+        ok: false,
+        message: `이미 사용 중인 로그인 ID입니다: "${phoneTrim}". 전화번호를 먼저 확인해 주세요.`,
+        status: 400,
+      };
+    }
+    const user = await User.findById(userId).exec();
+    if (!user) return { ok: false, message: `${label} 계정을 찾을 수 없습니다.`, status: 404 };
+    user.loginId = phoneTrim;
+    user.passwordHash = await hashPassword(phoneTrim);
+    user.mustChangePassword = true;
+    await user.save();
+    return { ok: true };
+  };
+
+  if (target === 'student' || target === 'both') {
+    const r = await resetOne(student.userId, student.studentPhone, '학생');
+    if (!r.ok) return r;
+  }
+  if (target === 'parent' || target === 'both') {
+    const r = await resetOne(student.parentUserId, student.parentPhone, '학부모');
+    if (!r.ok) return r;
+  }
+  return { ok: true };
 }
 
 export async function deleteStudent(id: string): Promise<boolean> {

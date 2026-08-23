@@ -7,6 +7,10 @@ export interface StudentListItem {
   parentPhone: string;
   /** 관리자가 해당 학생 화면으로 접속할 때 사용하는 로그인 ID (비밀번호: admin) */
   adminAccessLoginId?: string | null;
+  /** 관리자 목록 — 학생 본인 로그인 ID */
+  studentLoginId?: string | null;
+  /** 관리자 목록 — 학부모 로그인 ID */
+  parentLoginId?: string | null;
   classCount?: number;
   /** 관리자·강사 목록 — 학생 본인 계정 최근 접속 */
   lastAccessAt?: string | null;

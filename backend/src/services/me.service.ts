@@ -64,6 +64,13 @@ export async function updatePassword(
   const user = await User.findById(userId).exec();
   if (!user) return { ok: false, message: '사용자를 찾을 수 없습니다.' };
 
+  if (user.mustChangePassword === true && (user.role === 'student' || user.role === 'parent')) {
+    return {
+      ok: false,
+      message: '첫 로그인 설정에서는 아이디와 비밀번호를 함께 변경해 주세요.',
+    };
+  }
+
   const match = await bcrypt.compare(currentPassword, user.passwordHash);
   if (!match) return { ok: false, message: '현재 비밀번호가 일치하지 않습니다.' };
 
@@ -71,6 +78,49 @@ export async function updatePassword(
   user.mustChangePassword = false;
   await user.save();
   return { ok: true };
+}
+
+/**
+ * 학생·학부모 첫 로그인: 아이디 + 비밀번호를 한 번에 변경하고 mustChangePassword 해제
+ */
+export async function completeInitialCredentials(
+  userId: string,
+  input: { currentPassword: string; newPassword: string; newLoginId: string }
+): Promise<{ ok: boolean; message?: string; loginId?: string }> {
+  const user = await User.findById(userId).exec();
+  if (!user) return { ok: false, message: '사용자를 찾을 수 없습니다.' };
+  if (user.role !== 'student' && user.role !== 'parent') {
+    return { ok: false, message: '학생·학부모 계정만 이용할 수 있습니다.' };
+  }
+  if (user.mustChangePassword !== true) {
+    return { ok: false, message: '이미 초기 설정이 완료된 계정입니다.' };
+  }
+
+  const newLoginId = input.newLoginId.trim();
+  const newPassword = input.newPassword.trim();
+  const currentPassword = input.currentPassword;
+  if (!newLoginId) return { ok: false, message: '새 로그인 ID를 입력해 주세요.' };
+  if (!newPassword) return { ok: false, message: '새 비밀번호를 입력해 주세요.' };
+  if (newLoginId === user.loginId) {
+    return { ok: false, message: '현재 로그인 ID와 다른 ID로 변경해 주세요.' };
+  }
+  if (newPassword === currentPassword) {
+    return { ok: false, message: '현재 비밀번호와 다른 비밀번호로 변경해 주세요.' };
+  }
+
+  const match = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!match) return { ok: false, message: '현재 비밀번호가 일치하지 않습니다.' };
+
+  const existing = await User.findOne({ loginId: newLoginId }).exec();
+  if (existing && existing._id.toString() !== userId) {
+    return { ok: false, message: '이미 사용 중인 로그인 ID입니다.' };
+  }
+
+  user.loginId = newLoginId;
+  user.passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  user.mustChangePassword = false;
+  await user.save();
+  return { ok: true, loginId: newLoginId };
 }
 
 export async function updateLoginId(userId: string, newLoginId: string): Promise<{ ok: boolean; message?: string }> {

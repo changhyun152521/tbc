@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import app from './app';
 import { serverConfig, dbConfig } from './config';
 import { User } from './models/User.model';
+import { Student } from './models/Student.model';
 import { dropLegacyVideoWatchProgressIndexes } from './models/VideoWatchProgress.model';
 
 const SALT_ROUNDS = 10;
@@ -44,6 +45,31 @@ async function ensureTeachersMustChangePassword() {
   }
 }
 
+/**
+ * 기존 학생·학부모 전원 첫 로그인 시 아이디·비밀번호 변경 유도 (1회만 실행).
+ * 관리 접속 계정(adminAccessUserId)은 제외.
+ */
+async function ensureStudentParentMustChangePassword() {
+  const db = mongoose.connection.db;
+  if (!db) return;
+  const migrations = db.collection('system_migrations');
+  const key = 'student_parent_must_change_password_v1';
+  const already = await migrations.findOne({ key });
+  if (already) return;
+
+  const adminAccessIds = await Student.distinct('adminAccessUserId').exec();
+  const excludeIds = adminAccessIds.filter(Boolean);
+  const result = await User.updateMany(
+    {
+      role: { $in: ['student', 'parent'] },
+      ...(excludeIds.length > 0 ? { _id: { $nin: excludeIds } } : {}),
+    },
+    { $set: { mustChangePassword: true } }
+  ).exec();
+  await migrations.insertOne({ key, at: new Date(), modifiedCount: result.modifiedCount });
+  console.log(`학생·학부모 ${result.modifiedCount}명 mustChangePassword=true 로 설정됨 (1회 마이그레이션)`);
+}
+
 async function migratePeriodNumbers() {
   const { LessonDay } = await import('./models/LessonDay.model');
   const lessons = await LessonDay.find({ 'periods.0': { $exists: true } }).exec();
@@ -70,6 +96,7 @@ async function main() {
   await dropLegacyVideoWatchProgressIndexes();
   await ensureAdmin();
   await ensureTeachersMustChangePassword();
+  await ensureStudentParentMustChangePassword();
   await migratePeriodNumbers();
 
   app.listen(serverConfig.port, () => {

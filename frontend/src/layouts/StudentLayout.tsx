@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { StudentClassProvider, useStudentClass } from '../contexts/StudentClassContext';
@@ -56,27 +56,30 @@ function UserIcon(_: { active: boolean }) {
 const ACTIVE_COLOR = '#2563EB'; // blue-600
 
 function StudentLayoutContent() {
-  const { name, role, logout } = useAuth();
+  const { name, role, logout, mustChangePassword, setMustChangePassword } = useAuth();
   const location = useLocation();
   const { selectedClassName, isLoading, needsClassSelection, classes, setShowClassSelect } = useStudentClass();
   const [isAdminAccess, setIsAdminAccess] = useState(false);
-  const [accessReady, setAccessReady] = useState(role !== 'student');
+  const [accessReady, setAccessReady] = useState(role !== 'student' && role !== 'parent');
   const title = role === 'parent' ? '학부모' : '학생';
   const hasMultipleClasses = classes.length >= 2;
 
   useEffect(() => {
-    if (role !== 'student') {
+    if (role !== 'student' && role !== 'parent') {
       setAccessReady(true);
       return;
     }
     apiClient
-      .get<{ success: boolean; data?: { isAdminAccess?: boolean } }>('/me')
+      .get<{ success: boolean; data?: { isAdminAccess?: boolean; mustChangePassword?: boolean } }>('/me')
       .then((res) => {
-        if (res.data.success && res.data.data?.isAdminAccess) setIsAdminAccess(true);
+        if (res.data.success && res.data.data) {
+          if (res.data.data.isAdminAccess) setIsAdminAccess(true);
+          setMustChangePassword(res.data.data.mustChangePassword === true);
+        }
       })
       .catch(() => {})
       .finally(() => setAccessReady(true));
-  }, [role]);
+  }, [role, setMustChangePassword]);
 
   /** 로그아웃 옆 표시: 학생은 이름만, 관리 접속은 이름 관리ID, 학부모는 이름 학부모 */
   const displayName =
@@ -88,7 +91,7 @@ function StudentLayoutContent() {
           ? `${name.trim()} 관리ID`
           : name;
 
-  if (isLoading) {
+  if (isLoading || !accessReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <p className="text-slate-500 text-sm font-medium">로딩 중...</p>
@@ -96,7 +99,11 @@ function StudentLayoutContent() {
     );
   }
 
-  if (needsClassSelection) {
+  if (mustChangePassword && !isAdminAccess && location.pathname !== '/student/profile') {
+    return <Navigate to="/student/profile" replace />;
+  }
+
+  if (needsClassSelection && !(mustChangePassword && !isAdminAccess)) {
     return <ClassSelect />;
   }
 

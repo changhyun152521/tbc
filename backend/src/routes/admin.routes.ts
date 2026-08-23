@@ -42,6 +42,15 @@ router.put(
   studentController.updateStudent
 );
 router.delete('/students/:id', mongoId(), studentController.deleteStudent);
+router.post(
+  '/students/:id/reset-credentials',
+  adminOnly,
+  [
+    param('id').isMongoId().withMessage('올바른 ID가 아닙니다.'),
+    body('target').isIn(['student', 'parent', 'both']).withMessage('target은 student, parent, both 중 하나여야 합니다.'),
+  ],
+  studentController.resetCredentials
+);
 
 // Teachers
 router.post(

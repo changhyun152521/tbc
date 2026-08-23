@@ -115,6 +115,7 @@ export async function listStudents(req: Request, res: Response<ApiResponse>): Pr
       studentIds: scope.studentIds,
       includeLastAccess: role === 'admin' || role === 'teacher',
       includeParentLastAccess: role === 'admin' || role === 'teacher',
+      includeLoginIds: role === 'admin',
       lastAccessStudentIds: assignedStudentIds,
       parentLastAccessStudentIds: assignedStudentIds,
     });
@@ -181,6 +182,30 @@ export async function deleteStudent(req: Request, res: Response<ApiResponse>): P
     res.status(200).json({ success: true, message: '삭제되었습니다.' });
   } catch (err) {
     const message = err instanceof Error ? err.message : '학생 삭제에 실패했습니다.';
+    res.status(500).json({ success: false, message });
+  }
+}
+
+export async function resetCredentials(req: Request, res: Response<ApiResponse>): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, message: errors.array()[0].msg });
+      return;
+    }
+    if (req.user?.role !== 'admin') {
+      res.status(403).json({ success: false, message: '관리자만 초기화할 수 있습니다.' });
+      return;
+    }
+    const target = req.body.target as 'student' | 'parent' | 'both';
+    const result = await studentService.resetCredentials(req.params.id, target);
+    if (!result.ok) {
+      res.status(result.status).json({ success: false, message: result.message });
+      return;
+    }
+    res.status(200).json({ success: true, message: '계정이 전화번호로 초기화되었습니다. 다음 로그인 시 아이디·비밀번호 변경이 필요합니다.' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '계정 초기화에 실패했습니다.';
     res.status(500).json({ success: false, message });
   }
 }

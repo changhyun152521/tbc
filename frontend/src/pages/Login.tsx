@@ -94,6 +94,7 @@ export default function Login() {
       if (mustChangePassword) return <Navigate to="/admin/profile" replace />;
       return <Navigate to="/admin/dashboard" replace />;
     }
+    if (mustChangePassword) return <Navigate to="/student/profile" replace />;
     return <Navigate to="/student/dashboard" replace />;
   }
 

@@ -46,6 +46,37 @@ export async function updatePassword(req: Request, res: Response<ApiResponse>): 
   }
 }
 
+export async function completeInitialCredentials(req: Request, res: Response<ApiResponse>): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, message: errors.array()[0].msg });
+      return;
+    }
+    if (!req.user) {
+      res.status(401).json({ success: false, message: '인증이 필요합니다.' });
+      return;
+    }
+    const result = await meService.completeInitialCredentials(req.user.id, {
+      currentPassword: String(req.body.currentPassword ?? ''),
+      newPassword: String(req.body.newPassword ?? ''),
+      newLoginId: String(req.body.newLoginId ?? ''),
+    });
+    if (!result.ok) {
+      res.status(400).json({ success: false, message: result.message });
+      return;
+    }
+    res.status(200).json({
+      success: true,
+      message: '아이디와 비밀번호가 변경되었습니다.',
+      data: { loginId: result.loginId },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '계정 설정에 실패했습니다.';
+    res.status(500).json({ success: false, message });
+  }
+}
+
 export async function updateLoginId(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
     const errors = validationResult(req);
