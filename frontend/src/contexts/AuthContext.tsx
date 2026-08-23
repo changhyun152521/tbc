@@ -96,8 +96,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       storage.setItem(STORAGE_KEY_NAME, newName);
       if (newMustChangePassword) storage.setItem(STORAGE_KEY_MUST_CHANGE, '1');
       else storage.removeItem(STORAGE_KEY_MUST_CHANGE);
-      if (remember) localStorage.setItem(STORAGE_KEY_REMEMBER, '1');
-      else localStorage.removeItem(STORAGE_KEY_REMEMBER);
+      if (remember) {
+        localStorage.setItem(STORAGE_KEY_REMEMBER, '1');
+      } else {
+        localStorage.removeItem(STORAGE_KEY_REMEMBER);
+        // session 전용 로그인/미리보기 시 localStorage 토큰이 API에 우선 적용되지 않도록 정리
+        localStorage.removeItem(STORAGE_KEY_TOKEN);
+        localStorage.removeItem(STORAGE_KEY_ROLE);
+        localStorage.removeItem(STORAGE_KEY_NAME);
+        localStorage.removeItem(STORAGE_KEY_MUST_CHANGE);
+      }
       setToken(newToken);
       setRole(newRole);
       setName(newName);
