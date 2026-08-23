@@ -186,6 +186,10 @@ export async function getUnreadNotificationCount(req: Request, res: Response<Api
 
 export async function markNotificationRead(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
+    if (req.user?.preview) {
+      res.status(403).json({ success: false, message: '미리보기 모드에서는 알림을 읽음 처리할 수 없습니다.' });
+      return;
+    }
     if (!req.user) {
       res.status(401).json({ success: false, message: '인증이 필요합니다.' });
       return;
@@ -204,6 +208,10 @@ export async function markNotificationRead(req: Request, res: Response<ApiRespon
 
 export async function markAllNotificationsRead(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
+    if (req.user?.preview) {
+      res.status(403).json({ success: false, message: '미리보기 모드에서는 알림을 읽음 처리할 수 없습니다.' });
+      return;
+    }
     if (!req.user) {
       res.status(401).json({ success: false, message: '인증이 필요합니다.' });
       return;

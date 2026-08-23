@@ -138,6 +138,10 @@ export async function listActiveForMe(req: Request, res: Response<ApiResponse>):
 
 export async function dismiss(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
+    if (req.user?.preview) {
+      res.status(403).json({ success: false, message: '미리보기 모드에서는 저장할 수 없습니다.' });
+      return;
+    }
     const userId = req.user?.id ?? '';
     const hideUntil = typeof req.body.hideUntil === 'string' ? req.body.hideUntil : kstToday();
     const result = await announcementService.dismissAnnouncement(userId, req.params.id, hideUntil);

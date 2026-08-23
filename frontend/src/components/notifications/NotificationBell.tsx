@@ -19,9 +19,10 @@ interface NotificationListModalProps {
   onClose: () => void;
   onItemRead: (item: NotificationItem) => void;
   onReadAll: () => void;
+  readOnly?: boolean;
 }
 
-function NotificationListModal({ open, onClose, onItemRead, onReadAll }: NotificationListModalProps) {
+function NotificationListModal({ open, onClose, onItemRead, onReadAll, readOnly = false }: NotificationListModalProps) {
   const { role } = useAuth();
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
@@ -98,7 +99,9 @@ function NotificationListModal({ open, onClose, onItemRead, onReadAll }: Notific
             <button
               type="button"
               onClick={onReadAll}
-              className="text-xs font-semibold text-slate-500 hover:text-slate-700"
+              disabled={readOnly}
+              title={readOnly ? '미리보기에서는 읽음 처리되지 않습니다' : undefined}
+              className="text-xs font-semibold text-slate-500 hover:text-slate-700 disabled:opacity-40"
             >
               모두 읽음
             </button>
@@ -158,7 +161,7 @@ function NotificationListModal({ open, onClose, onItemRead, onReadAll }: Notific
 }
 
 export default function NotificationBell() {
-  const { role } = useAuth();
+  const { role, isPreviewMode } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -224,6 +227,7 @@ export default function NotificationBell() {
   };
 
   const markItemRead = async (item: NotificationItem) => {
+    if (isPreviewMode) return;
     try {
       if (!item.readAt) {
         await apiClient.post(`/me/notifications/${item._id}/read`);
@@ -242,6 +246,7 @@ export default function NotificationBell() {
   };
 
   const handleReadAll = async () => {
+    if (isPreviewMode) return;
     try {
       await apiClient.post('/me/notifications/read-all');
       setItems((prev) => prev.map((item) => ({ ...item, readAt: item.readAt ?? new Date().toISOString() })));
@@ -292,7 +297,8 @@ export default function NotificationBell() {
                 <button
                   type="button"
                   onClick={() => void handleReadAll()}
-                  disabled={unreadItems.length === 0}
+                  disabled={unreadItems.length === 0 || isPreviewMode}
+                  title={isPreviewMode ? '미리보기에서는 읽음 처리되지 않습니다' : undefined}
                   className="text-xs font-semibold text-slate-500 hover:text-slate-700 disabled:opacity-40"
                 >
                   모두 읽음
@@ -351,6 +357,7 @@ export default function NotificationBell() {
         onClose={() => setModalOpen(false)}
         onItemRead={(item) => void markItemRead(item)}
         onReadAll={() => void handleReadAll()}
+        readOnly={isPreviewMode}
       />
     </div>
   );
