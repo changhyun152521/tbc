@@ -109,7 +109,7 @@ export default function LessonHistory() {
   const videoBlockedMessage =
     role === 'parent'
       ? '복습 영상은 학생 회원만 시청할 수 있습니다. 자녀의 학생 계정으로 로그인해 주세요.'
-      : '복습 영상은 학생 본인 계정에서만 시청할 수 있습니다. 관리자 접속 계정으로는 시청할 수 없습니다.';
+      : '복습 영상은 학생 본인 계정으로 로그인해야 시청할 수 있습니다.';
 
   const apiPrefix = role === 'parent' ? 'parent' : 'student';
   const dateFromUrl = searchParams.get('date');

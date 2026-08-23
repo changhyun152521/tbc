@@ -8,6 +8,15 @@ function getUserId(req: Request): string {
   return req.user?.id ?? '';
 }
 
+async function requireStudentId(req: Request, res: Response<ApiResponse>): Promise<string | null> {
+  const info = await studentDataService.getStudentIdAndAccessType(getUserId(req));
+  if (!info) {
+    res.status(404).json({ success: false, message: '학생 정보를 찾을 수 없습니다.' });
+    return null;
+  }
+  return info.studentId;
+}
+
 async function requireRealStudent(req: Request, res: Response<ApiResponse>): Promise<string | null> {
   const info = await studentDataService.getStudentIdAndAccessType(getUserId(req));
   if (!info) {
@@ -86,7 +95,7 @@ export async function listPending(req: Request, res: Response<ApiResponse>): Pro
 
 export async function listRecentReview(req: Request, res: Response<ApiResponse>): Promise<void> {
   try {
-    const studentId = await requireRealStudent(req, res);
+    const studentId = await requireStudentId(req, res);
     if (!studentId) return;
     const classId = typeof req.query.classId === 'string' ? req.query.classId : undefined;
     const list = await reviewVideoService.listRecentReviewVideosForStudent(studentId, classId);

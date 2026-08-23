@@ -152,7 +152,8 @@ export default function StudentDashboard() {
       return da.localeCompare(db);
     });
   const recentComments = (d.recentComments ?? []).slice(0, 5);
-  const showAbsenceReview = role === 'student' && !d.isAdminAccess;
+  const showAbsenceReview = role === 'student';
+  const blockReviewVideoPlay = Boolean(d.isAdminAccess || isPreviewMode);
   const replyReadOnly = isPreviewMode;
 
   return (
@@ -243,7 +244,10 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        <RecentAbsenceReviewSection enabled={showAbsenceReview} />
+        <RecentAbsenceReviewSection
+          enabled={showAbsenceReview}
+          blockVideoPlay={blockReviewVideoPlay}
+        />
 
         {/* 댓글형 코멘트: 관리자 접속 시 학생/학부모 코멘트 박스 분리, 그 외는 기존처럼 */}
         {d.isAdminAccess ? (

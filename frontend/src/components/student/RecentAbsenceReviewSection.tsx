@@ -37,14 +37,25 @@ function progressLabel(maxPercent: number): string {
 
 interface RecentAbsenceReviewSectionProps {
   enabled: boolean;
+  /** 관리 접속·미리보기: 목록은 보이되 시청 불가 */
+  blockVideoPlay?: boolean;
+  videoBlockedMessage?: string;
 }
 
-export default function RecentAbsenceReviewSection({ enabled }: RecentAbsenceReviewSectionProps) {
+const DEFAULT_BLOCKED_MESSAGE =
+  '복습 영상은 학생 본인 계정으로 로그인해야 시청할 수 있습니다.';
+
+export default function RecentAbsenceReviewSection({
+  enabled,
+  blockVideoPlay = false,
+  videoBlockedMessage = DEFAULT_BLOCKED_MESSAGE,
+}: RecentAbsenceReviewSectionProps) {
   const navigate = useNavigate();
   const { selectedClassId } = useStudentClass();
   const [items, setItems] = useState<ReviewVideoListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [videoBlockedOpen, setVideoBlockedOpen] = useState(false);
 
   useEffect(() => {
     if (!enabled) {
@@ -79,12 +90,17 @@ export default function RecentAbsenceReviewSection({ enabled }: RecentAbsenceRev
   const hasMore = items.length > INITIAL_COUNT;
 
   const openLesson = (item: ReviewVideoListItem) => {
+    if (blockVideoPlay) {
+      setVideoBlockedOpen(true);
+      return;
+    }
     const q = new URLSearchParams({ date: item.date, period: String(item.period) });
     if (selectedClassId) q.set('classId', selectedClassId);
     navigate(`/student/lessons?${q.toString()}`);
   };
 
   return (
+    <>
     <div className="bg-white border border-slate-100 rounded-[20px] p-4 sm:p-6 shadow-sm">
       <h2 className="font-bold text-slate-800 mb-1 flex items-center gap-2 text-sm sm:text-base">
         <span>🎬</span>
@@ -141,5 +157,32 @@ export default function RecentAbsenceReviewSection({ enabled }: RecentAbsenceRev
         </>
       )}
     </div>
+
+    {videoBlockedOpen && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50"
+        onClick={() => setVideoBlockedOpen(false)}
+      >
+        <div
+          className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6"
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-labelledby="review-list-blocked-title"
+        >
+          <h2 id="review-list-blocked-title" className="text-lg font-bold text-slate-950 mb-2">
+            복습 영상 시청 안내
+          </h2>
+          <p className="text-sm text-slate-600 leading-relaxed mb-6">{videoBlockedMessage}</p>
+          <button
+            type="button"
+            onClick={() => setVideoBlockedOpen(false)}
+            className="w-full py-2.5 bg-slate-900 text-white rounded-xl text-sm font-semibold"
+          >
+            확인
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
