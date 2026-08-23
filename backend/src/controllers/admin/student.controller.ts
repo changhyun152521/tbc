@@ -116,7 +116,6 @@ export async function listStudents(req: Request, res: Response<ApiResponse>): Pr
       studentIds: scope.studentIds,
       includeLastAccess: role === 'admin' || role === 'teacher',
       includeParentLastAccess: role === 'admin' || role === 'teacher',
-      includeLoginIds: role === 'admin',
       includePreviewAllowed: role === 'admin' || role === 'teacher',
       lastAccessStudentIds: assignedStudentIds,
       parentLastAccessStudentIds: assignedStudentIds,

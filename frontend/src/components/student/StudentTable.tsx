@@ -13,7 +13,6 @@ interface StudentTableProps {
   onResetDone?: () => void;
   showStudentLastAccess?: boolean;
   showParentLastAccess?: boolean;
-  showLoginIds?: boolean;
   showResetCredentials?: boolean;
   showPreviewButtons?: boolean;
   previewLoadingKey?: string | null;
@@ -30,7 +29,6 @@ export default function StudentTable({
   onResetDone,
   showStudentLastAccess = false,
   showParentLastAccess = false,
-  showLoginIds = false,
   showResetCredentials = false,
   showPreviewButtons = false,
   previewLoadingKey = null,
@@ -47,8 +45,7 @@ export default function StudentTable({
   }, [someSelected, allSelected]);
 
   const accessColumnCount = (showStudentLastAccess ? 1 : 0) + (showParentLastAccess ? 1 : 0);
-  const loginColumnCount = showLoginIds ? 2 : 0;
-  const colSpan = 9 + accessColumnCount + loginColumnCount + (showPreviewButtons ? 0 : 0);
+  const colSpan = 9 + accessColumnCount;
 
   const handleReset = async (row: StudentListItem, target: 'student' | 'parent' | 'both') => {
     const label =
@@ -82,7 +79,7 @@ export default function StudentTable({
 
   return (
     <div className="overflow-x-auto scrollbar-table">
-      <table className="w-full text-left border-collapse min-w-[1060px]">
+      <table className="w-full text-left border-collapse min-w-[900px]">
         <thead className="bg-slate-50 border-b border-slate-200">
           <tr className="text-slate-600 text-[13px] font-semibold">
             <th className="p-3 w-10 shrink-0">
@@ -99,8 +96,6 @@ export default function StudentTable({
             <th className="p-3 min-w-[44px] whitespace-nowrap">학년</th>
             <th className="p-3 min-w-[98px] whitespace-nowrap">학생 전화번호</th>
             <th className="p-3 min-w-[98px] whitespace-nowrap">학부모 전화번호</th>
-            {showLoginIds && <th className="p-3 min-w-[100px] whitespace-nowrap">학생 ID</th>}
-            {showLoginIds && <th className="p-3 min-w-[100px] whitespace-nowrap">학부모 ID</th>}
             <th className="p-3 min-w-[112px] whitespace-nowrap">관리 접속 ID</th>
             <th className="p-3 min-w-[88px] whitespace-nowrap">소속 반</th>
             {showStudentLastAccess && <th className="p-3 min-w-[96px] whitespace-nowrap">학생 접속</th>}
@@ -131,12 +126,6 @@ export default function StudentTable({
                 <td className="p-3 whitespace-nowrap">{row.grade}</td>
                 <td className="p-3 font-number whitespace-nowrap">{row.studentPhone}</td>
                 <td className="p-3 font-number whitespace-nowrap">{row.parentPhone}</td>
-                {showLoginIds && (
-                  <td className="p-3 text-slate-600 font-medium whitespace-nowrap">{row.studentLoginId ?? '-'}</td>
-                )}
-                {showLoginIds && (
-                  <td className="p-3 text-slate-600 font-medium whitespace-nowrap">{row.parentLoginId ?? '-'}</td>
-                )}
                 <td className="p-3 text-slate-600 font-medium whitespace-nowrap">{row.adminAccessLoginId ?? '-'}</td>
                 <td className="p-3 text-slate-500 whitespace-nowrap">{row.classCount != null ? `${row.classCount}개 반 소속` : '-'}</td>
                 {showStudentLastAccess && (

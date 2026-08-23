@@ -163,9 +163,11 @@ export default function StudentFormModal({
             <hr className="my-6 border-slate-100" />
 
             <div className="space-y-4">
-              <h3 className={labelClass}>로그인 정보 (선택)</h3>
+              <h3 className={labelClass}>{mode === 'edit' ? '로그인 정보' : '로그인 정보 (선택)'}</h3>
               <p className="text-[12px] text-slate-500 leading-relaxed mb-1">
-                비워두면 해당 전화번호로 자동 설정됩니다. 수정 시 비밀번호는 변경할 때만 입력하세요.
+                {mode === 'edit'
+                  ? '비밀번호는 변경할 때만 입력하세요.'
+                  : '비워두면 해당 전화번호로 자동 설정됩니다.'}
               </p>
               <div>
                 <label className={labelClass}>학생 로그인 ID</label>

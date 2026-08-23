@@ -27,7 +27,6 @@ export default function StudentManagement() {
   const isTeacher = role === 'teacher';
   const showStudentLastAccess = role === 'admin' || role === 'teacher';
   const showParentLastAccess = role === 'admin' || role === 'teacher';
-  const showLoginIds = role === 'admin';
   const showResetCredentials = role === 'admin';
   const showPreviewButtons = role === 'admin' || role === 'teacher';
   const [list, setList] = useState<StudentListItem[]>([]);
@@ -303,7 +302,6 @@ export default function StudentManagement() {
               onResetDone={fetchList}
               showStudentLastAccess={showStudentLastAccess}
               showParentLastAccess={showParentLastAccess}
-              showLoginIds={showLoginIds}
               showResetCredentials={showResetCredentials}
               showPreviewButtons={showPreviewButtons}
               previewLoadingKey={previewLoadingKey}
