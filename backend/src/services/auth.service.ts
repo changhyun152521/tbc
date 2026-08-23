@@ -160,7 +160,7 @@ export async function createPreviewSession(
   let displayName: string;
 
   if (view === 'student') {
-    targetUserId = student.adminAccessUserId;
+    targetUserId = student.userId;
     role = 'student';
     displayName = student.name.trim();
   } else {

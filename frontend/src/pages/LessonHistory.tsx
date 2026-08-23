@@ -104,7 +104,7 @@ export default function LessonHistory() {
   const [videoBlockedOpen, setVideoBlockedOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const canWatchReviewVideo = role === 'student' && !isAdminAccess;
+  const canWatchReviewVideo = role === 'student' && !isAdminAccess && !isPreviewMode;
   const replyReadOnly = isPreviewMode;
   const videoBlockedMessage =
     role === 'parent'
