@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import AttendanceHomeworkTable from './AttendanceHomeworkTable';
+import ReviewVideoRegisterModal from './ReviewVideoRegisterModal';
 import type { PeriodItem, StudentRecord, AttendanceHomeworkValue, ReviewVideoItem } from '../../types/lesson';
 import type { ClassStudentItem } from '../../types/class';
 
@@ -13,9 +14,8 @@ interface PeriodSectionProps {
   readOnly?: boolean;
   /** 복습영상 편집 가능 */
   canEditReviewVideos?: boolean;
-  /** 인라인 대신 복습영상 등록 모달 사용 */
+  /** 인라인 대신 복습영상 등록 모달 사용 (초안 적용 후 교시 저장 시 반영) */
   useReviewVideoModal?: boolean;
-  onOpenReviewVideos?: () => void;
   /** 강사 선택 숨김 */
   lockTeacherSelect?: boolean;
   /** 교시 삭제 버튼 (기본: 읽기 전용이 아니면 표시) */
@@ -116,7 +116,6 @@ export default function PeriodSection({
   readOnly = false,
   canEditReviewVideos = true,
   useReviewVideoModal = false,
-  onOpenReviewVideos,
   lockTeacherSelect = false,
   canDelete,
   onSave,
@@ -152,6 +151,7 @@ export default function PeriodSection({
     return [];
   };
   const [reviewVideos, setReviewVideos] = useState<ReviewVideoItem[]>(() => buildInitialVideos(period));
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [dueDateConfirmOpen, setDueDateConfirmOpen] = useState(false);
   const pendingBulkSaveRef = useRef(false);
 
@@ -239,7 +239,7 @@ export default function PeriodSection({
       memo: memo.trim() || undefined,
       homeworkDescription: homeworkDescription.trim() || undefined,
       homeworkDueDate: homeworkDueDate.trim() || null,
-      reviewVideos: useReviewVideoModal ? undefined : reviewVideos.map((v, i) => ({ ...v, order: i })),
+      reviewVideos: reviewVideos.map((v, i) => ({ ...v, order: i })),
     });
   };
 
@@ -373,7 +373,7 @@ export default function PeriodSection({
             {canEditReviewVideos && useReviewVideoModal && !readOnly && (
               <button
                 type="button"
-                onClick={onOpenReviewVideos}
+                onClick={() => setReviewModalOpen(true)}
                 className="px-3 py-1.5 text-xs font-semibold bg-slate-950 text-white rounded-lg hover:bg-slate-800"
               >
                 복습영상 등록
@@ -398,8 +398,8 @@ export default function PeriodSection({
           ) : useReviewVideoModal ? (
             <p className="text-xs text-slate-500 py-2">
               {reviewVideos.length > 0
-                ? `등록된 영상 ${reviewVideos.length}개 · 복습영상 등록 버튼으로 수정하세요.`
-                : '등록된 영상이 없습니다. 복습영상 등록 버튼을 눌러 추가하세요.'}
+                ? `등록 예정 영상 ${reviewVideos.length}개 · 적용 후 아래 저장을 눌러야 반영됩니다.`
+                : '등록된 영상이 없습니다. 복습영상 등록을 누른 뒤, 교시 저장으로 반영하세요.'}
             </p>
           ) : reviewVideos.length === 0 ? (
             <p className="text-xs text-slate-400 py-2">등록된 영상이 없습니다. 영상 추가 버튼을 눌러 추가하세요.</p>
@@ -518,6 +518,15 @@ export default function PeriodSection({
             </div>
           </div>
         </div>
+      )}
+
+      {useReviewVideoModal && (
+        <ReviewVideoRegisterModal
+          open={reviewModalOpen}
+          initialVideos={reviewVideos}
+          onClose={() => setReviewModalOpen(false)}
+          onApply={(videos) => setReviewVideos(videos)}
+        />
       )}
     </section>
   );

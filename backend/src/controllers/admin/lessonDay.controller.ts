@@ -267,8 +267,11 @@ export async function updatePeriod(req: Request, res: Response<ApiResponse>): Pr
 
     if (role === 'teacher') {
       teacherId = undefined;
-      reviewVideos = undefined;
-      reviewVideoUrl = undefined;
+      const myTeacherId = await getTeacherIdByUserId(userId);
+      if (!myTeacherId || !assertPeriodOwnedByTeacher(period, myTeacherId)) {
+        res.status(403).json({ success: false, message: '본인 교시만 수정할 수 있습니다.' });
+        return;
+      }
     }
 
     const doc = await lessonDayService.updatePeriod(req.params.id, periodIndex, {

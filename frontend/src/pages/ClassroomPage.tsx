@@ -7,7 +7,6 @@ import type { LessonDayDetail, LessonDayListItem, AttendanceHomeworkValue, Perio
 import DateNavigator from '../components/lesson/DateNavigator';
 import PeriodSection from '../components/lesson/PeriodSection';
 import PeriodListTable, { type PeriodRowItem } from '../components/lesson/PeriodListTable';
-import ReviewVideoRegisterModal from '../components/lesson/ReviewVideoRegisterModal';
 
 function todayString(): string {
   const d = new Date();
@@ -94,14 +93,6 @@ function minRegisteredSlot(periods: PeriodItem[]): number {
   return Math.max(...periods.map((p, i) => periodNum(p, i + 1)));
 }
 
-function buildInitialVideos(p: PeriodItem): ReviewVideoItem[] {
-  const vids = p.reviewVideos ?? [];
-  if (vids.length > 0) return vids.map((v, i) => ({ ...v, order: v.order ?? i }));
-  const legacy = (p.reviewVideoUrl ?? '').trim();
-  if (legacy) return [{ url: legacy, videoId: p.reviewVideoId ?? '', title: '', order: 0 }];
-  return [];
-}
-
 export default function ClassroomPage() {
   const { classId } = useParams<{ classId: string }>();
   const [searchParams] = useSearchParams();
@@ -126,8 +117,6 @@ export default function ClassroomPage() {
   const [myTeacherId, setMyTeacherId] = useState<string | null>(null);
   const [slotCount, setSlotCount] = useState(0);
   const [selectedPeriodNumber, setSelectedPeriodNumber] = useState<number | null>(null);
-  const [reviewModalOpen, setReviewModalOpen] = useState(false);
-  const [reviewModalPeriodIndex, setReviewModalPeriodIndex] = useState<number | null>(null);
   const [reordering, setReordering] = useState(false);
   const [markedDates, setMarkedDates] = useState<string[]>([]);
 
@@ -350,24 +339,13 @@ export default function ClassroomPage() {
         homeworkDescription: options?.homeworkDescription ?? '',
         homeworkDueDate: options?.homeworkDueDate ?? undefined,
         records,
+        reviewVideos: options?.reviewVideos ?? [],
       };
-      if (!isTeacher) {
-        body.reviewVideos = options?.reviewVideos ?? [];
-      }
       await apiClient.put(`/admin/lesson-days/${lessonDay._id}/periods`, body);
       await fetchLessonByDate();
     } catch (err) {
       setError(err instanceof Error ? err.message : '저장에 실패했습니다.');
     }
-  };
-
-  const handleSaveReviewVideos = async (videos: ReviewVideoItem[]) => {
-    if (!lessonDay?._id || reviewModalPeriodIndex == null) return;
-    await apiClient.put(`/admin/lesson-days/${lessonDay._id}/periods/review-videos`, {
-      periodIndex: reviewModalPeriodIndex,
-      reviewVideos: videos,
-    });
-    await fetchLessonByDate();
   };
 
   const handleMovePeriod = async (periodIndex: number, fromNumber: number, toNumber: number) => {
@@ -530,10 +508,6 @@ export default function ClassroomPage() {
                   canEditReviewVideos={!isTeacher || (isOwnSelected && selectedPeriod.canEditReviewVideos !== false)}
                   useReviewVideoModal={isTeacher}
                   lockTeacherSelect={isTeacher}
-                  onOpenReviewVideos={() => {
-                    setReviewModalPeriodIndex(selectedPeriodIndex);
-                    setReviewModalOpen(true);
-                  }}
                   onSave={handleSavePeriod}
                   onDelete={handleDeletePeriod}
                 />
@@ -580,18 +554,6 @@ export default function ClassroomPage() {
           </>
         )}
       </div>
-
-      {isTeacher && reviewModalOpen && reviewModalPeriodIndex != null && selectedPeriod && (
-        <ReviewVideoRegisterModal
-          open={reviewModalOpen}
-          initialVideos={buildInitialVideos(selectedPeriod)}
-          onClose={() => {
-            setReviewModalOpen(false);
-            setReviewModalPeriodIndex(null);
-          }}
-          onSave={handleSaveReviewVideos}
-        />
-      )}
     </div>
   );
 }

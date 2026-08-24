@@ -5,40 +5,30 @@ interface ReviewVideoRegisterModalProps {
   open: boolean;
   initialVideos: ReviewVideoItem[];
   onClose: () => void;
-  onSave: (videos: ReviewVideoItem[]) => Promise<void>;
+  /** 초안 적용 (서버 저장은 교시 저장 시 함께 수행) */
+  onApply: (videos: ReviewVideoItem[]) => void;
 }
 
 export default function ReviewVideoRegisterModal({
   open,
   initialVideos,
   onClose,
-  onSave,
+  onApply,
 }: ReviewVideoRegisterModalProps) {
   const [videos, setVideos] = useState<ReviewVideoItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   useEffect(() => {
     if (open) {
       setVideos(initialVideos.length > 0 ? initialVideos.map((v, i) => ({ ...v, order: i })) : []);
-      setError('');
     }
   }, [open, initialVideos]);
 
   if (!open) return null;
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      await onSave(videos.map((v, i) => ({ ...v, order: i })));
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '저장에 실패했습니다.');
-    } finally {
-      setLoading(false);
-    }
+    onApply(videos.map((v, i) => ({ ...v, order: i })));
+    onClose();
   };
 
   const inputClass =
@@ -52,7 +42,10 @@ export default function ReviewVideoRegisterModal({
       >
         <div className="shrink-0 p-6 pb-4 border-b border-slate-100">
           <h2 className="text-xl font-bold text-slate-950">복습영상 등록</h2>
-          <p className="text-sm text-slate-500 mt-1">유튜브 URL을 입력하세요.</p>
+          <p className="text-sm text-slate-500 mt-1">
+            유튜브 URL을 입력하세요. 적용 후 교시 <span className="font-semibold text-slate-700">저장</span>을 눌러야
+            반영됩니다.
+          </p>
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
           <div className="flex-1 min-h-0 overflow-y-auto p-6 pt-4 space-y-3">
@@ -100,7 +93,6 @@ export default function ReviewVideoRegisterModal({
             >
               + 영상 추가
             </button>
-            {error && <p className="text-sm text-red-600">{error}</p>}
           </div>
           <div className="shrink-0 p-6 border-t border-slate-100 flex gap-2">
             <button
@@ -112,10 +104,9 @@ export default function ReviewVideoRegisterModal({
             </button>
             <button
               type="submit"
-              disabled={loading}
-              className="flex-1 py-2.5 bg-slate-950 text-white rounded-lg font-medium hover:bg-slate-800 disabled:opacity-50"
+              className="flex-1 py-2.5 bg-slate-950 text-white rounded-lg font-medium hover:bg-slate-800"
             >
-              {loading ? '저장 중...' : '저장'}
+              적용
             </button>
           </div>
         </form>
