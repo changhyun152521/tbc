@@ -185,9 +185,13 @@ export default function ClassroomPage() {
     }
   }, [classId]);
 
-  const fetchLessonByDate = useCallback(async () => {
+  const lessonDayRef = useRef(lessonDay);
+  lessonDayRef.current = lessonDay;
+
+  const fetchLessonByDate = useCallback(async (options?: { silent?: boolean }) => {
     if (!classId || !date) return;
-    setLoadingLesson(true);
+    const silent = options?.silent === true && lessonDayRef.current != null;
+    if (!silent) setLoadingLesson(true);
     try {
       const res = await apiClient.get<{ success: boolean; data: LessonDayDetail | null }>(
         `/admin/lesson-days/by-class-date?classId=${encodeURIComponent(classId)}&date=${encodeURIComponent(date)}`
@@ -197,7 +201,7 @@ export default function ClassroomPage() {
     } catch {
       setLessonDay(null);
     } finally {
-      setLoadingLesson(false);
+      if (!silent) setLoadingLesson(false);
     }
   }, [classId, date]);
 
@@ -206,7 +210,8 @@ export default function ClassroomPage() {
   }, [fetchClass]);
 
   useEffect(() => {
-    fetchLessonByDate();
+    setLessonDay(null);
+    void fetchLessonByDate();
   }, [fetchLessonByDate]);
 
   useEffect(() => {
@@ -294,7 +299,7 @@ export default function ClassroomPage() {
         ...(isTeacher ? { periodNumber } : { teacherId: tid, periodNumber }),
       });
       setRegisterTeacherId('');
-      await fetchLessonByDate();
+      await fetchLessonByDate({ silent: true });
       if (periodNumber != null) setSelectedPeriodNumber(periodNumber);
     } catch (err) {
       setError(err instanceof Error ? err.message : '교시 추가에 실패했습니다.');
@@ -342,7 +347,7 @@ export default function ClassroomPage() {
         reviewVideos: options?.reviewVideos ?? [],
       };
       await apiClient.put(`/admin/lesson-days/${lessonDay._id}/periods`, body);
-      await fetchLessonByDate();
+      await fetchLessonByDate({ silent: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : '저장에 실패했습니다.');
     }
@@ -361,7 +366,7 @@ export default function ClassroomPage() {
         if (prev === toNumber) return fromNumber;
         return prev;
       });
-      await fetchLessonByDate();
+      await fetchLessonByDate({ silent: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : '교시 이동에 실패했습니다.');
     } finally {
@@ -380,7 +385,7 @@ export default function ClassroomPage() {
     try {
       await apiClient.delete(`/admin/lesson-days/${lessonDay._id}/periods?periodIndex=${periodIndex}`);
       setSelectedPeriodNumber(null);
-      await fetchLessonByDate();
+      await fetchLessonByDate({ silent: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : '교시 삭제에 실패했습니다.');
     }
@@ -498,7 +503,7 @@ export default function ClassroomPage() {
                   </div>
                 )}
                 <PeriodSection
-                  key={`${lessonDay?._id ?? 'new'}-${selectedPeriodIndex}`}
+                  key={`${lessonDay?._id ?? 'new'}-${selectedPeriod?._id ?? selectedPeriodIndex}`}
                   periodIndex={selectedPeriodIndex}
                   period={selectedPeriod}
                   teacherOptions={teacherOptions}

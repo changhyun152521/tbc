@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import type { LessonDayDetail, AttendanceHomeworkValue } from '../types/lesson';
@@ -15,9 +15,13 @@ export default function LessonDetail() {
   const [addingPeriod, setAddingPeriod] = useState(false);
   const [savingPeriodIndex, setSavingPeriodIndex] = useState<number | null>(null);
 
-  const fetchDetail = useCallback(async () => {
+  const detailRef = useRef(detail);
+  detailRef.current = detail;
+
+  const fetchDetail = useCallback(async (options?: { silent?: boolean }) => {
     if (!id) return;
-    setLoading(true);
+    const silent = options?.silent === true && detailRef.current != null;
+    if (!silent) setLoading(true);
     setError('');
     try {
       const res = await apiClient.get<{ success: boolean; data: LessonDayDetail }>(`/admin/lesson-days/${id}`);
@@ -27,7 +31,7 @@ export default function LessonDetail() {
       setError(err instanceof Error ? err.message : '수업 정보를 불러올 수 없습니다.');
       setDetail(null);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [id]);
 
@@ -53,7 +57,7 @@ export default function LessonDetail() {
       await apiClient.post(`/admin/lesson-days/${id}/periods`, { teacherId: addPeriodTeacherId });
       setAddPeriodOpen(false);
       setAddPeriodTeacherId('');
-      await fetchDetail();
+      await fetchDetail({ silent: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : '교시 추가에 실패했습니다.');
     } finally {
@@ -79,7 +83,7 @@ export default function LessonDetail() {
         reviewVideos: options?.reviewVideos ?? [],
         records,
       });
-      await fetchDetail();
+      await fetchDetail({ silent: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : '저장에 실패했습니다.');
     } finally {
@@ -92,7 +96,7 @@ export default function LessonDetail() {
     if (!window.confirm('이 교시를 삭제하시겠습니까?')) return;
     try {
       await apiClient.delete(`/admin/lesson-days/${id}/periods?periodIndex=${periodIndex}`);
-      await fetchDetail();
+      await fetchDetail({ silent: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : '교시 삭제에 실패했습니다.');
     }

@@ -154,8 +154,25 @@ export default function PeriodSection({
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [dueDateConfirmOpen, setDueDateConfirmOpen] = useState(false);
   const pendingBulkSaveRef = useRef(false);
+  const hasChangesRef = useRef(false);
+
+  const periodDueStr = period.homeworkDueDate
+    ? (typeof period.homeworkDueDate === 'string'
+        ? period.homeworkDueDate.slice(0, 10)
+        : new Date(period.homeworkDueDate).toISOString().slice(0, 10))
+    : '';
+  const hasChanges =
+    selectedTeacherId !== teacherId(period) ||
+    memo !== (period.memo ?? '') ||
+    homeworkDescription !== (period.homeworkDescription ?? '') ||
+    homeworkDueDate !== periodDueStr ||
+    JSON.stringify(reviewVideos) !== JSON.stringify(buildInitialVideos(period)) ||
+    !recordsEqual(records, merged);
+  hasChangesRef.current = hasChanges;
 
   useEffect(() => {
+    // 미저장 입력이 있으면 서버 재조회로 period가 바뀌어도 덮어쓰지 않음
+    if (hasChangesRef.current) return;
     setSelectedTeacherId(teacherId(period));
     setRecords(mergeRecords(classStudents, period.records ?? []));
     setMemo(period.memo ?? '');
@@ -168,18 +185,11 @@ export default function PeriodSection({
         : ''
     );
     setReviewVideos(buildInitialVideos(period));
-  }, [period]); // classStudents 제외: 부모 리렌더 시 새 배열 참조로 인해 초기화되면 사용자가 누른 O/X·COMMENT가 덮어씌워지는 문제 방지
+  }, [period]); // classStudents는 의도적으로 제외 (참조 변경으로 미저장 입력이 덮이지 않게)
 
   useEffect(() => {
     if (saveAllTrigger == null || saveAllTrigger <= 0) return;
-    const isChanged =
-      selectedTeacherId !== teacherId(period) ||
-      memo !== (period.memo ?? '') ||
-      homeworkDescription !== (period.homeworkDescription ?? '') ||
-      homeworkDueDate !== periodDueStr ||
-      JSON.stringify(reviewVideos) !== JSON.stringify(buildInitialVideos(period)) ||
-      !recordsEqual(records, merged);
-    if (!isChanged) return;
+    if (!hasChangesRef.current) return;
     requestSave(true);
   }, [saveAllTrigger]);
 
@@ -272,17 +282,6 @@ export default function PeriodSection({
   const handleBulkHomework = (value: AttendanceHomeworkValue) => {
     setRecords((prev) => prev.map((r) => ({ ...r, homework: value })));
   };
-
-  const periodDueStr = period.homeworkDueDate
-    ? (typeof period.homeworkDueDate === 'string' ? period.homeworkDueDate.slice(0, 10) : new Date(period.homeworkDueDate).toISOString().slice(0, 10))
-    : '';
-  const hasChanges =
-    selectedTeacherId !== teacherId(period) ||
-    memo !== (period.memo ?? '') ||
-    homeworkDescription !== (period.homeworkDescription ?? '') ||
-    homeworkDueDate !== periodDueStr ||
-    JSON.stringify(reviewVideos) !== JSON.stringify(buildInitialVideos(period)) ||
-    !recordsEqual(records, merged);
 
   useEffect(() => {
     onHasChangesChange?.(periodIndex, hasChanges);
@@ -398,8 +397,8 @@ export default function PeriodSection({
           ) : useReviewVideoModal ? (
             <p className="text-xs text-slate-500 py-2">
               {reviewVideos.length > 0
-                ? `등록 예정 영상 ${reviewVideos.length}개 · 적용 후 아래 저장을 눌러야 반영됩니다.`
-                : '등록된 영상이 없습니다. 복습영상 등록을 누른 뒤, 교시 저장으로 반영하세요.'}
+                ? `영상 ${reviewVideos.length}개 (미저장 포함) · 교시 저장 시 진도·과제와 함께 반영됩니다.`
+                : '영상이 없습니다. 복습영상 등록 후 교시 저장으로 반영하세요.'}
             </p>
           ) : reviewVideos.length === 0 ? (
             <p className="text-xs text-slate-400 py-2">등록된 영상이 없습니다. 영상 추가 버튼을 눌러 추가하세요.</p>
