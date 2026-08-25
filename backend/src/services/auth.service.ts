@@ -60,6 +60,15 @@ export async function login(loginId: string, password: string): Promise<LoginOut
   const match = await bcrypt.compare(password, user.passwordHash);
   if (!match) return { ok: false, reason: 'invalid' };
 
+  const { isAdminAccessUser } = await import('./lastAccess.service');
+  if (await isAdminAccessUser(user._id.toString())) {
+    return {
+      ok: false,
+      reason: 'no_class',
+      message: '관리 접속 계정은 더 이상 사용할 수 없습니다. 학생 관리의 미리보기를 이용해 주세요.',
+    };
+  }
+
   const allowed = await hasClassMembership(user._id.toString(), user.role);
   if (!allowed) {
     return { ok: false, reason: 'no_class', message: NO_CLASS_MESSAGE };
@@ -147,11 +156,8 @@ export async function createPreviewSession(
     return { error: '미리보기 권한이 없습니다.', status: 403 };
   }
 
-  const { ensureAdminAccessUser } = await import('./admin/student.service');
-  await ensureAdminAccessUser(studentId);
-
   const student = await Student.findById(studentId)
-    .select('name userId parentUserId adminAccessUserId')
+    .select('name userId parentUserId')
     .exec();
   if (!student) return { error: '학생을 찾을 수 없습니다.', status: 404 };
 

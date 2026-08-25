@@ -45,7 +45,8 @@ export default function StudentTable({
   }, [someSelected, allSelected]);
 
   const accessColumnCount = (showStudentLastAccess ? 1 : 0) + (showParentLastAccess ? 1 : 0);
-  const colSpan = 9 + accessColumnCount;
+  const previewColumnCount = showPreviewButtons ? 1 : 0;
+  const colSpan = 8 + accessColumnCount + previewColumnCount;
 
   const handleReset = async (row: StudentListItem, target: 'student' | 'parent' | 'both') => {
     const label =
@@ -79,7 +80,7 @@ export default function StudentTable({
 
   return (
     <div className="overflow-x-auto scrollbar-table">
-      <table className="w-full text-left border-collapse min-w-[900px]">
+      <table className="w-full text-left border-collapse min-w-[860px]">
         <thead className="bg-slate-50 border-b border-slate-200">
           <tr className="text-slate-600 text-[13px] font-semibold">
             <th className="p-3 w-10 shrink-0">
@@ -96,11 +97,13 @@ export default function StudentTable({
             <th className="p-3 min-w-[44px] whitespace-nowrap">학년</th>
             <th className="p-3 min-w-[98px] whitespace-nowrap">학생 전화번호</th>
             <th className="p-3 min-w-[98px] whitespace-nowrap">학부모 전화번호</th>
-            <th className="p-3 min-w-[112px] whitespace-nowrap">관리 접속 ID</th>
             <th className="p-3 min-w-[88px] whitespace-nowrap">소속 반</th>
             {showStudentLastAccess && <th className="p-3 min-w-[96px] whitespace-nowrap">학생 접속</th>}
             {showParentLastAccess && <th className="p-3 min-w-[96px] whitespace-nowrap">학부모 접속</th>}
-            <th className="p-3 min-w-[168px] text-center whitespace-nowrap">관리</th>
+            {showPreviewButtons && (
+              <th className="p-3 min-w-[140px] text-center whitespace-nowrap">미리보기</th>
+            )}
+            <th className="p-3 min-w-[120px] text-center whitespace-nowrap">관리</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 text-[14px]">
@@ -126,54 +129,34 @@ export default function StudentTable({
                 <td className="p-3 whitespace-nowrap">{row.grade}</td>
                 <td className="p-3 font-number whitespace-nowrap">{row.studentPhone}</td>
                 <td className="p-3 font-number whitespace-nowrap">{row.parentPhone}</td>
-                <td className="p-3 text-slate-600 font-medium whitespace-nowrap">{row.adminAccessLoginId ?? '-'}</td>
-                <td className="p-3 text-slate-500 whitespace-nowrap">{row.classCount != null ? `${row.classCount}개 반 소속` : '-'}</td>
+                <td className="p-3 text-slate-500 whitespace-nowrap">
+                  {row.classCount != null ? `${row.classCount}개 반 소속` : '-'}
+                </td>
                 {showStudentLastAccess && (
-                  <td className="p-3 text-slate-500 whitespace-nowrap" title={row.lastAccessHidden ? undefined : row.lastAccessAt ?? undefined}>
+                  <td
+                    className="p-3 text-slate-500 whitespace-nowrap"
+                    title={row.lastAccessHidden ? undefined : row.lastAccessAt ?? undefined}
+                  >
                     {row.lastAccessHidden ? '-' : formatLastAccess(row.lastAccessAt)}
                   </td>
                 )}
                 {showParentLastAccess && (
-                  <td className="p-3 text-slate-500 whitespace-nowrap" title={row.parentLastAccessAt ?? undefined}>
+                  <td
+                    className="p-3 text-slate-500 whitespace-nowrap"
+                    title={row.parentLastAccessAt ?? undefined}
+                  >
                     {row.parentLastAccessHidden ? '-' : formatLastAccess(row.parentLastAccessAt)}
                   </td>
                 )}
-                <td className="p-3 text-center whitespace-nowrap shrink-0">
-                  <div className="flex flex-col items-center gap-1">
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => onEdit(row._id)}
-                        className="text-slate-400 hover:text-slate-950 mr-2"
-                      >
-                        수정
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onDelete(row._id)}
-                        className="text-slate-400 hover:text-red-600 mr-2"
-                      >
-                        삭제
-                      </button>
-                      {showResetCredentials && (
-                        <button
-                          type="button"
-                          disabled={resettingId != null}
-                          onClick={() => void handleReset(row, 'both')}
-                          className="text-slate-400 hover:text-amber-700 disabled:opacity-50"
-                          title="학생·학부모 계정을 전화번호로 초기화"
-                        >
-                          {resettingId?.startsWith(row._id) ? '초기화중' : '초기화'}
-                        </button>
-                      )}
-                    </div>
-                    {showPreviewButtons && row.previewAllowed !== false && onPreview && (
+                {showPreviewButtons && (
+                  <td className="p-3 text-center whitespace-nowrap shrink-0">
+                    {row.previewAllowed !== false && onPreview ? (
                       <div className="flex flex-wrap justify-center gap-x-2 gap-y-0.5">
                         <button
                           type="button"
                           disabled={previewLoadingKey != null}
                           onClick={() => onPreview(row._id, 'student')}
-                          className="text-[12px] text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                          className="text-[13px] text-blue-600 hover:text-blue-800 disabled:opacity-50"
                         >
                           {previewLoadingKey === `${row._id}-student` ? '이동중…' : '학생 화면'}
                         </button>
@@ -181,13 +164,42 @@ export default function StudentTable({
                           type="button"
                           disabled={previewLoadingKey != null}
                           onClick={() => onPreview(row._id, 'parent')}
-                          className="text-[12px] text-violet-600 hover:text-violet-800 disabled:opacity-50"
+                          className="text-[13px] text-violet-600 hover:text-violet-800 disabled:opacity-50"
                         >
                           {previewLoadingKey === `${row._id}-parent` ? '이동중…' : '학부모 화면'}
                         </button>
                       </div>
+                    ) : (
+                      <span className="text-slate-400">-</span>
                     )}
-                  </div>
+                  </td>
+                )}
+                <td className="p-3 text-center whitespace-nowrap shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => onEdit(row._id)}
+                    className="text-slate-400 hover:text-slate-950 mr-2"
+                  >
+                    수정
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(row._id)}
+                    className="text-slate-400 hover:text-red-600 mr-2"
+                  >
+                    삭제
+                  </button>
+                  {showResetCredentials && (
+                    <button
+                      type="button"
+                      disabled={resettingId != null}
+                      onClick={() => void handleReset(row, 'both')}
+                      className="text-slate-400 hover:text-amber-700 disabled:opacity-50"
+                      title="학생·학부모 계정을 전화번호로 초기화"
+                    >
+                      {resettingId?.startsWith(row._id) ? '초기화중' : '초기화'}
+                    </button>
+                  )}
                 </td>
               </tr>
             ))

@@ -79,42 +79,6 @@ function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, SALT_ROUNDS);
 }
 
-const ADMIN_ACCESS_PASSWORD = 'admin';
-
-/**
- * 관리자 접속용 loginId 생성. 이름admin, 중복 시 이름admin1, 이름admin2 ...
- */
-async function findAvailableAdminAccessLoginId(baseName: string): Promise<string> {
-  const base = `${baseName.trim()}admin`;
-  let candidate = base;
-  let n = 0;
-  while (await User.exists({ loginId: candidate }).exec()) {
-    n += 1;
-    candidate = `${base}${n}`;
-  }
-  return candidate;
-}
-
-/**
- * 학생에게 관리자 접속용 User가 없으면 생성 후 저장. (기존 학생용 지연 생성)
- */
-export async function ensureAdminAccessUser(studentId: string): Promise<void> {
-  if (!mongoose.Types.ObjectId.isValid(studentId)) return;
-  const student = await Student.findById(studentId).exec();
-  if (!student || student.adminAccessUserId) return;
-  const adminAccessLoginId = await findAvailableAdminAccessLoginId(student.name);
-  const adminAccessUser = await User.create({
-    role: 'student',
-    loginId: adminAccessLoginId,
-    passwordHash: await hashPassword(ADMIN_ACCESS_PASSWORD),
-    name: student.name,
-    phone: '',
-    mustChangePassword: false,
-  });
-  student.adminAccessUserId = adminAccessUser._id;
-  await student.save();
-}
-
 /**
  * 전화번호: 가공 없이 사용자가 입력한 문자열 그대로 사용 (기획 문서 정책).
  * 자동 생성 ID/비밀번호: 미입력 시 해당 전화번호 문자열을 그대로 loginId, password로 사용.
@@ -125,9 +89,7 @@ export async function createStudent(input: CreateStudentInput): Promise<IStudent
   const parentLoginId = input.parentLoginId?.trim() || input.parentPhone;
   const parentPassword = input.parentPassword ?? input.parentPhone;
 
-  const adminAccessLoginId = await findAvailableAdminAccessLoginId(input.name.trim());
-
-  const [studentUser, parentUser, adminAccessUser] = await Promise.all([
+  const [studentUser, parentUser] = await Promise.all([
     User.create({
       role: 'student',
       loginId: studentLoginId,
@@ -144,14 +106,6 @@ export async function createStudent(input: CreateStudentInput): Promise<IStudent
       phone: input.parentPhone,
       mustChangePassword: true,
     }),
-    User.create({
-      role: 'student',
-      loginId: adminAccessLoginId,
-      passwordHash: await hashPassword(ADMIN_ACCESS_PASSWORD),
-      name: input.name.trim(),
-      phone: '',
-      mustChangePassword: false,
-    }),
   ]);
 
   const student = await Student.create({
@@ -162,7 +116,6 @@ export async function createStudent(input: CreateStudentInput): Promise<IStudent
     parentPhone: input.parentPhone,
     userId: studentUser._id,
     parentUserId: parentUser._id,
-    adminAccessUserId: adminAccessUser._id,
     classId: input.classId ? new mongoose.Types.ObjectId(input.classId) : undefined,
   });
 
@@ -205,36 +158,28 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
     ? [
         { path: 'userId', select: 'loginId' },
         { path: 'parentUserId', select: 'loginId' },
-        { path: 'adminAccessUserId', select: 'loginId' },
       ]
-    : [{ path: 'adminAccessUserId', select: 'loginId' }];
+    : [];
 
   const [list, total] = await Promise.all([
-    Student.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate(populateFields).lean().exec(),
+    Student.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate(populateFields)
+      .lean()
+      .exec(),
     Student.countDocuments(filter).exec(),
   ]);
 
-  type LeanStudentWithPopulatedAdmin = Record<string, unknown> & {
+  type LeanStudentWithPopulated = Record<string, unknown> & {
     _id: mongoose.Types.ObjectId;
     userId?: mongoose.Types.ObjectId | { loginId?: string };
     parentUserId?: mongoose.Types.ObjectId | { loginId?: string };
-    adminAccessUserId?: { loginId: string } | null;
   };
   const withClassCountAndAdminId = await Promise.all(
     list.map(async (s) => {
-      const doc = s as unknown as LeanStudentWithPopulatedAdmin;
-      let adminAccessLoginId: string | null = null;
-      if (doc.adminAccessUserId && typeof doc.adminAccessUserId === 'object' && 'loginId' in doc.adminAccessUserId) {
-        adminAccessLoginId = (doc.adminAccessUserId as { loginId: string }).loginId;
-      }
-      if (!adminAccessLoginId) {
-        await ensureAdminAccessUser(String(doc._id));
-        const updated = await Student.findById(doc._id).populate('adminAccessUserId', 'loginId').lean().exec();
-        const updatedTyped = updated as unknown as { adminAccessUserId?: { loginId: string } } | null;
-        if (updatedTyped?.adminAccessUserId?.loginId) {
-          adminAccessLoginId = updatedTyped.adminAccessUserId.loginId;
-        }
-      }
+      const doc = s as unknown as LeanStudentWithPopulated;
       const classCount = await Class.countDocuments({ studentIds: doc._id }).exec();
       const studentLoginId =
         query.includeLoginIds &&
@@ -253,7 +198,6 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
       return {
         ...doc,
         classCount,
-        adminAccessLoginId,
         ...(query.includeLoginIds ? { studentLoginId, parentLoginId } : {}),
       };
     })
@@ -352,7 +296,6 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
   return {
     list: enrichedList as unknown as (IStudent & {
       classCount: number;
-      adminAccessLoginId: string | null;
       studentLoginId?: string | null;
       parentLoginId?: string | null;
       previewAllowed?: boolean;
@@ -370,21 +313,11 @@ export async function listStudents(query: ListStudentsQuery): Promise<ListStuden
 
 export async function getStudentById(id: string): Promise<IStudent | null> {
   if (!mongoose.Types.ObjectId.isValid(id)) return null;
-  let student = await Student.findById(id)
+  const student = await Student.findById(id)
     .populate('userId', 'loginId name phone')
     .populate('parentUserId', 'loginId name phone')
-    .populate('adminAccessUserId', 'loginId')
     .populate('classId', 'name description')
     .exec();
-  if (student && !student.adminAccessUserId) {
-    await ensureAdminAccessUser(id);
-    student = await Student.findById(id)
-      .populate('userId', 'loginId name phone')
-      .populate('parentUserId', 'loginId name phone')
-      .populate('adminAccessUserId', 'loginId')
-      .populate('classId', 'name description')
-      .exec() ?? null;
-  }
   return student ?? null;
 }
 
