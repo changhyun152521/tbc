@@ -18,7 +18,7 @@ interface NotificationListModalProps {
   open: boolean;
   onClose: () => void;
   onItemRead: (item: NotificationItem) => void;
-  onReadAll: () => void;
+  onReadAll: () => Promise<boolean>;
   readOnly?: boolean;
 }
 
@@ -75,6 +75,15 @@ function NotificationListModal({ open, onClose, onItemRead, onReadAll, readOnly 
     navigate(notificationTargetPath(role, item));
   };
 
+  const handleReadAllClick = async () => {
+    if (readOnly) return;
+    const ok = await onReadAll();
+    if (!ok) return;
+    setItems((prev) =>
+      prev.map((item) => ({ ...item, readAt: item.readAt ?? new Date().toISOString() }))
+    );
+  };
+
   if (!open) return null;
 
   return createPortal(
@@ -98,7 +107,7 @@ function NotificationListModal({ open, onClose, onItemRead, onReadAll, readOnly 
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={onReadAll}
+              onClick={() => void handleReadAllClick()}
               disabled={readOnly}
               title={readOnly ? '미리보기에서는 읽음 처리되지 않습니다' : undefined}
               className="text-xs font-semibold text-slate-500 hover:text-slate-700 disabled:opacity-40"
@@ -245,14 +254,15 @@ export default function NotificationBell() {
     navigate(notificationTargetPath(role, item));
   };
 
-  const handleReadAll = async () => {
-    if (isPreviewMode) return;
+  const handleReadAll = async (): Promise<boolean> => {
+    if (isPreviewMode) return false;
     try {
       await apiClient.post('/me/notifications/read-all');
       setItems((prev) => prev.map((item) => ({ ...item, readAt: item.readAt ?? new Date().toISOString() })));
       setCount(0);
+      return true;
     } catch {
-      // ignore
+      return false;
     }
   };
 
@@ -356,7 +366,7 @@ export default function NotificationBell() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onItemRead={(item) => void markItemRead(item)}
-        onReadAll={() => void handleReadAll()}
+        onReadAll={handleReadAll}
         readOnly={isPreviewMode}
       />
     </div>
