@@ -127,8 +127,6 @@ function StudentLayoutContent() {
     navigate('/login', { replace: true });
   };
 
-  const activeNavItem = NAV_ITEMS.find((item) => item.to === location.pathname);
-
   const classNameControl = hasMultipleClasses ? (
     <button
       type="button"
@@ -261,9 +259,6 @@ function StudentLayoutContent() {
                 </svg>
               </button>
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-semibold text-blue-600 leading-none mb-0.5 lg:hidden">
-                  {activeNavItem?.label ?? '메뉴'}
-                </p>
                 {classNameControl}
               </div>
             </div>
