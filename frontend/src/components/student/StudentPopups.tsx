@@ -22,18 +22,13 @@ interface PendingVideo {
 
 const DISPLAY_COMPLETE_PERCENT = 80;
 const POPUP_SESSION_KEY = 'tbc_student_popups_shown';
-const POPUP_PREVIEW_SESSION_KEY = 'tbc_student_popups_shown_preview';
 
-function popupSessionKey(isPreviewMode: boolean): string {
-  return isPreviewMode ? POPUP_PREVIEW_SESSION_KEY : POPUP_SESSION_KEY;
+function markPopupsShownThisLogin() {
+  sessionStorage.setItem(POPUP_SESSION_KEY, '1');
 }
 
-function markPopupsShownThisLogin(isPreviewMode: boolean) {
-  sessionStorage.setItem(popupSessionKey(isPreviewMode), '1');
-}
-
-function werePopupsShownThisLogin(isPreviewMode: boolean): boolean {
-  return sessionStorage.getItem(popupSessionKey(isPreviewMode)) === '1';
+function werePopupsShownThisLogin(): boolean {
+  return sessionStorage.getItem(POPUP_SESSION_KEY) === '1';
 }
 
 function todayYmd(): string {
@@ -72,11 +67,11 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
   const [announcements, setAnnouncements] = useState<ActiveAnnouncement[]>([]);
   const [pending, setPending] = useState<PendingVideo[]>([]);
   const [stage, setStage] = useState<'announcement' | 'pending' | 'done'>(() =>
-    werePopupsShownThisLogin(isPreviewMode) ? 'done' : 'announcement'
+    werePopupsShownThisLogin() ? 'done' : 'announcement'
   );
 
   useEffect(() => {
-    if (werePopupsShownThisLogin(isPreviewMode)) return;
+    if (werePopupsShownThisLogin()) return;
     let cancelled = false;
     apiClient
       .get<{ success: boolean; data: ActiveAnnouncement[] }>(`/${apiPrefix}/announcements/active`)
@@ -92,12 +87,12 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
     return () => {
       cancelled = true;
     };
-  }, [apiPrefix, isPreviewMode]);
+  }, [apiPrefix]);
 
   useEffect(() => {
     if (stage !== 'pending') return;
     if (role !== 'student' || isAdminAccess) {
-      markPopupsShownThisLogin(isPreviewMode);
+      markPopupsShownThisLogin();
       setStage('done');
       return;
     }
@@ -109,20 +104,20 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
         const list = res.data.success && Array.isArray(res.data.data) ? res.data.data : [];
         setPending(sortPendingVideos(list));
         if (list.length === 0) {
-          markPopupsShownThisLogin(isPreviewMode);
+          markPopupsShownThisLogin();
           setStage('done');
         }
       })
       .catch(() => {
         if (!cancelled) {
-          markPopupsShownThisLogin(isPreviewMode);
+          markPopupsShownThisLogin();
           setStage('done');
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [stage, role, isAdminAccess, isPreviewMode]);
+  }, [stage, role, isAdminAccess]);
 
   const current = announcements[0];
   const showMultipleClasses = new Set(pending.map((p) => p.className).filter(Boolean)).size > 1;
@@ -145,7 +140,7 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
 
   const closePendingModal = () => {
     setPending([]);
-    markPopupsShownThisLogin(isPreviewMode);
+    markPopupsShownThisLogin();
     setStage('done');
   };
 
