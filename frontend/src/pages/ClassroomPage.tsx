@@ -118,6 +118,7 @@ export default function ClassroomPage() {
   const [slotCount, setSlotCount] = useState(0);
   const [selectedPeriodNumber, setSelectedPeriodNumber] = useState<number | null>(null);
   const [reordering, setReordering] = useState(false);
+  const [savingPeriodIndex, setSavingPeriodIndex] = useState<number | null>(null);
   const [markedDates, setMarkedDates] = useState<string[]>([]);
 
   useEffect(() => {
@@ -336,6 +337,7 @@ export default function ClassroomPage() {
     options?: { memo?: string; homeworkDescription?: string; homeworkDueDate?: string | null; reviewVideoUrl?: string; reviewVideos?: ReviewVideoItem[] }
   ) => {
     if (!lessonDay?._id) return;
+    setSavingPeriodIndex(periodIndex);
     try {
       const body: Record<string, unknown> = {
         periodIndex,
@@ -350,6 +352,8 @@ export default function ClassroomPage() {
       await fetchLessonByDate({ silent: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : '저장에 실패했습니다.');
+    } finally {
+      setSavingPeriodIndex(null);
     }
   };
 
@@ -515,6 +519,7 @@ export default function ClassroomPage() {
                   lockTeacherSelect={isTeacher}
                   onSave={handleSavePeriod}
                   onDelete={handleDeletePeriod}
+                  saving={savingPeriodIndex === selectedPeriodIndex}
                 />
               </>
             ) : selectedRow?.status === 'empty' ? (
