@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, Navigate, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { StudentClassProvider, useStudentClass } from '../contexts/StudentClassContext';
 import ScrollToTop from '../components/ScrollToTop';
@@ -62,6 +62,7 @@ function StudentLayoutContent() {
   const { selectedClassName, isLoading, needsClassSelection, classes, setShowClassSelect } = useStudentClass();
   const [isAdminAccess, setIsAdminAccess] = useState(false);
   const [accessReady, setAccessReady] = useState(role !== 'student' && role !== 'parent');
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const title = role === 'parent' ? '학부모' : '학생';
   const hasMultipleClasses = classes.length >= 2;
 
@@ -92,6 +93,10 @@ function StudentLayoutContent() {
           ? `${name.trim()} 관리ID`
           : name;
 
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [location.pathname]);
+
   if (isLoading || !accessReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -121,6 +126,27 @@ function StudentLayoutContent() {
     logout();
     navigate('/login', { replace: true });
   };
+
+  const activeNavItem = NAV_ITEMS.find((item) => item.to === location.pathname);
+
+  const classNameControl = hasMultipleClasses ? (
+    <button
+      type="button"
+      onClick={() => setShowClassSelect(true)}
+      className="font-title font-bold text-slate-800 text-base lg:text-lg truncate min-w-0 max-w-[42vw] lg:max-w-[280px] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded hover:text-blue-600"
+      title="반 변경"
+    >
+      {selectedClassName ?? '-'} ▼
+    </button>
+  ) : (
+    <Link
+      to="/student/dashboard"
+      className="font-title font-bold text-slate-800 text-base lg:text-lg truncate min-w-0 max-w-[42vw] lg:max-w-[280px] block focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+      aria-label="홈으로 이동"
+    >
+      {selectedClassName ?? '-'}
+    </Link>
+  );
 
   return (
     <>
@@ -154,29 +180,92 @@ function StudentLayoutContent() {
           </nav>
         </aside>
 
+        {/* 모바일: 좌측 드로어 메뉴 */}
+        <AnimatePresence>
+          {drawerOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                onClick={() => setDrawerOpen(false)}
+                aria-hidden
+              />
+              <motion.aside
+                initial={{ x: '-100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '-100%' }}
+                transition={{ type: 'tween', duration: 0.25 }}
+                className="fixed left-0 top-0 bottom-0 w-64 bg-slate-800 text-white z-50 lg:hidden flex flex-col"
+              >
+                <div className="p-4 border-b border-slate-700 flex items-center justify-between">
+                  <div className="min-w-0">
+                    <Link
+                      to="/student/dashboard"
+                      onClick={() => setDrawerOpen(false)}
+                      className="block mt-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-white rounded"
+                      aria-label="홈으로 이동"
+                    >
+                      <img
+                        src="/images/더브레인코어 로고2.png"
+                        alt="더브레인코어 학원"
+                        className="h-6 w-auto object-contain brightness-0 invert"
+                      />
+                    </Link>
+                    <p className="text-slate-400 text-sm mt-2">{title}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDrawerOpen(false)}
+                    className="p-2 rounded-lg hover:bg-slate-700 text-slate-200"
+                    aria-label="메뉴 닫기"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <nav className="p-2 flex-1 overflow-y-auto">
+                  {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+                    <Link
+                      key={to}
+                      to={to}
+                      onClick={() => setDrawerOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                        location.pathname === to ? 'bg-blue-600 text-white' : 'hover:bg-slate-700 text-slate-200'
+                      }`}
+                    >
+                      <Icon active={location.pathname === to} />
+                      {label}
+                    </Link>
+                  ))}
+                </nav>
+              </motion.aside>
+            </>
+          )}
+        </AnimatePresence>
+
         {/* 콘텐츠 영역: 모바일 max-w-lg 중앙, PC는 pl-56 */}
         <div className="flex-1 flex flex-col min-w-0 w-full max-w-lg mx-auto lg:max-w-none lg:mx-0 lg:pl-56 relative pb-20 lg:pb-0">
           <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 shrink-0 sticky top-0 z-20">
-            <div className="flex items-center gap-3 min-w-0">
-              {/* 반명(클릭 시 홈, 다반 소속 시 반 변경) */}
-              {hasMultipleClasses ? (
-                <button
-                  type="button"
-                  onClick={() => setShowClassSelect(true)}
-                  className="font-title font-bold text-slate-800 text-base lg:text-lg truncate min-w-0 max-w-[60vw] lg:max-w-[280px] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded hover:text-blue-600"
-                  title="반 변경"
-                >
-                  {selectedClassName ?? '-'} ▼
-                </button>
-              ) : (
-                <Link
-                  to="/student/dashboard"
-                  className="font-title font-bold text-slate-800 text-base lg:text-lg truncate min-w-0 max-w-[60vw] lg:max-w-[280px] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-                  aria-label="홈으로 이동"
-                >
-                  {selectedClassName ?? '-'}
-                </Link>
-              )}
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(true)}
+                className="p-2 -ml-2 rounded-lg text-slate-600 hover:bg-slate-100 lg:hidden shrink-0"
+                aria-label="메뉴 열기"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold text-blue-600 leading-none mb-0.5 lg:hidden">
+                  {activeNavItem?.label ?? '메뉴'}
+                </p>
+                {classNameControl}
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <NotificationBell />
@@ -202,7 +291,7 @@ function StudentLayoutContent() {
                 <span className="font-semibold">미리보기 모드</span>
                 <span className="hidden sm:inline"> — </span>
                 <span className="block sm:inline mt-0.5 sm:mt-0 text-amber-800">
-                  화면 확인만 가능합니다. 복습 영상·답글·정보 변경은 본인 계정으로 로그인해야 이용할 수 있습니다.
+                  화면 확인만 가능합니다. 알림·복습 영상·답글·정보 변경은 본인 계정으로 로그인해야 이용할 수 있습니다.
                 </span>
               </p>
               <button
