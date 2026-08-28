@@ -314,6 +314,13 @@ export default function PeriodSection({
     teacherOptions.find((t) => t._id === selectedTeacherId)?.name ??
     (typeof period.teacherId === 'object' && period.teacherId?.name ? period.teacherId.name : '');
 
+  const saveButtonLabel = saving ? '저장 중...' : hasChanges ? '저장' : '저장됨';
+  const saveButtonClassName = saving
+    ? 'px-5 py-2.5 sm:py-2 bg-slate-950 text-white rounded-lg text-sm font-semibold opacity-80 cursor-wait shrink-0 min-w-[96px] inline-flex items-center justify-center gap-1.5 border border-transparent'
+    : hasChanges
+      ? 'px-5 py-2.5 sm:py-2 bg-slate-950 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 shrink-0 min-w-[72px] border border-transparent'
+      : 'px-5 py-2.5 sm:py-2 bg-slate-100 text-slate-400 border border-slate-200 rounded-lg text-sm font-semibold cursor-default shrink-0 min-w-[96px] inline-flex items-center justify-center gap-1.5 disabled:bg-slate-100 disabled:text-slate-400 disabled:border-slate-200 disabled:hover:bg-slate-100';
+
   return (
     <section className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
       <div className="p-3 sm:p-4 border-b border-slate-100 flex flex-wrap items-center gap-2 sm:gap-3">
@@ -338,9 +345,20 @@ export default function PeriodSection({
             type="button"
             onClick={() => requestSave()}
             disabled={saving || !hasChanges}
-            className="px-5 py-2.5 sm:py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50 hover:border-slate-400 disabled:opacity-50 shrink-0 min-w-[72px]"
+            className={saveButtonClassName}
+            aria-label={saveButtonLabel}
           >
-            {saving ? '저장 중...' : '저장'}
+            {saving ? (
+              <svg className="w-4 h-4 animate-spin shrink-0" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : !hasChanges ? (
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : null}
+            {saveButtonLabel}
           </button>
         )}
         {!readOnly && (canDelete ?? true) && (
