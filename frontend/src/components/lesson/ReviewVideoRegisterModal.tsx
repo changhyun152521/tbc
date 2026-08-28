@@ -1,5 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import type { ReviewVideoItem } from '../../types/lesson';
+import { extractYoutubeVideoId } from '../../utils/youtube';
 
 interface ReviewVideoRegisterModalProps {
   open: boolean;
@@ -27,7 +28,13 @@ export default function ReviewVideoRegisterModal({
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    onApply(videos.map((v, i) => ({ ...v, order: i })));
+    onApply(
+      videos.map((v, i) => ({
+        ...v,
+        order: i,
+        videoId: extractYoutubeVideoId(v.url ?? '') ?? v.videoId ?? '',
+      }))
+    );
     onClose();
   };
 

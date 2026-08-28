@@ -3,6 +3,7 @@ import AttendanceHomeworkTable from './AttendanceHomeworkTable';
 import ReviewVideoRegisterModal from './ReviewVideoRegisterModal';
 import type { PeriodItem, StudentRecord, AttendanceHomeworkValue, ReviewVideoItem } from '../../types/lesson';
 import type { ClassStudentItem } from '../../types/class';
+import { extractYoutubeVideoId } from '../../utils/youtube';
 
 interface PeriodSectionProps {
   periodIndex: number;
@@ -93,6 +94,27 @@ function recordStudentId(r: StudentRecord): string {
   return typeof s === 'object' && s?._id ? s._id : String(s);
 }
 
+/** 서버 전용 필드(videoId, durationSec) 제외 — 저장 후 hasChanges 오판 방지 */
+function normalizeReviewVideosForCompare(videos: ReviewVideoItem[]): string {
+  return JSON.stringify(
+    videos
+      .map((v, i) => ({
+        url: (v.url ?? '').trim(),
+        title: (v.title ?? '').trim(),
+        order: v.order ?? i,
+      }))
+      .sort((a, b) => a.order - b.order)
+  );
+}
+
+function withExtractedVideoIds(videos: ReviewVideoItem[]): ReviewVideoItem[] {
+  return videos.map((v, i) => ({
+    ...v,
+    order: v.order ?? i,
+    videoId: extractYoutubeVideoId(v.url ?? '') ?? v.videoId ?? '',
+  }));
+}
+
 /** 현재 records가 서버 기준(initial)과 동일한지 */
 function recordsEqual(current: StudentRecord[], initial: StudentRecord[]): boolean {
   if (current.length !== initial.length) return false;
@@ -163,10 +185,10 @@ export default function PeriodSection({
     : '';
   const hasChanges =
     selectedTeacherId !== teacherId(period) ||
-    memo !== (period.memo ?? '') ||
-    homeworkDescription !== (period.homeworkDescription ?? '') ||
+    memo.trim() !== (period.memo ?? '').trim() ||
+    homeworkDescription.trim() !== (period.homeworkDescription ?? '').trim() ||
     homeworkDueDate !== periodDueStr ||
-    JSON.stringify(reviewVideos) !== JSON.stringify(buildInitialVideos(period)) ||
+    normalizeReviewVideosForCompare(reviewVideos) !== normalizeReviewVideosForCompare(buildInitialVideos(period)) ||
     !recordsEqual(records, merged);
   hasChangesRef.current = hasChanges;
 
@@ -249,7 +271,7 @@ export default function PeriodSection({
       memo: memo.trim() || undefined,
       homeworkDescription: homeworkDescription.trim() || undefined,
       homeworkDueDate: homeworkDueDate.trim() || null,
-      reviewVideos: reviewVideos.map((v, i) => ({ ...v, order: i })),
+      reviewVideos: withExtractedVideoIds(reviewVideos).map((v, i) => ({ ...v, order: i })),
     });
   };
 
@@ -524,7 +546,7 @@ export default function PeriodSection({
           open={reviewModalOpen}
           initialVideos={reviewVideos}
           onClose={() => setReviewModalOpen(false)}
-          onApply={(videos) => setReviewVideos(videos)}
+          onApply={(videos) => setReviewVideos(withExtractedVideoIds(videos))}
         />
       )}
     </section>
