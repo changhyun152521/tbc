@@ -22,13 +22,18 @@ interface PendingVideo {
 
 const DISPLAY_COMPLETE_PERCENT = 80;
 const POPUP_SESSION_KEY = 'tbc_student_popups_shown';
+const POPUP_PREVIEW_SESSION_KEY = 'tbc_student_popups_shown_preview';
 
-function markPopupsShownThisLogin() {
-  sessionStorage.setItem(POPUP_SESSION_KEY, '1');
+function popupSessionKey(isPreviewMode: boolean): string {
+  return isPreviewMode ? POPUP_PREVIEW_SESSION_KEY : POPUP_SESSION_KEY;
 }
 
-function werePopupsShownThisLogin(): boolean {
-  return sessionStorage.getItem(POPUP_SESSION_KEY) === '1';
+function markPopupsShownThisLogin(isPreviewMode: boolean) {
+  sessionStorage.setItem(popupSessionKey(isPreviewMode), '1');
+}
+
+function werePopupsShownThisLogin(isPreviewMode: boolean): boolean {
+  return sessionStorage.getItem(popupSessionKey(isPreviewMode)) === '1';
 }
 
 function todayYmd(): string {
@@ -60,18 +65,18 @@ function sortPendingVideos(list: PendingVideo[]): PendingVideo[] {
 }
 
 export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolean }) {
-  const { role } = useAuth();
+  const { role, isPreviewMode } = useAuth();
   const navigate = useNavigate();
   const apiPrefix = role === 'parent' ? 'parent' : 'student';
 
   const [announcements, setAnnouncements] = useState<ActiveAnnouncement[]>([]);
   const [pending, setPending] = useState<PendingVideo[]>([]);
   const [stage, setStage] = useState<'announcement' | 'pending' | 'done'>(() =>
-    werePopupsShownThisLogin() ? 'done' : 'announcement'
+    werePopupsShownThisLogin(isPreviewMode) ? 'done' : 'announcement'
   );
 
   useEffect(() => {
-    if (werePopupsShownThisLogin()) return;
+    if (werePopupsShownThisLogin(isPreviewMode)) return;
     let cancelled = false;
     apiClient
       .get<{ success: boolean; data: ActiveAnnouncement[] }>(`/${apiPrefix}/announcements/active`)
@@ -87,12 +92,12 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
     return () => {
       cancelled = true;
     };
-  }, [apiPrefix]);
+  }, [apiPrefix, isPreviewMode]);
 
   useEffect(() => {
     if (stage !== 'pending') return;
     if (role !== 'student' || isAdminAccess) {
-      markPopupsShownThisLogin();
+      markPopupsShownThisLogin(isPreviewMode);
       setStage('done');
       return;
     }
@@ -104,27 +109,27 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
         const list = res.data.success && Array.isArray(res.data.data) ? res.data.data : [];
         setPending(sortPendingVideos(list));
         if (list.length === 0) {
-          markPopupsShownThisLogin();
+          markPopupsShownThisLogin(isPreviewMode);
           setStage('done');
         }
       })
       .catch(() => {
         if (!cancelled) {
-          markPopupsShownThisLogin();
+          markPopupsShownThisLogin(isPreviewMode);
           setStage('done');
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [stage, role, isAdminAccess]);
+  }, [stage, role, isAdminAccess, isPreviewMode]);
 
   const current = announcements[0];
   const showMultipleClasses = new Set(pending.map((p) => p.className).filter(Boolean)).size > 1;
 
   const closeAnnouncement = async (mode: 'confirm' | 'today' | 'forever') => {
     if (!current) return;
-    if (mode === 'today' || mode === 'forever') {
+    if (!isPreviewMode && (mode === 'today' || mode === 'forever')) {
       try {
         await apiClient.post(`/${apiPrefix}/announcements/${current._id}/dismiss`, {
           hideUntil: mode === 'forever' ? '9999-12-31' : todayYmd(),
@@ -140,11 +145,12 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
 
   const closePendingModal = () => {
     setPending([]);
-    markPopupsShownThisLogin();
+    markPopupsShownThisLogin(isPreviewMode);
     setStage('done');
   };
 
   const openVideo = (item: PendingVideo) => {
+    if (isPreviewMode) return;
     navigate(`/student/videos/${item.lessonDayId}/${item.periodId}`);
     closePendingModal();
   };
@@ -153,34 +159,49 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
     return (
       <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50">
         <div className="bg-white rounded-2xl shadow-lg max-w-md w-full p-6 max-h-[80vh] overflow-y-auto">
+          {isPreviewMode && (
+            <p className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+              미리보기 — 공지 내용 확인만 가능합니다.
+            </p>
+          )}
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">{current.className}</p>
           <h2 className="text-lg font-bold text-slate-950 mb-3">{current.title}</h2>
           <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed mb-6">{current.body}</p>
-          <div className="flex flex-col gap-2">
+          {isPreviewMode ? (
             <button
               type="button"
-              onClick={() => void closeAnnouncement('forever')}
-              className="w-full py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700"
+              onClick={() => void closeAnnouncement('confirm')}
+              className="w-full py-2.5 bg-slate-950 text-white rounded-lg text-sm font-semibold"
             >
-              앞으로 계속 보지 않기
+              확인
             </button>
-            <div className="flex flex-col sm:flex-row gap-2">
+          ) : (
+            <div className="flex flex-col gap-2">
               <button
                 type="button"
-                onClick={() => void closeAnnouncement('today')}
-                className="flex-1 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700"
+                onClick={() => void closeAnnouncement('forever')}
+                className="w-full py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700"
               >
-                오늘 하루 보지 않기
+                앞으로 계속 보지 않기
               </button>
-              <button
-                type="button"
-                onClick={() => void closeAnnouncement('confirm')}
-                className="flex-1 py-2.5 bg-slate-950 text-white rounded-lg text-sm font-semibold"
-              >
-                확인
-              </button>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  onClick={() => void closeAnnouncement('today')}
+                  className="flex-1 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700"
+                >
+                  오늘 하루 보지 않기
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void closeAnnouncement('confirm')}
+                  className="flex-1 py-2.5 bg-slate-950 text-white rounded-lg text-sm font-semibold"
+                >
+                  확인
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     );
@@ -190,6 +211,11 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
     return (
       <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50">
         <div className="bg-white rounded-2xl shadow-lg max-w-md w-full p-6 max-h-[80vh] flex flex-col">
+          {isPreviewMode && (
+            <p className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+              미리보기 — 목록 확인만 가능합니다.
+            </p>
+          )}
           <h2 className="text-lg font-bold text-slate-950 mb-1">결석 수업 복습 영상</h2>
           <p className="text-sm text-slate-500 mb-4">
             최근 14일 결석 수업 중 아직 다 보지 않은 영상 {pending.length}개
@@ -198,25 +224,30 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
             {pending.map((item) => {
               const done = item.maxPercent >= DISPLAY_COMPLETE_PERCENT;
               const teacherLabel = item.teacherName ? `${item.teacherName}T` : '-';
+              const rowClass =
+                'w-full text-left p-3 rounded-xl border border-slate-100 bg-slate-50 transition-colors';
+              const content = (
+                <>
+                  {showMultipleClasses && item.className && (
+                    <p className="text-[11px] font-bold text-slate-400 mb-1">{item.className}</p>
+                  )}
+                  <p className="text-sm font-semibold text-slate-900">
+                    {formatLessonDate(item.date)} · {item.period}교시 · {teacherLabel}
+                  </p>
+                  <p className={`text-xs mt-1 font-medium ${done ? 'text-emerald-600' : 'text-slate-500'}`}>
+                    {progressLabel(item.maxPercent)}
+                  </p>
+                </>
+              );
               return (
                 <li key={`${item.lessonDayId}-${item.periodId}`}>
-                  <button
-                    type="button"
-                    onClick={() => openVideo(item)}
-                    className="w-full text-left p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:border-slate-200 transition-colors"
-                  >
-                    {showMultipleClasses && item.className && (
-                      <p className="text-[11px] font-bold text-slate-400 mb-1">{item.className}</p>
-                    )}
-                    <p className="text-sm font-semibold text-slate-900">
-                      {formatLessonDate(item.date)} · {item.period}교시 · {teacherLabel}
-                    </p>
-                    <p
-                      className={`text-xs mt-1 font-medium ${done ? 'text-emerald-600' : 'text-slate-500'}`}
-                    >
-                      {progressLabel(item.maxPercent)}
-                    </p>
-                  </button>
+                  {isPreviewMode ? (
+                    <div className={rowClass}>{content}</div>
+                  ) : (
+                    <button type="button" onClick={() => openVideo(item)} className={`${rowClass} hover:bg-slate-100 hover:border-slate-200`}>
+                      {content}
+                    </button>
+                  )}
                 </li>
               );
             })}
@@ -226,7 +257,7 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
             onClick={closePendingModal}
             className="w-full py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700 font-medium"
           >
-            나중에
+            {isPreviewMode ? '확인' : '나중에'}
           </button>
         </div>
       </div>
