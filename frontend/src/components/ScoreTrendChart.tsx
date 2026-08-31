@@ -288,35 +288,22 @@ export default function ScoreTrendChart({ data }: ScoreTrendChartProps) {
     </div>
   ) : null;
 
-  const myScorePath = sortedData
-    .map((d, i) => {
-      const y = getY(d.myScore);
-      if (y === null) return null;
+  const buildLinePath = (getScore: (d: ChartDataItem) => number | null) => {
+    let started = false;
+    const segments: string[] = [];
+    sortedData.forEach((d, i) => {
+      const y = getY(getScore(d));
+      if (y === null) return;
       const x = sidePadding + i * xStep;
-      return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
-    })
-    .filter((p): p is string => p !== null)
-    .join(' ');
+      segments.push(`${started ? 'L' : 'M'} ${x} ${y}`);
+      started = true;
+    });
+    return segments.join(' ');
+  };
 
-  const averagePath = sortedData
-    .map((d, i) => {
-      const y = getY(d.average);
-      if (y === null) return null;
-      const x = sidePadding + i * xStep;
-      return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
-    })
-    .filter((p): p is string => p !== null)
-    .join(' ');
-
-  const maxScorePath = sortedData
-    .map((d, i) => {
-      const y = getY(d.maxScore);
-      if (y === null) return null;
-      const x = sidePadding + i * xStep;
-      return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
-    })
-    .filter((p): p is string => p !== null)
-    .join(' ');
+  const myScorePath = buildLinePath((d) => d.myScore);
+  const averagePath = buildLinePath((d) => d.average);
+  const maxScorePath = buildLinePath((d) => d.maxScore);
 
   return (
     <div className="w-full">
