@@ -22,6 +22,10 @@ export type QuestionVideoListItem = {
   uploaderRole: 'admin' | 'teacher';
   createdAt: string;
   maxPercent: number;
+  watchedSec: number;
+  playTimeSec: number;
+  durationSec: number;
+  lastWatchedAt: string | null;
   canDelete: boolean;
 };
 
@@ -59,6 +63,10 @@ function toListItem(
     uploaderRole?: 'admin' | 'teacher';
     createdAt: Date;
     maxPercent?: number;
+    watchedSec?: number;
+    playTimeSec?: number;
+    durationSec?: number;
+    lastWatchedAt?: Date;
   },
   canDelete: boolean,
   teacherNameFallback?: string
@@ -78,6 +86,10 @@ function toListItem(
     uploaderRole: role,
     createdAt: d.createdAt?.toISOString?.() ?? String(d.createdAt),
     maxPercent: d.maxPercent ?? 0,
+    watchedSec: d.watchedSec ?? 0,
+    playTimeSec: d.playTimeSec ?? 0,
+    durationSec: d.durationSec ?? 0,
+    lastWatchedAt: d.lastWatchedAt ? d.lastWatchedAt.toISOString() : null,
     canDelete,
   };
 }

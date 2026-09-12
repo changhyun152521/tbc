@@ -10,6 +10,11 @@ export interface QuestionVideoItem {
   teacherId: string | null;
   teacherName: string;
   createdAt: string;
+  maxPercent?: number;
+  watchedSec?: number;
+  playTimeSec?: number;
+  durationSec?: number;
+  lastWatchedAt?: string | null;
   canDelete: boolean;
 }
 
@@ -17,10 +22,12 @@ interface QuestionVideoManageModalProps {
   open: boolean;
   studentId: string;
   studentName: string;
-  /** 강사만 등록 가능 */
+  /** 강사/관리자 등록 가능 */
   canCreate: boolean;
   onClose: () => void;
 }
+
+const DISPLAY_COMPLETE_PERCENT = 80;
 
 function formatDate(d: string): string {
   try {
@@ -33,6 +40,23 @@ function formatDate(d: string): string {
   } catch {
     return d.slice(0, 10);
   }
+}
+
+function formatWatchTime(sec: number): string {
+  const s = Math.max(0, Math.floor(sec || 0));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  if (m >= 60) {
+    const h = Math.floor(m / 60);
+    return `${h}시간 ${m % 60}분 ${r}초`;
+  }
+  if (m > 0) return `${m}분 ${r}초`;
+  return `${r}초`;
+}
+
+function progressLabel(maxPercent: number): string {
+  if (maxPercent >= DISPLAY_COMPLETE_PERCENT) return '진행완료';
+  return `진행률 ${Math.round(maxPercent)}%`;
 }
 
 export default function QuestionVideoManageModal({
@@ -204,24 +228,51 @@ export default function QuestionVideoManageModal({
               <p className="text-sm text-slate-400 py-2">등록된 질문 영상이 없습니다.</p>
             ) : (
               <ul className="space-y-2">
-                {items.map((item) => (
+                {items.map((item) => {
+                  const pct = item.maxPercent ?? 0;
+                  const done = pct >= DISPLAY_COMPLETE_PERCENT;
+                  const watched = item.watchedSec ?? 0;
+                  const playTime = item.playTimeSec ?? 0;
+                  const duration = item.durationSec ?? 0;
+                  return (
                   <li
                     key={item._id}
                     className="flex items-start gap-2 p-3 rounded-xl border border-slate-100 bg-white"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 truncate">
-                        {item.title || '질문 영상'}
-                      </p>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-semibold text-slate-900 truncate">
+                          {item.title || '질문 영상'}
+                        </p>
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded-md font-bold shrink-0 ${
+                            done ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600'
+                          }`}
+                        >
+                          {progressLabel(pct)}
+                        </span>
+                      </div>
                       <p className="text-[11px] text-slate-400 mt-0.5">
                         {item.teacherName ? `${item.teacherName} 선생님 · ` : ''}
                         {formatDate(item.createdAt)}
                       </p>
+                      <p className="text-[12px] text-slate-600 mt-1.5">
+                        시청시간 {formatWatchTime(watched)}
+                        {duration > 0 ? ` / ${formatWatchTime(duration)}` : ''}
+                        {playTime > 0 && playTime !== watched
+                          ? ` · 재생누적 ${formatWatchTime(playTime)}`
+                          : ''}
+                      </p>
+                      {item.lastWatchedAt && (
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          최근 시청 {formatDate(item.lastWatchedAt)}
+                        </p>
+                      )}
                       <a
                         href={item.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[12px] text-sky-700 hover:underline break-all"
+                        className="text-[12px] text-sky-700 hover:underline break-all mt-1 inline-block"
                       >
                         {item.url}
                       </a>
@@ -237,7 +288,8 @@ export default function QuestionVideoManageModal({
                       </button>
                     )}
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             )}
           </div>
