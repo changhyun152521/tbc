@@ -178,10 +178,8 @@ export default function QuestionVideoManageModal({
         <div className="shrink-0 p-6 pb-4 border-b border-slate-100">
           <h2 className="text-xl font-bold text-slate-950">질문 영상</h2>
           <p className="text-sm text-slate-500 mt-1">
-            <span className="font-semibold text-slate-700">{studentName}</span> 학생 전용
-            {canCreate
-              ? ' · 강사는 본인 등록분만, 관리자는 전체 영상을 관리합니다'
-              : ''}
+            <span className="font-semibold text-slate-700">{studentName}</span> 학생 전용 · 본인이 등록한
+            영상만 표시됩니다 (다른 강사 영상은 보이지 않음)
           </p>
         </div>
 
