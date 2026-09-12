@@ -17,6 +17,9 @@ interface StudentTableProps {
   showPreviewButtons?: boolean;
   previewLoadingKey?: string | null;
   onPreview?: (studentId: string, view: 'student' | 'parent') => void;
+  /** 질문 영상 관리 (학생별) */
+  showQuestionVideos?: boolean;
+  onQuestionVideos?: (studentId: string, studentName: string) => void;
 }
 
 export default function StudentTable({
@@ -33,6 +36,8 @@ export default function StudentTable({
   showPreviewButtons = false,
   previewLoadingKey = null,
   onPreview,
+  showQuestionVideos = false,
+  onQuestionVideos,
 }: StudentTableProps) {
   const allSelected = list.length > 0 && list.every((s) => selectedIds.has(s._id));
   const someSelected = list.some((s) => selectedIds.has(s._id));
@@ -46,7 +51,8 @@ export default function StudentTable({
 
   const accessColumnCount = (showStudentLastAccess ? 1 : 0) + (showParentLastAccess ? 1 : 0);
   const previewColumnCount = showPreviewButtons ? 1 : 0;
-  const colSpan = 8 + accessColumnCount + previewColumnCount;
+  const questionVideoColumnCount = showQuestionVideos ? 1 : 0;
+  const colSpan = 8 + accessColumnCount + previewColumnCount + questionVideoColumnCount;
 
   const handleReset = async (row: StudentListItem, target: 'student' | 'parent' | 'both') => {
     const label =
@@ -102,6 +108,9 @@ export default function StudentTable({
             {showParentLastAccess && <th className="p-3 min-w-[96px] whitespace-nowrap">학부모 접속</th>}
             {showPreviewButtons && (
               <th className="p-3 min-w-[140px] text-center whitespace-nowrap">미리보기</th>
+            )}
+            {showQuestionVideos && (
+              <th className="p-3 min-w-[88px] text-center whitespace-nowrap">질문 영상</th>
             )}
             <th className="p-3 min-w-[120px] text-center whitespace-nowrap">관리</th>
           </tr>
@@ -169,6 +178,21 @@ export default function StudentTable({
                           {previewLoadingKey === `${row._id}-parent` ? '이동중…' : '학부모 화면'}
                         </button>
                       </div>
+                    ) : (
+                      <span className="text-slate-400">-</span>
+                    )}
+                  </td>
+                )}
+                {showQuestionVideos && (
+                  <td className="p-3 text-center whitespace-nowrap shrink-0">
+                    {onQuestionVideos ? (
+                      <button
+                        type="button"
+                        onClick={() => onQuestionVideos(row._id, row.name)}
+                        className="text-[13px] text-indigo-600 hover:text-indigo-800 font-medium"
+                      >
+                        관리
+                      </button>
                     ) : (
                       <span className="text-slate-400">-</span>
                     )}

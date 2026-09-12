@@ -10,6 +10,7 @@ import StudentDeleteConfirmModal from '../components/student/StudentDeleteConfir
 import ExcelDropdown from '../components/student/ExcelDropdown';
 import ExcelBulkUploadModal from '../components/student/ExcelBulkUploadModal';
 import Pagination from '../components/ui/Pagination';
+import QuestionVideoManageModal from '../components/student/QuestionVideoManageModal';
 
 const PAGE_SIZE = 20;
 
@@ -53,6 +54,10 @@ export default function StudentManagement() {
 
   const [excelBulkOpen, setExcelBulkOpen] = useState(false);
   const [previewLoadingKey, setPreviewLoadingKey] = useState<string | null>(null);
+  const [questionVideoTarget, setQuestionVideoTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
@@ -306,6 +311,8 @@ export default function StudentManagement() {
               showPreviewButtons={showPreviewButtons}
               previewLoadingKey={previewLoadingKey}
               onPreview={(id, view) => void handlePreview(id, view)}
+              showQuestionVideos
+              onQuestionVideos={(id, name) => setQuestionVideoTarget({ id, name })}
             />
           )}
         </div>
@@ -337,6 +344,14 @@ export default function StudentManagement() {
         onClose={() => setExcelBulkOpen(false)}
         onComplete={fetchList}
         onRegister={handleBulkRegister}
+      />
+
+      <QuestionVideoManageModal
+        open={questionVideoTarget != null}
+        studentId={questionVideoTarget?.id ?? ''}
+        studentName={questionVideoTarget?.name ?? ''}
+        canCreate
+        onClose={() => setQuestionVideoTarget(null)}
       />
     </div>
   );

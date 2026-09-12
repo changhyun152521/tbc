@@ -8,3 +8,7 @@ export { Announcement, type IAnnouncement } from './Announcement.model';
 export { AnnouncementDismissal, type IAnnouncementDismissal } from './AnnouncementDismissal.model';
 export { Notification, type INotification, type NotificationType } from './Notification.model';
 export { VideoWatchProgress, type IVideoWatchProgress } from './VideoWatchProgress.model';
+export {
+  PersonalQuestionVideo,
+  type IPersonalQuestionVideo,
+} from './PersonalQuestionVideo.model';

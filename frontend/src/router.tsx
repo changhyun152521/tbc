@@ -21,6 +21,7 @@ import StudentProfile from './pages/StudentProfile';
 import AdminProfile from './pages/AdminProfile';
 import TeacherAnnouncements from './pages/TeacherAnnouncements';
 import ReviewVideo from './pages/ReviewVideo';
+import QuestionVideo from './pages/QuestionVideo';
 
 export const router = createBrowserRouter([
   {
@@ -65,6 +66,7 @@ export const router = createBrowserRouter([
       { path: 'statistics', element: <MonthlyStatistics /> },
       { path: 'profile', element: <StudentProfile /> },
       { path: 'videos/:lessonDayId/:periodId', element: <ReviewVideo /> },
+      { path: 'question-videos/:id', element: <QuestionVideo /> },
     ],
   },
   { path: '/', element: <Navigate to="/login" replace /> },

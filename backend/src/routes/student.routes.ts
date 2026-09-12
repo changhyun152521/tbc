@@ -4,6 +4,7 @@ import { authenticate, requireRoles } from '../middlewares/auth.middleware';
 import * as studentController from '../controllers/student.controller';
 import * as announcementController from '../controllers/admin/announcement.controller';
 import * as reviewVideoController from '../controllers/student/reviewVideo.controller';
+import * as questionVideoController from '../controllers/student/questionVideo.controller';
 
 const router = Router();
 
@@ -33,6 +34,15 @@ router.get(
     param('periodId').isMongoId().withMessage('올바른 교시 ID가 아닙니다.'),
   ],
   reviewVideoController.getReviewVideo
+);
+
+router.get('/question-videos', questionVideoController.listQuestionVideos);
+router.get('/question-videos/pending', questionVideoController.listPendingQuestionVideos);
+router.put('/question-videos/progress', questionVideoController.putProgress);
+router.get(
+  '/question-videos/:id',
+  [param('id').isMongoId().withMessage('올바른 ID가 아닙니다.')],
+  questionVideoController.getQuestionVideo
 );
 
 // 진도/과제 현황 (쿼리: from, to 선택)

@@ -20,8 +20,18 @@ interface PendingVideo {
   maxPercent: number;
 }
 
+interface PendingQuestionVideo {
+  _id: string;
+  title: string;
+  teacherName: string;
+  createdAt: string;
+  maxPercent: number;
+}
+
 const DISPLAY_COMPLETE_PERCENT = 80;
 const POPUP_SESSION_KEY = 'tbc_student_popups_shown';
+
+type PopupStage = 'announcement' | 'question' | 'pending' | 'done';
 
 function markPopupsShownThisLogin() {
   sessionStorage.setItem(POPUP_SESSION_KEY, '1');
@@ -47,6 +57,18 @@ function formatLessonDate(d: string): string {
   }
 }
 
+function formatCreatedDate(d: string): string {
+  try {
+    const date = new Date(d);
+    const m = date.getMonth() + 1;
+    const day = date.getDate();
+    const wd = date.toLocaleDateString('ko-KR', { weekday: 'short' });
+    return `${m}. ${day} (${wd})`;
+  } catch {
+    return d.slice(0, 10);
+  }
+}
+
 function progressLabel(maxPercent: number): string {
   if (maxPercent >= DISPLAY_COMPLETE_PERCENT) return '진행완료';
   return `진행률 ${Math.round(maxPercent)}%`;
@@ -65,8 +87,9 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
   const apiPrefix = role === 'parent' ? 'parent' : 'student';
 
   const [announcements, setAnnouncements] = useState<ActiveAnnouncement[]>([]);
+  const [questionVideos, setQuestionVideos] = useState<PendingQuestionVideo[]>([]);
   const [pending, setPending] = useState<PendingVideo[]>([]);
-  const [stage, setStage] = useState<'announcement' | 'pending' | 'done'>(() =>
+  const [stage, setStage] = useState<PopupStage>(() =>
     werePopupsShownThisLogin() ? 'done' : 'announcement'
   );
 
@@ -79,6 +102,29 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
         if (cancelled) return;
         const list = res.data.success && Array.isArray(res.data.data) ? res.data.data : [];
         setAnnouncements(list);
+        if (list.length === 0) setStage('question');
+      })
+      .catch(() => {
+        if (!cancelled) setStage('question');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [apiPrefix]);
+
+  useEffect(() => {
+    if (stage !== 'question') return;
+    if (role !== 'student' || isAdminAccess) {
+      setStage('pending');
+      return;
+    }
+    let cancelled = false;
+    apiClient
+      .get<{ success: boolean; data: PendingQuestionVideo[] }>('/student/question-videos/pending')
+      .then((res) => {
+        if (cancelled) return;
+        const list = res.data.success && Array.isArray(res.data.data) ? res.data.data : [];
+        setQuestionVideos(list);
         if (list.length === 0) setStage('pending');
       })
       .catch(() => {
@@ -87,7 +133,7 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
     return () => {
       cancelled = true;
     };
-  }, [apiPrefix]);
+  }, [stage, role, isAdminAccess]);
 
   useEffect(() => {
     if (stage !== 'pending') return;
@@ -135,7 +181,19 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
     }
     const rest = announcements.slice(1);
     setAnnouncements(rest);
-    if (rest.length === 0) setStage('pending');
+    if (rest.length === 0) setStage('question');
+  };
+
+  const closeQuestionModal = () => {
+    setQuestionVideos([]);
+    setStage('pending');
+  };
+
+  const openQuestionVideo = (item: PendingQuestionVideo) => {
+    if (isPreviewMode) return;
+    navigate(`/student/question-videos/${item._id}`);
+    closeQuestionModal();
+    markPopupsShownThisLogin();
   };
 
   const closePendingModal = () => {
@@ -202,6 +260,67 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
     );
   }
 
+  if (stage === 'question' && questionVideos.length > 0) {
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50">
+        <div className="bg-white rounded-2xl shadow-lg max-w-md w-full p-6 max-h-[80vh] flex flex-col">
+          {isPreviewMode && (
+            <p className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+              미리보기 — 목록 확인만 가능합니다.
+            </p>
+          )}
+          <h2 className="text-lg font-bold text-slate-950 mb-1">질문 영상</h2>
+          <p className="text-sm text-slate-500 mb-4">
+            아직 다 보지 않은 질문 영상 {questionVideos.length}개
+          </p>
+          <ul className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1 space-y-2 mb-4">
+            {questionVideos.map((item) => {
+              const done = item.maxPercent >= DISPLAY_COMPLETE_PERCENT;
+              const rowClass =
+                'w-full text-left p-3 rounded-xl border border-slate-100 bg-slate-50 transition-colors';
+              const content = (
+                <>
+                  <p className="text-sm font-semibold text-slate-900 truncate">
+                    {item.title || '질문 영상'}
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    {item.teacherName ? `${item.teacherName} 선생님 · ` : ''}
+                    {formatCreatedDate(item.createdAt)}
+                  </p>
+                  <p className={`text-xs mt-1 font-medium ${done ? 'text-emerald-600' : 'text-slate-500'}`}>
+                    {progressLabel(item.maxPercent)}
+                  </p>
+                </>
+              );
+              return (
+                <li key={item._id}>
+                  {isPreviewMode ? (
+                    <div className={rowClass}>{content}</div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => openQuestionVideo(item)}
+                      className={`${rowClass} hover:bg-slate-100 hover:border-slate-200`}
+                    >
+                      {content}
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          <button
+            type="button"
+            onClick={closeQuestionModal}
+            className="w-full py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700 font-medium"
+          >
+            {isPreviewMode ? '확인' : '나중에'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (stage === 'pending' && pending.length > 0) {
     return (
       <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50">
@@ -239,7 +358,11 @@ export default function StudentPopups({ isAdminAccess }: { isAdminAccess: boolea
                   {isPreviewMode ? (
                     <div className={rowClass}>{content}</div>
                   ) : (
-                    <button type="button" onClick={() => openVideo(item)} className={`${rowClass} hover:bg-slate-100 hover:border-slate-200`}>
+                    <button
+                      type="button"
+                      onClick={() => openVideo(item)}
+                      className={`${rowClass} hover:bg-slate-100 hover:border-slate-200`}
+                    >
                       {content}
                     </button>
                   )}

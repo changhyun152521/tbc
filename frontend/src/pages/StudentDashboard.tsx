@@ -5,6 +5,7 @@ import { apiClient } from '../api/client';
 import CommentReplySection from '../components/student/CommentReplySection';
 import ReplyLikeTip from '../components/student/ReplyLikeTip';
 import RecentAbsenceReviewSection from '../components/student/RecentAbsenceReviewSection';
+import QuestionVideoSection from '../components/student/QuestionVideoSection';
 import { useAuth } from '../contexts/AuthContext';
 import { useStudentClass } from '../contexts/StudentClassContext';
 
@@ -243,6 +244,11 @@ export default function StudentDashboard() {
             )}
           </div>
         </div>
+
+        <QuestionVideoSection
+          enabled={showAbsenceReview}
+          blockVideoPlay={blockReviewVideoPlay}
+        />
 
         <RecentAbsenceReviewSection
           enabled={showAbsenceReview}

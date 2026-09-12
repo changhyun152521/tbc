@@ -9,6 +9,7 @@ import * as announcementController from '../controllers/admin/announcement.contr
 import * as teacherAnnouncementController from '../controllers/admin/teacherAnnouncement.controller';
 import * as reviewVideoController from '../controllers/student/reviewVideo.controller';
 import * as teacherDashboardController from '../controllers/admin/teacherDashboard.controller';
+import * as questionVideoController from '../controllers/admin/questionVideo.controller';
 
 const router = Router();
 
@@ -58,6 +59,30 @@ router.post(
     body('target').isIn(['student', 'parent', 'both']).withMessage('target은 student, parent, both 중 하나여야 합니다.'),
   ],
   studentController.resetCredentials
+);
+
+// 학생별 질문 영상 (강사는 본인 등록분만 조회·삭제, 등록은 강사만)
+router.get(
+  '/students/:id/question-videos',
+  [param('id').isMongoId().withMessage('올바른 ID가 아닙니다.')],
+  questionVideoController.listQuestionVideos
+);
+router.post(
+  '/students/:id/question-videos',
+  [
+    param('id').isMongoId().withMessage('올바른 ID가 아닙니다.'),
+    body('url').trim().notEmpty().withMessage('유튜브 URL은 필수입니다.'),
+    body('title').optional().isString(),
+  ],
+  questionVideoController.createQuestionVideo
+);
+router.delete(
+  '/students/:id/question-videos/:videoId',
+  [
+    param('id').isMongoId().withMessage('올바른 ID가 아닙니다.'),
+    param('videoId').isMongoId().withMessage('올바른 영상 ID가 아닙니다.'),
+  ],
+  questionVideoController.deleteQuestionVideo
 );
 
 // Teachers
